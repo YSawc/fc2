@@ -7,13 +7,18 @@ use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
-mod ppu {
+mod nes {
     use crate::emurator::NES_FILE;
     use std::fs::File;
     use std::io::Read;
 
     #[derive(Clone)]
-    pub struct PPU {
+    pub struct NES {
+        pub header: Header,
+    }
+
+    #[derive(Clone)]
+    pub struct Header {
         // nes_header_size: u32,
         // chr_rom_size: u32,
         // prm_rom_size: u32,
@@ -23,12 +28,8 @@ mod ppu {
         pub charactor_rom_start: u32,
     }
 
-    impl PPU {
-        pub fn new() -> Self {
-            let mut f = File::open(NES_FILE).unwrap();
-            let mut buffer = Vec::new();
-
-            f.read_to_end(&mut buffer).unwrap();
+    impl Header {
+        pub fn new(buffer: Vec<u8>) -> Self {
             use std::str;
             if str::from_utf8(&buffer[0..3]) != Ok("NES") {
                 panic!("File format is not nes!");
@@ -62,16 +63,27 @@ mod ppu {
                 charactor_rom_start,
             }
         }
+    }
+
+    impl NES {
+        pub fn new() -> Self {
+            let mut f = File::open(NES_FILE).unwrap();
+            let mut buffer = Vec::new();
+            f.read_to_end(&mut buffer).unwrap();
+            let header = Header::new(buffer);
+            Self { header }
+        }
 
         pub fn read_sprites(self) -> Vec<Vec<Vec<u32>>> {
             let mut f = File::open(NES_FILE).unwrap();
             let mut buffer = Vec::new();
             let mut sprites = Vec::new();
             f.read_to_end(&mut buffer).unwrap();
-            for n in 0..self.sprites_num {
+            for n in 0..self.header.sprites_num {
                 let mut sprite = vec![vec![0; 8]; 8];
                 for i in 0..16 {
-                    let val_str = buffer[((self.charactor_rom_start as u32) + n * 16 + i) as usize];
+                    let val_str =
+                        buffer[((self.header.charactor_rom_start as u32) + n * 16 + i) as usize];
                     sprite[(i % 8) as usize] = sprite[(i % 8) as usize]
                         .clone()
                         .into_iter()
@@ -114,8 +126,8 @@ pub mod monochrome_sheme {
 }
 
 pub fn main() -> Result<(), String> {
-    let ppu = ppu::PPU::new();
-    let sprites = ppu.to_owned().read_sprites();
+    let nes = nes::NES::new();
+    let sprites = nes.to_owned().read_sprites();
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -165,7 +177,7 @@ pub fn main() -> Result<(), String> {
         canvas.set_draw_color(Color::RGB(150, 150, 150));
         canvas.clear();
 
-        for n in 0..ppu.sprites_num {
+        for n in 0..nes.header.sprites_num {
             for i in 0..8 {
                 for j in 0..8 {
                     let square_texture = match sprites[n as usize][i as usize][j as usize] {
