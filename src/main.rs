@@ -7,28 +7,57 @@ use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
+
+mod util {
+    pub fn char_to_bool(c: char) -> bool {
+        match c {
+            '0' => false,
+            '1' => true,
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn chars_to_u32(v: Vec<char>) -> u32 {
+        let mut r = 0;
+        for n in v {
+            r += n.to_digit(10).unwrap();
+        }
+        r
+    }
+}
+
 mod nes {
-    use crate::emurator::NES_FILE;
+    use crate::{emurator::NES_FILE, util};
     use std::fs::File;
     use std::io::Read;
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub struct NES {
         pub header: Header,
     }
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub struct Header {
-        // nes_header_size: u32,
-        // chr_rom_size: u32,
-        // prm_rom_size: u32,
-        // charactor_rom_size: u32,
-        // default_canvas_width: u32,
+        pub info: Info,
+        pub flags6: Flags6,
+        pub flags7: Flags7,
+        pub flags8: Flags8,
+        pub flags9: Flags9,
+        pub flags10: Flags10,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Info {
+        pub nes_header_size: u32,
+        pub chr_rom_size: u32,
+        pub prm_rom_size: u32,
+        pub charactor_rom_size: u32,
+        pub default_canvas_width: u32,
         pub sprites_num: u32,
         pub charactor_rom_start: u32,
     }
 
-    impl Header {
+    impl Info {
         pub fn new(buffer: Vec<u8>) -> Self {
             use std::str;
             if str::from_utf8(&buffer[0..3]) != Ok("NES") {
@@ -37,8 +66,6 @@ mod nes {
                 println!("NES file read!");
             }
 
-            println!("PRG ROM size: {:?}", buffer[4]);
-            println!("CHR ROM size: {:?}", buffer[5]);
             let prm_rom_size = buffer[4] as u32;
             let chr_rom_size = buffer[5] as u32;
 
@@ -49,18 +76,151 @@ mod nes {
             let nes_header_size = 0x0010;
             let program_rom_size = 0x4000;
             let charactor_rom_size = 0x2000;
-            // let default_canvas_width = 800;
+            let default_canvas_width = 800;
             let sprites_num = charactor_rom_size * chr_rom_size / 16;
             let charactor_rom_start = nes_header_size + prm_rom_size * program_rom_size;
 
             Self {
-                // nes_header_size,
-                // chr_rom_size,
-                // prm_rom_size,
-                // charactor_rom_size,
-                // default_canvas_width,
+                nes_header_size,
+                chr_rom_size,
+                prm_rom_size,
+                charactor_rom_size,
+                default_canvas_width,
                 sprites_num,
                 charactor_rom_start,
+            }
+        }
+    }
+
+    impl Header {
+        pub fn new(buffer: Vec<u8>) -> Self {
+            let info = Info::new(buffer.clone());
+            let flags6 = Flags6::parse_buf(buffer[6]);
+            let flags7 = Flags7::parse_buf(buffer[7]);
+            let flags8 = Flags8::parse_buf(buffer[8]);
+            let flags9 = Flags9::parse_buf(buffer[9]);
+            let flags10 = Flags10::parse_buf(buffer[10]);
+
+            Self {
+                info,
+                flags6,
+                flags7,
+                flags8,
+                flags9,
+                flags10,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Flags6 {
+        pub mirroring: bool,
+        pub ram_or_memory: bool,
+        pub trainer: bool,
+        pub ignore_mirroring: bool,
+        pub mapper: u32,
+    }
+
+    impl Flags6 {
+        pub fn parse_buf(num: u8) -> Self {
+            let s = format!("{:08b}", num);
+            let v: Vec<char> = s.chars().collect();
+            let mirroring = util::char_to_bool(v[0]);
+            let ram_or_memory = util::char_to_bool(v[1]);
+            let trainer = util::char_to_bool(v[2]);
+            let ignore_mirroring = util::char_to_bool(v[3]);
+            let mapper = util::chars_to_u32(v[4..=7].to_vec());
+
+            Self {
+                mirroring,
+                ram_or_memory,
+                trainer,
+                ignore_mirroring,
+                mapper,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Flags7 {
+        pub vs_unisystem: bool,
+        pub play_choice_10: bool,
+        pub nes_20_format: u32,
+        pub mapper: u32,
+    }
+
+    impl Flags7 {
+        pub fn parse_buf(num: u8) -> Self {
+            let s = format!("{:08b}", num);
+            let v: Vec<char> = s.chars().collect();
+            let vs_unisystem = util::char_to_bool(v[0]);
+            let play_choice_10 = util::char_to_bool(v[1]);
+            let nes_20_format = util::chars_to_u32(v[2..=3].to_vec());
+            let mapper = util::chars_to_u32(v[4..=7].to_vec());
+
+            Self {
+                vs_unisystem,
+                play_choice_10,
+                nes_20_format,
+                mapper,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Flags8 {
+        pub prg_ram_size: u32,
+    }
+
+    impl Flags8 {
+        pub fn parse_buf(num: u8) -> Self {
+            let s = format!("{:08b}", num);
+            let v: Vec<char> = s.chars().collect();
+            let prg_ram_size = util::chars_to_u32(v[0..=7].to_vec());
+
+            Self { prg_ram_size }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Flags9 {
+        pub tv_system: bool,
+        pub reserved: u32,
+    }
+
+    impl Flags9 {
+        pub fn parse_buf(num: u8) -> Self {
+            let s = format!("{:08b}", num);
+            let v: Vec<char> = s.chars().collect();
+            let tv_system = util::char_to_bool(v[0]);
+            let reserved = util::chars_to_u32(v[1..=7].to_vec());
+
+            Self {
+                tv_system,
+                reserved,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Flags10 {
+        pub tv_system: u32,
+        pub prg_ram: bool,
+        pub board_mode: bool,
+    }
+
+    impl Flags10 {
+        pub fn parse_buf(num: u8) -> Self {
+            let s = format!("{:08b}", num);
+            let v: Vec<char> = s.chars().collect();
+            let tv_system = util::chars_to_u32(v[0..=1].to_vec());
+            let prg_ram = util::char_to_bool(v[4]);
+            let board_mode = util::char_to_bool(v[5]);
+
+            Self {
+                tv_system,
+                prg_ram,
+                board_mode,
             }
         }
     }
@@ -70,7 +230,7 @@ mod nes {
             let mut f = File::open(NES_FILE).unwrap();
             let mut buffer = Vec::new();
             f.read_to_end(&mut buffer).unwrap();
-            let header = Header::new(buffer);
+            let header = Header::new(buffer.clone());
             Self { header }
         }
 
@@ -79,11 +239,11 @@ mod nes {
             let mut buffer = Vec::new();
             let mut sprites = Vec::new();
             f.read_to_end(&mut buffer).unwrap();
-            for n in 0..self.header.sprites_num {
+            for n in 0..self.header.info.sprites_num {
                 let mut sprite = vec![vec![0; 8]; 8];
                 for i in 0..16 {
-                    let val_str =
-                        buffer[((self.header.charactor_rom_start as u32) + n * 16 + i) as usize];
+                    let val_str = buffer
+                        [((self.header.info.charactor_rom_start as u32) + n * 16 + i) as usize];
                     sprite[(i % 8) as usize] = sprite[(i % 8) as usize]
                         .clone()
                         .into_iter()
@@ -105,6 +265,68 @@ mod nes {
     }
 }
 
+mod cpu {
+    #[derive(Debug, Clone)]
+    pub struct CPU {
+        pub register: Register,
+    }
+
+    impl CPU {
+        pub fn new() -> Self {
+            let register = Register::new();
+            Self { register }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Register {
+        pub a: u32,
+        pub x: u32,
+        pub y: u32,
+        pub s: u32,
+        pub p: P,
+        pub pc: u32,
+    }
+
+    impl Register {
+        pub fn new() -> Self {
+            Self {
+                a: 0,
+                x: 0,
+                y: 0,
+                s: 0,
+                p: P::new(),
+                pc: 0,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct P {
+        pub carry: bool,
+        pub zero: bool,
+        pub permit_irq: bool,
+        pub decimal_mode: bool,
+        pub break_mode: bool,
+        pub overflow: bool,
+        pub negative: bool,
+    }
+
+    impl P {
+        pub fn new() -> Self {
+            Self {
+                carry: false,
+                zero: false,
+                permit_irq: false,
+                decimal_mode: false,
+                break_mode: false,
+                overflow: false,
+                negative: false,
+            }
+        }
+    }
+}
+
 mod emurator {
     pub const SQUARE_SIZE: u32 = 8;
     pub const PLAYGROUND_WIDTH: u32 = 240;
@@ -112,21 +334,11 @@ mod emurator {
     pub const NES_FILE: &str = "hello-world.nes";
 }
 
-pub mod monochrome_sheme {
-    use sdl2::pixels::Color;
-    pub fn turn_color(n: u32) -> Color {
-        match n {
-            3 => Color::RGB(255, 255, 255),
-            2 => Color::RGB(170, 170, 170),
-            1 => Color::RGB(85, 85, 85),
-            0 => Color::RGB(0, 0, 0),
-            _ => unimplemented!(),
-        }
-    }
-}
-
 pub fn main() -> Result<(), String> {
     let nes = nes::NES::new();
+    println!("{:#?}", nes);
+    let cpu = cpu::CPU::new();
+    println!("{:#?}", cpu);
     let sprites = nes.to_owned().read_sprites();
 
     let sdl_context = sdl2::init()?;
@@ -149,7 +361,7 @@ pub fn main() -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    println!("Using SDL_Renderer \"{}\"", canvas.info().name);
+    println!("\nUsing SDL_Renderer \"{}\"", canvas.info().name);
     canvas.set_draw_color(Color::RGB(255, 0, 0));
     canvas.clear();
     canvas.present();
@@ -177,7 +389,7 @@ pub fn main() -> Result<(), String> {
         canvas.set_draw_color(Color::RGB(150, 150, 150));
         canvas.clear();
 
-        for n in 0..nes.header.sprites_num {
+        for n in 0..nes.header.info.sprites_num {
             for i in 0..8 {
                 for j in 0..8 {
                     let square_texture = match sprites[n as usize][i as usize][j as usize] {
