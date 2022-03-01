@@ -9,7 +9,7 @@ use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
 mod util {
-    pub fn char_to_bool(c: char) -> bool {
+    pub fn char_to_bool(c: &char) -> bool {
         match c {
             '0' => false,
             '1' => true,
@@ -17,7 +17,7 @@ mod util {
         }
     }
 
-    pub fn chars_to_u32(v: Vec<char>) -> u32 {
+    pub fn chars_to_u32(v: &Vec<char>) -> u32 {
         let mut r = 0;
         for n in v {
             r += n.to_digit(10).unwrap();
@@ -49,16 +49,16 @@ mod nes {
     #[derive(Debug, Clone)]
     pub struct Info {
         pub nes_header_size: u32,
-        pub chr_rom_size: u32,
-        pub prm_rom_size: u32,
-        pub charactor_rom_size: u32,
+        pub chr_rom_per_size: u32,
+        pub prg_rom_per_size: u32,
         pub default_canvas_width: u32,
         pub sprites_num: u32,
-        pub charactor_rom_start: u32,
+        pub chr_rom_start: u32,
+        pub chr_rom: Vec<u8>,
     }
 
     impl Info {
-        pub fn new(buffer: Vec<u8>) -> Self {
+        pub fn new(buffer: &Vec<u8>) -> Self {
             use std::str;
             if str::from_utf8(&buffer[0..3]) != Ok("NES") {
                 panic!("File format is not nes!");
@@ -74,32 +74,34 @@ mod nes {
             }
 
             let nes_header_size = 0x0010;
-            let program_rom_size = 0x4000;
-            let charactor_rom_size = 0x2000;
+            let prg_rom_per_size = 0x4000;
+            let chr_rom_per_size = 0x2000;
+            let chr_rom_start = nes_header_size + prm_rom_size * prg_rom_per_size;
+            let chr_rom_end = chr_rom_start + chr_rom_size * chr_rom_per_size;
             let default_canvas_width = 800;
-            let sprites_num = charactor_rom_size * chr_rom_size / 16;
-            let charactor_rom_start = nes_header_size + prm_rom_size * program_rom_size;
+            let sprites_num = chr_rom_per_size * chr_rom_size / 16;
+            let chr_rom = buffer[(chr_rom_start as usize)..(chr_rom_end as usize)].to_vec();
 
             Self {
                 nes_header_size,
-                chr_rom_size,
-                prm_rom_size,
-                charactor_rom_size,
+                chr_rom_per_size,
+                prg_rom_per_size,
                 default_canvas_width,
                 sprites_num,
-                charactor_rom_start,
+                chr_rom_start,
+                chr_rom,
             }
         }
     }
 
     impl Header {
-        pub fn new(buffer: Vec<u8>) -> Self {
-            let info = Info::new(buffer.clone());
-            let flags6 = Flags6::parse_buf(buffer[6]);
-            let flags7 = Flags7::parse_buf(buffer[7]);
-            let flags8 = Flags8::parse_buf(buffer[8]);
-            let flags9 = Flags9::parse_buf(buffer[9]);
-            let flags10 = Flags10::parse_buf(buffer[10]);
+        pub fn new(buffer: &Vec<u8>) -> Self {
+            let info = Info::new(&buffer);
+            let flags6 = Flags6::parse_buf(&buffer[6]);
+            let flags7 = Flags7::parse_buf(&buffer[7]);
+            let flags8 = Flags8::parse_buf(&buffer[8]);
+            let flags9 = Flags9::parse_buf(&buffer[9]);
+            let flags10 = Flags10::parse_buf(&buffer[10]);
 
             Self {
                 info,
@@ -122,14 +124,14 @@ mod nes {
     }
 
     impl Flags6 {
-        pub fn parse_buf(num: u8) -> Self {
+        pub fn parse_buf(num: &u8) -> Self {
             let s = format!("{:08b}", num);
             let v: Vec<char> = s.chars().collect();
-            let mirroring = util::char_to_bool(v[0]);
-            let ram_or_memory = util::char_to_bool(v[1]);
-            let trainer = util::char_to_bool(v[2]);
-            let ignore_mirroring = util::char_to_bool(v[3]);
-            let mapper = util::chars_to_u32(v[4..=7].to_vec());
+            let mirroring = util::char_to_bool(&v[0]);
+            let ram_or_memory = util::char_to_bool(&v[1]);
+            let trainer = util::char_to_bool(&v[2]);
+            let ignore_mirroring = util::char_to_bool(&v[3]);
+            let mapper = util::chars_to_u32(&v[4..=7].to_vec());
 
             Self {
                 mirroring,
@@ -150,13 +152,13 @@ mod nes {
     }
 
     impl Flags7 {
-        pub fn parse_buf(num: u8) -> Self {
+        pub fn parse_buf(num: &u8) -> Self {
             let s = format!("{:08b}", num);
             let v: Vec<char> = s.chars().collect();
-            let vs_unisystem = util::char_to_bool(v[0]);
-            let play_choice_10 = util::char_to_bool(v[1]);
-            let nes_20_format = util::chars_to_u32(v[2..=3].to_vec());
-            let mapper = util::chars_to_u32(v[4..=7].to_vec());
+            let vs_unisystem = util::char_to_bool(&v[0]);
+            let play_choice_10 = util::char_to_bool(&v[1]);
+            let nes_20_format = util::chars_to_u32(&v[2..=3].to_vec());
+            let mapper = util::chars_to_u32(&v[4..=7].to_vec());
 
             Self {
                 vs_unisystem,
@@ -173,10 +175,10 @@ mod nes {
     }
 
     impl Flags8 {
-        pub fn parse_buf(num: u8) -> Self {
+        pub fn parse_buf(num: &u8) -> Self {
             let s = format!("{:08b}", num);
             let v: Vec<char> = s.chars().collect();
-            let prg_ram_size = util::chars_to_u32(v[0..=7].to_vec());
+            let prg_ram_size = util::chars_to_u32(&v[0..=7].to_vec());
 
             Self { prg_ram_size }
         }
@@ -189,11 +191,11 @@ mod nes {
     }
 
     impl Flags9 {
-        pub fn parse_buf(num: u8) -> Self {
+        pub fn parse_buf(num: &u8) -> Self {
             let s = format!("{:08b}", num);
             let v: Vec<char> = s.chars().collect();
-            let tv_system = util::char_to_bool(v[0]);
-            let reserved = util::chars_to_u32(v[1..=7].to_vec());
+            let tv_system = util::char_to_bool(&v[0]);
+            let reserved = util::chars_to_u32(&v[1..=7].to_vec());
 
             Self {
                 tv_system,
@@ -210,12 +212,12 @@ mod nes {
     }
 
     impl Flags10 {
-        pub fn parse_buf(num: u8) -> Self {
+        pub fn parse_buf(num: &u8) -> Self {
             let s = format!("{:08b}", num);
             let v: Vec<char> = s.chars().collect();
-            let tv_system = util::chars_to_u32(v[0..=1].to_vec());
-            let prg_ram = util::char_to_bool(v[4]);
-            let board_mode = util::char_to_bool(v[5]);
+            let tv_system = util::chars_to_u32(&v[0..=1].to_vec());
+            let prg_ram = util::char_to_bool(&v[4]);
+            let board_mode = util::char_to_bool(&v[5]);
 
             Self {
                 tv_system,
@@ -230,20 +232,16 @@ mod nes {
             let mut f = File::open(NES_FILE).unwrap();
             let mut buffer = Vec::new();
             f.read_to_end(&mut buffer).unwrap();
-            let header = Header::new(buffer.clone());
+            let header = Header::new(&buffer);
             Self { header }
         }
 
-        pub fn read_sprites(self) -> Vec<Vec<Vec<u32>>> {
-            let mut f = File::open(NES_FILE).unwrap();
-            let mut buffer = Vec::new();
+        pub fn read_sprites(&self) -> Vec<Vec<Vec<u32>>> {
             let mut sprites = Vec::new();
-            f.read_to_end(&mut buffer).unwrap();
             for n in 0..self.header.info.sprites_num {
                 let mut sprite = vec![vec![0; 8]; 8];
                 for i in 0..16 {
-                    let val_str = buffer
-                        [((self.header.info.charactor_rom_start as u32) + n * 16 + i) as usize];
+                    let val_str = self.header.info.chr_rom[(n * 16 + i) as usize];
                     sprite[(i % 8) as usize] = sprite[(i % 8) as usize]
                         .clone()
                         .into_iter()
@@ -336,10 +334,10 @@ mod emurator {
 
 pub fn main() -> Result<(), String> {
     let nes = nes::NES::new();
-    println!("{:#?}", nes);
+    // println!("{:#?}", nes);
     let cpu = cpu::CPU::new();
     println!("{:#?}", cpu);
-    let sprites = nes.to_owned().read_sprites();
+    let sprites = nes.read_sprites();
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
