@@ -54,6 +54,7 @@ mod nes {
         pub default_canvas_width: u32,
         pub sprites_num: u32,
         pub chr_rom_start: u32,
+        pub prg_rom: Vec<u8>,
         pub chr_rom: Vec<u8>,
     }
 
@@ -80,6 +81,7 @@ mod nes {
             let chr_rom_end = chr_rom_start + chr_rom_size * chr_rom_per_size;
             let default_canvas_width = 800;
             let sprites_num = chr_rom_per_size * chr_rom_size / 16;
+            let prg_rom = buffer[(nes_header_size as usize)..(chr_rom_start as usize)].to_vec();
             let chr_rom = buffer[(chr_rom_start as usize)..(chr_rom_end as usize)].to_vec();
 
             Self {
@@ -89,6 +91,7 @@ mod nes {
                 default_canvas_width,
                 sprites_num,
                 chr_rom_start,
+                prg_rom,
                 chr_rom,
             }
         }
@@ -266,24 +269,96 @@ mod nes {
 mod cpu {
     #[derive(Debug, Clone)]
     pub struct CPU {
+        pub map: Map,
         pub register: Register,
     }
 
     impl CPU {
         pub fn new() -> Self {
+            let map = Map::new();
             let register = Register::new();
-            Self { register }
+            Self { map, register }
+        }
+
+        pub fn handle_interrupt(&mut self, intr: Interrupt) {
+            match intr {
+                Interrupt::NMI => (),
+                Interrupt::RESET => self.reset(),
+                Interrupt::IRQ => (),
+                Interrupt::BRK => (),
+            }
+        }
+
+        pub fn reset(&mut self) {
+            self.read(0xFFFC, 0xFFFD)
+        }
+
+        pub fn read(&mut self, b: u16, u: u16) {
+            self.register.x = self.map.addr(b);
+            self.register.y = self.map.addr(u);
+            self.register.set_pc();
         }
     }
 
     #[derive(Debug, Clone)]
+    pub struct Map {
+        pub wram: [u8; 0x0800],
+        pub wram_mirror: [u8; 0x0800],
+        pub ppu_register: [u8; 0x0008],
+        pub ppu_register_mirror: [u8; 0x0008],
+        pub apu_pad: [u8; 0x0020],
+        pub erom: [u8; 0x1FE0],
+        pub eram: [u8; 0x2000],
+        pub prg_rom1: [u8; 0x4000],
+        pub prg_rom2: [u8; 0x4000],
+    }
+
+    impl Map {
+        pub fn new() -> Self {
+            Self {
+                wram: [0; 0x0800],
+                wram_mirror: [0; 0x0800],
+                ppu_register: [0; 0x0008],
+                ppu_register_mirror: [0; 0x0008],
+                apu_pad: [0; 0x0020],
+                erom: [0; 0x1FE0],
+                eram: [0; 0x2000],
+                prg_rom1: [0; 0x4000],
+                prg_rom2: [0; 0x4000],
+            }
+        }
+
+        pub fn addr(&self, n: u16) -> u8 {
+            match n {
+                0x0000..=0x07FF => self.wram[n as usize],
+                0x0800..=0x1FFF => self.wram_mirror[(n - 0x07FF) as usize],
+                0x2000..=0x2007 => self.ppu_register[(n - 0x1FFF) as usize],
+                0x2008..=0x3FFF => self.ppu_register_mirror[(n - 0x2007) as usize],
+                0x4000..=0x401F => self.apu_pad[(n - 0x3FFF) as usize],
+                0x4020..=0x5FFF => self.erom[(n - 0x401F) as usize],
+                0x6000..=0x7FFF => self.eram[(n - 0x5FFF) as usize],
+                0x8000..=0xBFFF => self.prg_rom1[(n - 0x7FFF) as usize],
+                0xC000..=0xFFFF => self.prg_rom2[(n - 0xBFFF) as usize],
+            }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub enum Interrupt {
+        NMI,
+        RESET,
+        IRQ,
+        BRK,
+    }
+
+    #[derive(Debug, Clone)]
     pub struct Register {
-        pub a: u32,
-        pub x: u32,
-        pub y: u32,
-        pub s: u32,
+        pub a: u8,
+        pub x: u8,
+        pub y: u8,
+        pub s: u8,
         pub p: P,
-        pub pc: u32,
+        pub pc: u8,
     }
 
     impl Register {
@@ -297,6 +372,12 @@ mod cpu {
                 pc: 0,
             }
         }
+
+        pub fn set_pc(&mut self) {
+            let x = self.x;
+            let y = self.y;
+            self.pc = x + (y << 2);
+        }
     }
 
     #[derive(Debug, Clone)]
@@ -306,6 +387,7 @@ mod cpu {
         pub permit_irq: bool,
         pub decimal_mode: bool,
         pub break_mode: bool,
+        pub reserved: u8,
         pub overflow: bool,
         pub negative: bool,
     }
@@ -317,7 +399,8 @@ mod cpu {
                 zero: false,
                 permit_irq: false,
                 decimal_mode: false,
-                break_mode: false,
+                break_mode: true,
+                reserved: 0,
                 overflow: false,
                 negative: false,
             }
@@ -335,8 +418,26 @@ mod emurator {
 pub fn main() -> Result<(), String> {
     let nes = nes::NES::new();
     // println!("{:#?}", nes);
-    let cpu = cpu::CPU::new();
-    println!("{:#?}", cpu);
+    let mut cpu = cpu::CPU::new();
+    // println!("{:#?}", cpu);
+    cpu.reset();
+    {
+        let prgs = &nes.header.info.prg_rom;
+        if prgs.len() != 0x8000 {
+            unimplemented!("prg_rom lengh is not 0x8000!");
+        }
+        for (i, n) in prgs.iter().enumerate() {
+            match i {
+                0x0000..=0x3FFF => cpu.map.prg_rom1[i] = *n,
+                0x4000..=0x8000 => {
+                    let i = i - 0x4000;
+                    cpu.map.prg_rom2[i] = *n;
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
     let sprites = nes.read_sprites();
 
     let sdl_context = sdl2::init()?;
