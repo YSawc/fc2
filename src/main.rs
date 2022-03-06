@@ -312,6 +312,11 @@ mod cpu {
             self.map.addr(pc)
         }
 
+        pub fn fetch_next_register(&mut self) -> u8 {
+            let pc = self.register.pc + 1;
+            self.map.addr(pc)
+        }
+
         pub fn read_addr(&mut self, b: u16, u: u16) {
             self.register.x = self.map.addr(b);
             self.register.y = self.map.addr(u);
@@ -326,37 +331,166 @@ mod cpu {
             self.register.pc += 1;
         }
 
+        pub fn push_stack(&mut self, n: u8) {
+            let b = self.register.s as u16;
+            self.register.s -= 1;
+            let r = b + (1 << 8);
+            self.map.set(r, n);
+        }
+
+        pub fn pull_stack(&mut self) -> u8 {
+            let b = self.register.s;
+            self.register.s += 1;
+            let h = 1 << 8;
+            let r = b + h;
+            self.map.addr(r)
+        }
+
         pub fn ex_ope(&mut self, opekind: OpeKind, addr_mode: AddrMode) {
             self.register.pc += 1;
+            let r = match addr_mode {
+                AddrMode::AccA | AddrMode::Impl => 0,
+                AddrMode::ImmA => self.fetch_register() as u16,
+                AddrMode::ZPA => {
+                    let b = self.fetch_register() as u16;
+                    (b + (0 << 8)) as u16
+                }
+                AddrMode::ZPAX => {
+                    let mut b = self.fetch_register() as u16;
+                    b += self.register.x as u16;
+                    (b + (0 << 8)) as u16
+                }
+                AddrMode::ZPAY => {
+                    let mut b = self.fetch_register() as u16;
+                    b += self.register.y as u16;
+                    (b + (0 << 8)) as u16
+                }
+                AddrMode::AbsA => {
+                    let b = self.fetch_register() as u16;
+                    let h = self.fetch_next_register() as u16;
+                    (b + (h << 8)) as u16
+                }
+                AddrMode::AbsAX => {
+                    let mut b = self.fetch_register() as u16;
+                    let h = self.fetch_next_register() as u16;
+                    b += self.register.x as u16;
+                    (b + (h << 8)) as u16
+                }
+                AddrMode::AbsAY => {
+                    let mut b = self.fetch_register() as u16;
+                    let h = self.fetch_next_register() as u16;
+                    b += self.register.y as u16;
+                    (b + (h << 8)) as u16
+                }
+                AddrMode::RelA => {
+                    let b = self.fetch_register() as u16;
+                    let n = self.fetch_next_register() as u16;
+                    (b + n) as u16
+                }
+                AddrMode::IdxIA => {
+                    let mut b = self.fetch_register() as u16;
+                    b += self.register.x as u16;
+                    let t = (b + (0 << 8)) as u16;
+
+                    let b = self.map.addr(t) as u16;
+                    let h = self.map.addr(t + 1) as u16;
+                    b + (h << 8)
+                }
+                AddrMode::IdrIA => {
+                    let b = self.fetch_register() as u16;
+                    let t = b + (0 << 8);
+
+                    let b = self.map.addr(t) as u16;
+                    let mut h = self.map.addr(t + 1) as u16;
+                    h += self.register.y as u16;
+                    b + (h << 8)
+                }
+                AddrMode::AbsIA => {
+                    let b = self.fetch_register() as u16;
+                    let h = self.fetch_next_register() as u16;
+
+                    let t = b + (h << 8);
+                    let b = self.map.addr(t) as u16;
+                    let h = self.map.addr(t + 1) as u16;
+
+                    b + (h << 8)
+                }
+                _ => 0,
+            };
+
             match opekind {
+                OpeKind::CLC => self.register.p.carry = false,
+                OpeKind::SEC => self.register.p.carry = true,
+                OpeKind::CLI => self.register.p.permit_irq = false,
                 OpeKind::SEI => self.register.p.permit_irq = true,
+                OpeKind::CLD => self.register.p.decimal_mode = false,
+                OpeKind::SED => self.register.p.decimal_mode = true,
+                OpeKind::CLV => self.register.p.overflow = false,
                 OpeKind::LDA => {
-                    let r = self.fetch_register();
-                    self.register.a = r;
+                    self.register.a = self.map.addr(r);
                     self.set_nz(self.register.a);
                 }
                 OpeKind::LDX => {
-                    let r = self.fetch_register();
-                    self.register.x = r;
+                    self.register.x = self.map.addr(r);
                     self.set_nz(self.register.x);
                 }
                 OpeKind::LDY => {
-                    let r = self.fetch_register();
-                    self.register.y = r;
+                    self.register.y = self.map.addr(r);
                     self.set_nz(self.register.y);
                 }
-                OpeKind::TXS => {
-                    self.register.s = self.register.x;
-                    self.register.x = 0;
+                OpeKind::STA => {
+                    self.map.set(r, self.register.a);
+                }
+                OpeKind::STX => {
+                    self.map.set(r, self.register.x);
+                }
+                OpeKind::STY => {
+                    self.map.set(r, self.register.y);
                 }
                 OpeKind::TAX => {
                     self.register.x = self.register.a;
                     self.register.a = 0;
+                    self.set_nz(self.register.x);
                 }
-                OpeKind::STA => {
-                    let b = self.fetch_register() as u16;
-                    let r = b + (0 << 8);
-                    self.map.set(r, self.register.a);
+                OpeKind::TXA => {
+                    self.register.a = self.register.x;
+                    self.register.x = 0;
+                    self.set_nz(self.register.a);
+                }
+                OpeKind::TAY => {
+                    self.register.y = self.register.a;
+                    self.register.a = 0;
+                    self.set_nz(self.register.y);
+                }
+                OpeKind::TYA => {
+                    self.register.a = self.register.y;
+                    self.register.y = 0;
+                    self.set_nz(self.register.a);
+                }
+                OpeKind::TXS => {
+                    self.register.set_s(self.register.x);
+                    self.register.x = 0;
+                }
+                OpeKind::PHA => {
+                    self.register.a = self.map.addr(r);
+                    self.push_stack(self.register.a);
+                    self.register.a = 0;
+                }
+                OpeKind::PLA => {
+                    let n = self.pull_stack();
+                    self.register.a = n;
+                    self.set_nz(self.register.a);
+                }
+                OpeKind::PHP => {
+                    let n = self.register.p.to_n();
+                    self.push_stack(n);
+                    self.set_nz(n);
+                }
+                OpeKind::PLP => {
+                    let n = self.pull_stack();
+                    self.register.p.set(n);
+                    let n2 = self.register.p.to_n();
+                    self.set_nz(n2);
                 }
                 _ => {}
             }
@@ -833,7 +967,7 @@ mod cpu {
         pub a: u8,
         pub x: u8,
         pub y: u8,
-        pub s: u8,
+        pub s: u16,
         pub p: P,
         pub pc: u16,
     }
@@ -844,7 +978,7 @@ mod cpu {
                 a: 0,
                 x: 0,
                 y: 0,
-                s: 0,
+                s: 255,
                 p: P::new(),
                 pc: 0,
             }
@@ -854,6 +988,11 @@ mod cpu {
             let x = self.x as u16;
             let y = self.y as u16;
             self.pc = x + (y << 8);
+        }
+
+        pub fn set_s(&mut self, n: u8) {
+            let h = 1 << 8;
+            self.s = (n as u16) + h;
         }
     }
 
@@ -881,6 +1020,51 @@ mod cpu {
                 overflow: false,
                 negative: false,
             }
+        }
+
+        pub fn bool_to_n(&mut self, b: bool) -> u8 {
+            match b {
+                true => 1,
+                false => 0,
+            }
+        }
+
+        pub fn s_to_bool(&mut self, n: u32) -> bool {
+            match n {
+                1 => true,
+                0 => false,
+                _ => unimplemented!(),
+            }
+        }
+
+        pub fn set(&mut self, n: u8) {
+            let s = format!("{:08b}", n);
+
+            self.carry = self.s_to_bool(s.chars().nth(7).unwrap().to_digit(2).unwrap());
+            self.zero = self.s_to_bool(s.chars().nth(6).unwrap().to_digit(2).unwrap());
+            self.permit_irq = self.s_to_bool(s.chars().nth(5).unwrap().to_digit(2).unwrap());
+            self.decimal_mode = self.s_to_bool(s.chars().nth(4).unwrap().to_digit(2).unwrap());
+            self.break_mode = self.s_to_bool(s.chars().nth(3).unwrap().to_digit(2).unwrap());
+            self.reserved = match s.chars().nth(2).unwrap().to_digit(2).unwrap() {
+                1 => 1,
+                0 => 0,
+                _ => unimplemented!(),
+            };
+            self.overflow = self.s_to_bool(s.chars().nth(1).unwrap().to_digit(2).unwrap());
+            self.negative = self.s_to_bool(s.chars().nth(0).unwrap().to_digit(2).unwrap());
+        }
+
+        pub fn to_n(&mut self) -> u8 {
+            let mut n = 0;
+            n += self.bool_to_n(self.carry) << 7;
+            n += self.bool_to_n(self.zero) << 6;
+            n += self.bool_to_n(self.permit_irq) << 5;
+            n += self.bool_to_n(self.decimal_mode) << 4;
+            n += self.bool_to_n(self.break_mode) << 3;
+            n += self.reserved << 2;
+            n += self.bool_to_n(self.overflow) << 1;
+            n += self.bool_to_n(self.negative) << 0;
+            n
         }
     }
 }
@@ -988,6 +1172,7 @@ pub fn main() -> Result<(), String> {
         }
 
         canvas.present();
+        cpu.read_ope();
         // frame += 1;
     }
 
