@@ -317,6 +317,11 @@ mod cpu {
             self.map.addr(pc)
         }
 
+        pub fn fetch_next_next_register(&mut self) -> u8 {
+            let pc = self.register.pc + 2;
+            self.map.addr(pc)
+        }
+
         pub fn read_addr(&mut self, b: u16, u: u16) {
             self.register.x = self.map.addr(b);
             self.register.y = self.map.addr(u);
@@ -339,7 +344,7 @@ mod cpu {
         }
 
         pub fn pull_stack(&mut self) -> u8 {
-            let b = self.register.s;
+            let b = self.register.s + 1;
             self.register.s += 1;
             let h = 1 << 8;
             let r = b + h;
@@ -348,6 +353,7 @@ mod cpu {
 
         pub fn ex_ope(&mut self, opekind: OpeKind, addr_mode: AddrMode) {
             self.register.pc += 1;
+            let mut j = false;
             let r = match addr_mode {
                 AddrMode::AccA | AddrMode::Impl => 0,
                 AddrMode::ImmA => self.fetch_register() as u16,
@@ -383,9 +389,9 @@ mod cpu {
                     (b + (h << 8)) as u16
                 }
                 AddrMode::RelA => {
-                    let b = self.fetch_register() as u16;
-                    let n = self.fetch_next_register() as u16;
-                    (b + n) as u16
+                    let b = self.register.pc;
+                    let h = self.fetch_register() as u16;
+                    (b + h) as u16
                 }
                 AddrMode::IdxIA => {
                     let mut b = self.fetch_register() as u16;
@@ -419,12 +425,57 @@ mod cpu {
             };
 
             match opekind {
+                OpeKind::ADC => {
+                    let t = self.map.addr(r) >> 7;
+                    if self.register.a.checked_add(self.map.addr(r)).is_some() {
+                        self.register.a += self.map.addr(r);
+                        if self.map.addr(r) >> 7 != t {
+                            self.register.p.negative = true;
+                        };
+                        self.set_nz(self.register.a);
+                    } else {
+                        self.register.p.carry = true;
+                    }
+                }
+                OpeKind::SBC => {
+                    let t = self.map.addr(r) >> 7;
+                    if self.register.a.checked_sub(self.map.addr(r)).is_some() {
+                        self.register.a -= self.map.addr(r);
+                        if self.map.addr(r) >> 7 != t {
+                            self.register.p.negative = true;
+                        };
+                        self.set_nz(self.register.a);
+                    } else {
+                        self.register.p.carry = true;
+                    }
+                }
+                OpeKind::AND => {
+                    self.register.a &= self.map.addr(r);
+                }
+                OpeKind::ORA => {
+                    self.register.a |= self.map.addr(r);
+                }
+                OpeKind::EOR => {
+                    self.register.a ^= self.map.addr(r);
+                }
+                OpeKind::BCS => {
+                    if self.register.p.carry {
+                        self.register.pc = r;
+                        j = true;
+                    }
+                }
+                OpeKind::BPL => {
+                    if !self.register.p.negative {
+                        self.register.pc = r;
+                        j = true;
+                    }
+                }
                 OpeKind::CLC => self.register.p.carry = false,
                 OpeKind::SEC => self.register.p.carry = true,
-                OpeKind::CLI => self.register.p.permit_irq = false,
-                OpeKind::SEI => self.register.p.permit_irq = true,
-                OpeKind::CLD => self.register.p.decimal_mode = false,
-                OpeKind::SED => self.register.p.decimal_mode = true,
+                OpeKind::CLI => self.register.p.interrupt = false,
+                OpeKind::SEI => self.register.p.interrupt = true,
+                OpeKind::CLD => self.register.p.decimal = false,
+                OpeKind::SED => self.register.p.decimal = true,
                 OpeKind::CLV => self.register.p.overflow = false,
                 OpeKind::LDA => {
                     self.register.a = self.map.addr(r);
@@ -492,32 +543,69 @@ mod cpu {
                     let n2 = self.register.p.to_n();
                     self.set_nz(n2);
                 }
-                _ => {}
+                OpeKind::JSR => {
+                    let p = self.register.pc;
+                    let h = ((p & 0xFF00) >> 8) as u8;
+                    let b = (p & 0x00FF) as u8;
+                    self.push_stack(h);
+                    self.push_stack(b);
+                    self.register.pc = r;
+                }
+                OpeKind::RTS => {
+                    let b = self.pull_stack() as u16;
+                    let h = self.pull_stack() as u16;
+                    let t = b + (h << 8);
+                    self.register.pc = t;
+                    self.register.pc += 1;
+                }
+                OpeKind::BRK => {
+                    if !self.register.p.interrupt {
+                        j = true;
+                        let p = self.register.pc;
+                        self.register.pc += 1;
+                        let h = ((p & 0xFF00) >> 8) as u8;
+                        let b = (p & 0x00FF) as u8;
+                        self.push_stack(h);
+                        self.push_stack(b);
+                        let n = self.register.p.to_n();
+                        self.push_stack(n);
+
+                        self.register.p.break_mode = true;
+                        self.register.p.interrupt = true;
+                        let h = self.map.addr(0xFFFE) as u16;
+                        let b = self.map.addr(0xFFFF) as u16;
+                        self.register.pc = b + (h << 8);
+                    }
+                }
+                _ => {
+                    println!("opekind: {:?}, r: {:0x?} {}(10)", opekind, r, r);
+                    unimplemented!();
+                }
             }
 
-            match addr_mode {
-                AddrMode::AccA | AddrMode::Impl => (),
-                AddrMode::ImmA
-                | AddrMode::ZPA
-                | AddrMode::ZPAX
-                | AddrMode::ZPAY
-                | AddrMode::RelA => self.register.pc += 1,
-                AddrMode::AbsIA
-                | AddrMode::AbsA
-                | AddrMode::AbsAX
-                | AddrMode::AbsAY
-                | AddrMode::IAA
-                | AddrMode::AIA
-                | AddrMode::IZPA
-                | AddrMode::IdxIA
-                | AddrMode::IdrIA => self.register.pc += 2,
+            if !j {
+                match addr_mode {
+                    AddrMode::AccA | AddrMode::Impl => (),
+                    AddrMode::ImmA
+                    | AddrMode::ZPA
+                    | AddrMode::ZPAX
+                    | AddrMode::ZPAY
+                    | AddrMode::RelA => self.register.pc += 1,
+                    AddrMode::AbsIA
+                    | AddrMode::AbsA
+                    | AddrMode::AbsAX
+                    | AddrMode::AbsAY
+                    | AddrMode::IAA
+                    | AddrMode::AIA
+                    | AddrMode::IZPA
+                    | AddrMode::IdxIA
+                    | AddrMode::IdrIA => self.register.pc += 2,
+                }
             }
         }
 
         pub fn read_ope(&mut self) {
             let c = self.fetch_code();
-            println!("self.register.pc: {:0x?}", self.register.pc);
-            println!("c: {:0x?}", c);
             match c {
                 0x00 => self.ex_ope(OpeKind::BRK, AddrMode::Impl),
                 0x01 => self.ex_ope(OpeKind::ORA, AddrMode::IdxIA),
@@ -1000,8 +1088,8 @@ mod cpu {
     pub struct P {
         pub carry: bool,
         pub zero: bool,
-        pub permit_irq: bool,
-        pub decimal_mode: bool,
+        pub interrupt: bool,
+        pub decimal: bool,
         pub break_mode: bool,
         pub reserved: u8,
         pub overflow: bool,
@@ -1013,8 +1101,8 @@ mod cpu {
             Self {
                 carry: false,
                 zero: false,
-                permit_irq: false,
-                decimal_mode: false,
+                interrupt: false,
+                decimal: false,
                 break_mode: true,
                 reserved: 0,
                 overflow: false,
@@ -1039,27 +1127,30 @@ mod cpu {
 
         pub fn set(&mut self, n: u8) {
             let s = format!("{:08b}", n);
+            fn chars_nth(s: &String, n: usize) -> u32 {
+                s.chars().nth(n).unwrap().to_digit(2).unwrap()
+            }
 
-            self.carry = self.s_to_bool(s.chars().nth(7).unwrap().to_digit(2).unwrap());
-            self.zero = self.s_to_bool(s.chars().nth(6).unwrap().to_digit(2).unwrap());
-            self.permit_irq = self.s_to_bool(s.chars().nth(5).unwrap().to_digit(2).unwrap());
-            self.decimal_mode = self.s_to_bool(s.chars().nth(4).unwrap().to_digit(2).unwrap());
-            self.break_mode = self.s_to_bool(s.chars().nth(3).unwrap().to_digit(2).unwrap());
-            self.reserved = match s.chars().nth(2).unwrap().to_digit(2).unwrap() {
+            self.carry = self.s_to_bool(chars_nth(&s, 7));
+            self.zero = self.s_to_bool(chars_nth(&s, 6));
+            self.interrupt = self.s_to_bool(chars_nth(&s, 5));
+            self.decimal = self.s_to_bool(chars_nth(&s, 4));
+            self.break_mode = self.s_to_bool(chars_nth(&s, 3));
+            self.reserved = match chars_nth(&s, 2) {
                 1 => 1,
                 0 => 0,
                 _ => unimplemented!(),
             };
-            self.overflow = self.s_to_bool(s.chars().nth(1).unwrap().to_digit(2).unwrap());
-            self.negative = self.s_to_bool(s.chars().nth(0).unwrap().to_digit(2).unwrap());
+            self.overflow = self.s_to_bool(chars_nth(&s, 1));
+            self.negative = self.s_to_bool(chars_nth(&s, 0));
         }
 
         pub fn to_n(&mut self) -> u8 {
             let mut n = 0;
             n += self.bool_to_n(self.carry) << 7;
             n += self.bool_to_n(self.zero) << 6;
-            n += self.bool_to_n(self.permit_irq) << 5;
-            n += self.bool_to_n(self.decimal_mode) << 4;
+            n += self.bool_to_n(self.interrupt) << 5;
+            n += self.bool_to_n(self.decimal) << 4;
             n += self.bool_to_n(self.break_mode) << 3;
             n += self.reserved << 2;
             n += self.bool_to_n(self.overflow) << 1;
@@ -1094,6 +1185,7 @@ pub fn main() -> Result<(), String> {
             }
         }
     }
+
     cpu.reset();
 
     let sprites = nes.read_sprites();
