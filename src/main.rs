@@ -293,6 +293,26 @@ mod cpu {
             self.read_addr(0xFFFC, 0xFFFD)
         }
 
+        pub fn ex_plus(&mut self, l: u8, r: u8) -> u8 {
+            let re = if l.checked_add(r).is_none() {
+                self.register.p.overflow = true;
+                l + r - u8::MAX
+            } else {
+                l + r
+            };
+            re
+        }
+
+        pub fn ex_minus(&mut self, l: u8, r: u8) -> u8 {
+            let re = if l < r {
+                self.register.p.negative = true;
+                r - l
+            } else {
+                l - r
+            };
+            re
+        }
+
         pub fn set_nz(&mut self, n: u8) {
             if (n >> 7) == 1 {
                 self.register.p.negative = true;
@@ -421,7 +441,10 @@ mod cpu {
 
                     b + (h << 8)
                 }
-                _ => 0,
+                _ => {
+                    println!("addr_mode: {:?}", addr_mode);
+                    unimplemented!()
+                }
             };
 
             match opekind {
@@ -458,17 +481,74 @@ mod cpu {
                 OpeKind::EOR => {
                     self.register.a ^= self.map.addr(r);
                 }
+                OpeKind::BCC => {
+                    if !self.register.p.carry {
+                        j = true;
+                        self.register.pc = r;
+                    }
+                }
                 OpeKind::BCS => {
                     if self.register.p.carry {
-                        self.register.pc = r;
                         j = true;
+                        self.register.pc = r;
+                    }
+                }
+                OpeKind::BEQ => {
+                    if self.register.p.zero {
+                        j = true;
+                        self.register.pc = r;
+                    }
+                }
+                OpeKind::BNE => {
+                    if self.register.p.overflow {
+                        j = true;
+                        self.register.pc = r;
+                    }
+                }
+                OpeKind::BVS => {
+                    if self.register.p.overflow {
+                        j = true;
+                        self.register.pc = r;
                     }
                 }
                 OpeKind::BPL => {
                     if !self.register.p.negative {
-                        self.register.pc = r;
                         j = true;
+                        self.register.pc = r;
                     }
+                }
+                OpeKind::BMI => {
+                    if self.register.p.negative {
+                        j = true;
+                        self.register.pc = r;
+                    }
+                }
+                OpeKind::INC => {
+                    let v = self.map.addr(r);
+                    self.map.set(r, v + 1);
+                    self.set_nz(self.map.addr(r));
+                }
+                OpeKind::DEC => {
+                    let v = self.map.addr(r);
+                    let s = self.ex_minus(v, 1);
+                    self.map.set(r, s);
+                    self.set_nz(self.map.addr(r));
+                }
+                OpeKind::INX => {
+                    self.register.x += 1;
+                    self.set_nz(self.register.x);
+                }
+                OpeKind::DEX => {
+                    self.register.x -= 1;
+                    self.set_nz(self.register.x);
+                }
+                OpeKind::INY => {
+                    self.register.y += 1;
+                    self.set_nz(self.register.y);
+                }
+                OpeKind::DEY => {
+                    self.register.y -= 1;
+                    self.set_nz(self.register.y);
                 }
                 OpeKind::CLC => self.register.p.carry = false,
                 OpeKind::SEC => self.register.p.carry = true,
@@ -544,6 +624,7 @@ mod cpu {
                     self.set_nz(n2);
                 }
                 OpeKind::JSR => {
+                    j = true;
                     let p = self.register.pc;
                     let h = ((p & 0xFF00) >> 8) as u8;
                     let b = (p & 0x00FF) as u8;
