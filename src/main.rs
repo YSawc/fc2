@@ -687,6 +687,22 @@ mod cpu {
 
         pub fn read_ope(&mut self) {
             let c = self.fetch_code();
+            // println!("self.register.pc: {:0x?}", self.register.pc);
+            // println!(
+            //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?}",
+            //     c,
+            //     self.fetch_next_register(),
+            //     self.fetch_next_next_register()
+            // );
+            // print!("0x2000 {}, ", self.map.addr(0x2000));
+            // print!("0x2001 {}, ", self.map.addr(0x2001));
+            // print!("0x2002 {}, ", self.map.addr(0x2002));
+            // print!("0x2003 {}, ", self.map.addr(0x2003));
+            // print!("0x2004 {}, ", self.map.addr(0x2004));
+            // print!("0x2005 {}, ", self.map.addr(0x2005));
+            // print!("0x2006 {}, ", self.map.addr(0x2006));
+            // println!("0x2007 {}", self.map.addr(0x2007));
+
             match c {
                 0x00 => self.ex_ope(OpeKind::BRK, AddrMode::Impl),
                 0x01 => self.ex_ope(OpeKind::ORA, AddrMode::IdxIA),
@@ -1235,7 +1251,7 @@ mod cpu {
             n += self.bool_to_n(self.break_mode) << 3;
             n += self.reserved << 2;
             n += self.bool_to_n(self.overflow) << 1;
-            n += self.bool_to_n(self.negative) << 0;
+            n += self.bool_to_n(self.negative);
             n
         }
     }
@@ -1243,8 +1259,8 @@ mod cpu {
 
 mod emurator {
     pub const SQUARE_SIZE: u32 = 8;
-    pub const PLAYGROUND_WIDTH: u32 = 240;
-    pub const PLAYGROUND_HEIGHT: u32 = 256;
+    pub const PLAYGROUND_WIDTH: u32 = 32;
+    pub const PLAYGROUND_HEIGHT: u32 = 30;
     pub const NES_FILE: &str = "hello-world.nes";
 }
 
@@ -1335,7 +1351,7 @@ pub fn main() -> Result<(), String> {
                         None,
                         Rect::new(
                             (j + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                            (i + (n / PLAYGROUND_HEIGHT) * SQUARE_SIZE) as i32,
+                            (i + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
                             SQUARE_SIZE,
                             SQUARE_SIZE,
                         ),
