@@ -343,8 +343,8 @@ mod cpu {
         }
 
         pub fn read_addr(&mut self, b: u16, u: u16) {
-            self.register.x = self.map.addr(b);
-            self.register.y = self.map.addr(u);
+            self.register.x = self.map.addr(b).try_into().unwrap();
+            self.register.y = self.map.addr(u) as i8;
             self.register.set_pc();
         }
 
@@ -373,23 +373,22 @@ mod cpu {
 
         pub fn ex_ope(&mut self, opekind: OpeKind, addr_mode: AddrMode) {
             self.register.pc += 1;
-            let mut j = false;
             let r = match addr_mode {
                 AddrMode::AccA | AddrMode::Impl => 0,
                 AddrMode::ImmA => self.fetch_register() as u16,
                 AddrMode::ZPA => {
                     let b = self.fetch_register() as u16;
-                    (b + (0 << 8)) as u16
+                    b as u16
                 }
                 AddrMode::ZPAX => {
                     let mut b = self.fetch_register() as u16;
                     b += self.register.x as u16;
-                    (b + (0 << 8)) as u16
+                    b as u16
                 }
                 AddrMode::ZPAY => {
                     let mut b = self.fetch_register() as u16;
                     b += self.register.y as u16;
-                    (b + (0 << 8)) as u16
+                    b as u16
                 }
                 AddrMode::AbsA => {
                     let b = self.fetch_register() as u16;
@@ -409,14 +408,14 @@ mod cpu {
                     (b + (h << 8)) as u16
                 }
                 AddrMode::RelA => {
-                    let b = self.register.pc;
+                    let b = self.register.pc + 1;
                     let h = self.fetch_register() as u16;
                     (b + h) as u16
                 }
                 AddrMode::IdxIA => {
                     let mut b = self.fetch_register() as u16;
                     b += self.register.x as u16;
-                    let t = (b + (0 << 8)) as u16;
+                    let t = b as u16;
 
                     let b = self.map.addr(t) as u16;
                     let h = self.map.addr(t + 1) as u16;
@@ -424,7 +423,7 @@ mod cpu {
                 }
                 AddrMode::IdrIA => {
                     let b = self.fetch_register() as u16;
-                    let t = b + (0 << 8);
+                    let t = b;
 
                     let b = self.map.addr(t) as u16;
                     let mut h = self.map.addr(t + 1) as u16;
@@ -446,82 +445,132 @@ mod cpu {
                     unimplemented!()
                 }
             };
+            // println!("r: {:0x?}", r);
+
+            match addr_mode {
+                AddrMode::AccA | AddrMode::Impl => (),
+                AddrMode::ImmA
+                | AddrMode::ZPA
+                | AddrMode::ZPAX
+                | AddrMode::ZPAY
+                | AddrMode::RelA
+                | AddrMode::IdrIA
+                | AddrMode::IdxIA => self.register.pc += 1,
+                AddrMode::AbsA
+                | AddrMode::AbsAX
+                | AddrMode::AbsAY
+                | AddrMode::AIA
+                | AddrMode::IZPA
+                | AddrMode::AbsIA => self.register.pc += 2,
+            }
 
             match opekind {
                 OpeKind::ADC => {
                     let t = self.map.addr(r) >> 7;
-                    if self.register.a.checked_add(self.map.addr(r)).is_some() {
-                        self.register.a += self.map.addr(r);
+                    if self
+                        .register
+                        .a
+                        .checked_add(self.map.addr(r).try_into().unwrap())
+                        .is_some()
+                    {
+                        self.register.a += self.map.addr(r) as i8;
                         if self.map.addr(r) >> 7 != t {
                             self.register.p.negative = true;
                         };
-                        self.set_nz(self.register.a);
+                        self.set_nz(self.register.a.try_into().unwrap());
                     } else {
                         self.register.p.carry = true;
                     }
                 }
                 OpeKind::SBC => {
                     let t = self.map.addr(r) >> 7;
-                    if self.register.a.checked_sub(self.map.addr(r)).is_some() {
-                        self.register.a -= self.map.addr(r);
+                    if self
+                        .register
+                        .a
+                        .checked_sub(self.map.addr(r).try_into().unwrap())
+                        .is_some()
+                    {
+                        self.register.a -= self.map.addr(r) as i8;
                         if self.map.addr(r) >> 7 != t {
                             self.register.p.negative = true;
                         };
-                        self.set_nz(self.register.a);
+                        self.set_nz(self.register.a.try_into().unwrap());
                     } else {
                         self.register.p.carry = true;
                     }
                 }
                 OpeKind::AND => {
-                    self.register.a &= self.map.addr(r);
+                    self.register.a &= self.map.addr(r) as i8;
                 }
                 OpeKind::ORA => {
-                    self.register.a |= self.map.addr(r);
+                    self.register.a |= self.map.addr(r) as i8;
                 }
                 OpeKind::EOR => {
-                    self.register.a ^= self.map.addr(r);
+                    self.register.a ^= self.map.addr(r) as i8;
                 }
                 OpeKind::BCC => {
                     if !self.register.p.carry {
-                        j = true;
                         self.register.pc = r;
                     }
                 }
                 OpeKind::BCS => {
                     if self.register.p.carry {
-                        j = true;
                         self.register.pc = r;
                     }
                 }
                 OpeKind::BEQ => {
                     if self.register.p.zero {
-                        j = true;
                         self.register.pc = r;
                     }
                 }
                 OpeKind::BNE => {
                     if self.register.p.overflow {
-                        j = true;
+                        self.register.pc = r;
+                    }
+                }
+                OpeKind::BVC => {
+                    if !self.register.p.overflow {
                         self.register.pc = r;
                     }
                 }
                 OpeKind::BVS => {
                     if self.register.p.overflow {
-                        j = true;
                         self.register.pc = r;
                     }
                 }
                 OpeKind::BPL => {
                     if !self.register.p.negative {
-                        j = true;
                         self.register.pc = r;
                     }
                 }
                 OpeKind::BMI => {
                     if self.register.p.negative {
-                        j = true;
                         self.register.pc = r;
                     }
+                }
+                OpeKind::CMP => {
+                    let v = self.map.addr(r) as i8;
+                    if self.register.a < v {
+                        self.register.p.carry = false;
+                    } else {
+                        self.register.p.carry = true;
+                    };
+                }
+                OpeKind::CPX => {
+                    let v = self.map.addr(r) as i8;
+                    if self.register.x < v {
+                        self.register.p.carry = false;
+                    } else {
+                        self.register.p.carry = true;
+                    };
+                }
+                OpeKind::CPY => {
+                    let v = self.map.addr(r) as i8;
+                    if self.register.y < v {
+                        self.register.p.carry = false;
+                    } else {
+                        self.register.p.carry = true;
+                    };
                 }
                 OpeKind::INC => {
                     let v = self.map.addr(r);
@@ -536,19 +585,19 @@ mod cpu {
                 }
                 OpeKind::INX => {
                     self.register.x += 1;
-                    self.set_nz(self.register.x);
+                    self.set_nz(self.register.x as u8);
                 }
                 OpeKind::DEX => {
                     self.register.x -= 1;
-                    self.set_nz(self.register.x);
+                    self.set_nz(self.register.x as u8);
                 }
                 OpeKind::INY => {
                     self.register.y += 1;
-                    self.set_nz(self.register.y);
+                    self.set_nz(self.register.y as u8);
                 }
                 OpeKind::DEY => {
                     self.register.y -= 1;
-                    self.set_nz(self.register.y);
+                    self.set_nz(self.register.y as u8);
                 }
                 OpeKind::CLC => self.register.p.carry = false,
                 OpeKind::SEC => self.register.p.carry = true,
@@ -558,59 +607,59 @@ mod cpu {
                 OpeKind::SED => self.register.p.decimal = true,
                 OpeKind::CLV => self.register.p.overflow = false,
                 OpeKind::LDA => {
-                    self.register.a = self.map.addr(r);
-                    self.set_nz(self.register.a);
+                    self.register.a = self.map.addr(r) as i8;
+                    self.set_nz(self.register.a as u8);
                 }
                 OpeKind::LDX => {
-                    self.register.x = self.map.addr(r);
-                    self.set_nz(self.register.x);
+                    self.register.x = self.map.addr(r) as i8;
+                    self.set_nz(self.register.x as u8);
                 }
                 OpeKind::LDY => {
-                    self.register.y = self.map.addr(r);
-                    self.set_nz(self.register.y);
+                    self.register.y = self.map.addr(r) as i8;
+                    self.set_nz(self.register.y as u8);
                 }
                 OpeKind::STA => {
-                    self.map.set(r, self.register.a);
+                    self.map.set(r, self.register.a as u8);
                 }
                 OpeKind::STX => {
-                    self.map.set(r, self.register.x);
+                    self.map.set(r, self.register.x as u8);
                 }
                 OpeKind::STY => {
-                    self.map.set(r, self.register.y);
+                    self.map.set(r, self.register.y as u8);
                 }
                 OpeKind::TAX => {
                     self.register.x = self.register.a;
                     self.register.a = 0;
-                    self.set_nz(self.register.x);
+                    self.set_nz(self.register.x as u8);
                 }
                 OpeKind::TXA => {
                     self.register.a = self.register.x;
                     self.register.x = 0;
-                    self.set_nz(self.register.a);
+                    self.set_nz(self.register.a as u8);
                 }
                 OpeKind::TAY => {
                     self.register.y = self.register.a;
                     self.register.a = 0;
-                    self.set_nz(self.register.y);
+                    self.set_nz(self.register.y as u8);
                 }
                 OpeKind::TYA => {
                     self.register.a = self.register.y;
                     self.register.y = 0;
-                    self.set_nz(self.register.a);
+                    self.set_nz(self.register.a as u8);
                 }
                 OpeKind::TXS => {
-                    self.register.set_s(self.register.x);
+                    self.register.set_s(self.register.x as u8);
                     self.register.x = 0;
                 }
                 OpeKind::PHA => {
-                    self.register.a = self.map.addr(r);
-                    self.push_stack(self.register.a);
+                    self.register.a = self.map.addr(r).try_into().unwrap();
+                    self.push_stack(self.register.a as u8);
                     self.register.a = 0;
                 }
                 OpeKind::PLA => {
                     let n = self.pull_stack();
-                    self.register.a = n;
-                    self.set_nz(self.register.a);
+                    self.register.a = n.try_into().unwrap();
+                    self.set_nz(self.register.a as u8);
                 }
                 OpeKind::PHP => {
                     let n = self.register.p.to_n();
@@ -623,9 +672,11 @@ mod cpu {
                     let n2 = self.register.p.to_n();
                     self.set_nz(n2);
                 }
+                OpeKind::JMP => {
+                    self.register.pc = r;
+                }
                 OpeKind::JSR => {
-                    j = true;
-                    let p = self.register.pc;
+                    let p = self.register.pc - 1;
                     let h = ((p & 0xFF00) >> 8) as u8;
                     let b = (p & 0x00FF) as u8;
                     self.push_stack(h);
@@ -641,16 +692,14 @@ mod cpu {
                 }
                 OpeKind::BRK => {
                     if !self.register.p.interrupt {
-                        j = true;
+                        self.register.pc -= 1;
                         let p = self.register.pc;
-                        self.register.pc += 1;
                         let h = ((p & 0xFF00) >> 8) as u8;
                         let b = (p & 0x00FF) as u8;
                         self.push_stack(h);
                         self.push_stack(b);
                         let n = self.register.p.to_n();
                         self.push_stack(n);
-
                         self.register.p.break_mode = true;
                         self.register.p.interrupt = true;
                         let h = self.map.addr(0xFFFE) as u16;
@@ -663,31 +712,11 @@ mod cpu {
                     unimplemented!();
                 }
             }
-
-            if !j {
-                match addr_mode {
-                    AddrMode::AccA | AddrMode::Impl => (),
-                    AddrMode::ImmA
-                    | AddrMode::ZPA
-                    | AddrMode::ZPAX
-                    | AddrMode::ZPAY
-                    | AddrMode::RelA => self.register.pc += 1,
-                    AddrMode::AbsIA
-                    | AddrMode::AbsA
-                    | AddrMode::AbsAX
-                    | AddrMode::AbsAY
-                    | AddrMode::IAA
-                    | AddrMode::AIA
-                    | AddrMode::IZPA
-                    | AddrMode::IdxIA
-                    | AddrMode::IdrIA => self.register.pc += 2,
-                }
-            }
         }
 
         pub fn read_ope(&mut self) {
             let c = self.fetch_code();
-            // println!("self.register.pc: {:0x?}", self.register.pc);
+            // print!("self.register.pc: {:0x?} ", self.register.pc);
             // println!(
             //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?}",
             //     c,
@@ -730,7 +759,7 @@ mod cpu {
                 0x16 => self.ex_ope(OpeKind::ASL, AddrMode::ZPAX),
                 0x17 => self.undef(),
                 0x18 => self.ex_ope(OpeKind::CLC, AddrMode::Impl),
-                0x19 => self.ex_ope(OpeKind::BRK, AddrMode::AbsAY),
+                0x19 => self.ex_ope(OpeKind::ORA, AddrMode::AbsAY),
                 0x1A => self.undef(),
                 0x1B => self.undef(),
                 0x1C => self.undef(),
@@ -760,7 +789,7 @@ mod cpu {
                 0x32 => self.undef(),
                 0x33 => self.undef(),
                 0x34 => self.undef(),
-                0x35 => self.ex_ope(OpeKind::EOR, AddrMode::ZPAX),
+                0x35 => self.ex_ope(OpeKind::AND, AddrMode::ZPAX),
                 0x36 => self.ex_ope(OpeKind::ROL, AddrMode::ZPAX),
                 0x37 => self.undef(),
                 0x38 => self.ex_ope(OpeKind::SEC, AddrMode::Impl),
@@ -780,7 +809,7 @@ mod cpu {
                 0x45 => self.ex_ope(OpeKind::EOR, AddrMode::ZPA),
                 0x46 => self.ex_ope(OpeKind::LSR, AddrMode::ZPA),
                 0x47 => self.undef(),
-                0x48 => self.ex_ope(OpeKind::PHA, AddrMode::IdxIA),
+                0x48 => self.ex_ope(OpeKind::PHA, AddrMode::Impl),
                 0x49 => self.ex_ope(OpeKind::EOR, AddrMode::ImmA),
                 0x4A => self.ex_ope(OpeKind::LSR, AddrMode::AccA),
                 0x4B => self.undef(),
@@ -852,8 +881,8 @@ mod cpu {
                 0x89 => self.undef(),
                 0x8A => self.ex_ope(OpeKind::TXA, AddrMode::Impl),
                 0x8B => self.undef(),
-                0x8C => self.ex_ope(OpeKind::TXA, AddrMode::Impl),
-                0x8D => self.ex_ope(OpeKind::STY, AddrMode::AbsA),
+                0x8C => self.ex_ope(OpeKind::STY, AddrMode::AbsA),
+                0x8D => self.ex_ope(OpeKind::STA, AddrMode::AbsA),
                 0x8E => self.ex_ope(OpeKind::STX, AddrMode::AbsA),
                 0x8F => self.undef(),
 
@@ -900,11 +929,11 @@ mod cpu {
                 0xB6 => self.ex_ope(OpeKind::LDX, AddrMode::ZPAY),
                 0xB7 => self.undef(),
                 0xB8 => self.ex_ope(OpeKind::CLV, AddrMode::Impl),
-                0xB9 => self.ex_ope(OpeKind::LDA, AddrMode::AbsA),
+                0xB9 => self.ex_ope(OpeKind::LDA, AddrMode::AbsAY),
                 0xBA => self.ex_ope(OpeKind::TSX, AddrMode::Impl),
                 0xBB => self.undef(),
                 0xBC => self.ex_ope(OpeKind::LDY, AddrMode::AbsAX),
-                0xBD => self.ex_ope(OpeKind::LDA, AddrMode::AbsA),
+                0xBD => self.ex_ope(OpeKind::LDA, AddrMode::AbsAX),
                 0xBE => self.ex_ope(OpeKind::LDX, AddrMode::AbsAY),
                 0xBF => self.undef(),
 
@@ -984,18 +1013,17 @@ mod cpu {
         AccA,
         ImmA,
         AbsA,
-        AbsIA,
         AbsAX,
         AbsAY,
         ZPA,
         ZPAX,
         ZPAY,
         IZPA,
-        IAA,
         Impl,
         RelA,
         IdxIA,
         IdrIA,
+        AbsIA,
         AIA,
     }
 
@@ -1149,9 +1177,9 @@ mod cpu {
 
     #[derive(Debug, Clone)]
     pub struct Register {
-        pub a: u8,
-        pub x: u8,
-        pub y: u8,
+        pub a: i8,
+        pub x: i8,
+        pub y: i8,
         pub s: u16,
         pub p: P,
         pub pc: u16,
