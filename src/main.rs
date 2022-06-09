@@ -32,7 +32,7 @@ mod nes {
     use std::io::Read;
 
     #[derive(Debug, Clone)]
-    pub struct NES {
+    pub struct Nes {
         pub header: Header,
     }
 
@@ -59,7 +59,7 @@ mod nes {
     }
 
     impl Info {
-        pub fn new(buffer: &Vec<u8>) -> Self {
+        pub fn new(buffer: &[u8]) -> Self {
             use std::str;
             if str::from_utf8(&buffer[0..3]) != Ok("NES") {
                 panic!("File format is not nes!");
@@ -98,8 +98,8 @@ mod nes {
     }
 
     impl Header {
-        pub fn new(buffer: &Vec<u8>) -> Self {
-            let info = Info::new(&buffer);
+        pub fn new(buffer: &[u8]) -> Self {
+            let info = Info::new(buffer);
             let flags6 = Flags6::parse_buf(&buffer[6]);
             let flags7 = Flags7::parse_buf(&buffer[7]);
             let flags8 = Flags8::parse_buf(&buffer[8]);
@@ -230,7 +230,7 @@ mod nes {
         }
     }
 
-    impl NES {
+    impl Nes {
         pub fn new() -> Self {
             let mut f = File::open(NES_FILE).unwrap();
             let mut buffer = Vec::new();
@@ -268,49 +268,47 @@ mod nes {
 
 mod cpu {
     #[derive(Debug, Clone)]
-    pub struct CPU {
+    pub struct Cpu {
         pub map: Map,
         pub register: Register,
     }
 
-    impl CPU {
+    impl Cpu {
         pub fn new() -> Self {
             let map = Map::new();
             let register = Register::new();
             Self { map, register }
         }
 
-        pub fn handle_interrupt(&mut self, intr: Interrupt) {
-            match intr {
-                Interrupt::NMI => (),
-                Interrupt::RESET => self.reset(),
-                Interrupt::IRQ => (),
-                Interrupt::BRK => (),
-            }
-        }
+        // pub fn handle_interrupt(&mut self, intr: Interrupt) {
+        //     match intr {
+        //         Interrupt::Nmi => (),
+        //         Interrupt::Reset => self.reset(),
+        //         Interrupt::Irq => (),
+        //         Interrupt::Brk => (),
+        //     }
+        // }
 
         pub fn reset(&mut self) {
             self.read_addr(0xFFFC, 0xFFFD)
         }
 
         pub fn ex_plus(&mut self, l: u8, r: u8) -> u8 {
-            let re = if l.checked_add(r).is_none() {
+            if l.checked_add(r).is_none() {
                 self.register.p.overflow = true;
                 l + r - u8::MAX
             } else {
                 l + r
-            };
-            re
+            }
         }
 
         pub fn ex_minus(&mut self, l: u8, r: u8) -> u8 {
-            let re = if l < r {
+            if l < r {
                 self.register.p.negative = true;
                 r - l
             } else {
                 l - r
-            };
-            re
+            }
         }
 
         pub fn set_nz(&mut self, n: u8) {
@@ -337,7 +335,7 @@ mod cpu {
             self.map.addr(pc)
         }
 
-        pub fn fetch_next_next_register(&mut self) -> u8 {
+        pub fn _fetch_next_next_register(&mut self) -> u8 {
             let pc = self.register.pc + 2;
             self.map.addr(pc)
         }
@@ -374,45 +372,45 @@ mod cpu {
         pub fn ex_ope(&mut self, opekind: OpeKind, addr_mode: AddrMode) {
             self.register.pc += 1;
             let r = match addr_mode {
-                AddrMode::AccA | AddrMode::Impl => 0,
-                AddrMode::ImmA => self.fetch_register() as u16,
-                AddrMode::ZPA => {
+                AddrMode::Acc | AddrMode::Impl => 0,
+                AddrMode::Imm => self.fetch_register() as u16,
+                AddrMode::Zp => {
                     let b = self.fetch_register() as u16;
                     b as u16
                 }
-                AddrMode::ZPAX => {
+                AddrMode::ZpX => {
                     let mut b = self.fetch_register() as u16;
                     b += self.register.x as u16;
                     b as u16
                 }
-                AddrMode::ZPAY => {
+                AddrMode::ZpY => {
                     let mut b = self.fetch_register() as u16;
                     b += self.register.y as u16;
                     b as u16
                 }
-                AddrMode::AbsA => {
+                AddrMode::Abs => {
                     let b = self.fetch_register() as u16;
                     let h = self.fetch_next_register() as u16;
                     (b + (h << 8)) as u16
                 }
-                AddrMode::AbsAX => {
+                AddrMode::AbsX => {
                     let mut b = self.fetch_register() as u16;
                     let h = self.fetch_next_register() as u16;
                     b += self.register.x as u16;
                     (b + (h << 8)) as u16
                 }
-                AddrMode::AbsAY => {
+                AddrMode::AbsY => {
                     let mut b = self.fetch_register() as u16;
                     let h = self.fetch_next_register() as u16;
                     b += self.register.y as u16;
                     (b + (h << 8)) as u16
                 }
-                AddrMode::RelA => {
+                AddrMode::Rel => {
                     let b = self.register.pc + 1;
                     let h = self.fetch_register() as u16;
                     (b + h) as u16
                 }
-                AddrMode::IdxIA => {
+                AddrMode::IndX => {
                     let mut b = self.fetch_register() as u16;
                     b += self.register.x as u16;
                     let t = b as u16;
@@ -421,7 +419,7 @@ mod cpu {
                     let h = self.map.addr(t + 1) as u16;
                     b + (h << 8)
                 }
-                AddrMode::IdrIA => {
+                AddrMode::IndY => {
                     let b = self.fetch_register() as u16;
                     let t = b;
 
@@ -430,7 +428,7 @@ mod cpu {
                     h += self.register.y as u16;
                     b + (h << 8)
                 }
-                AddrMode::AbsIA => {
+                AddrMode::Ind => {
                     let b = self.fetch_register() as u16;
                     let h = self.fetch_next_register() as u16;
 
@@ -440,32 +438,25 @@ mod cpu {
 
                     b + (h << 8)
                 }
-                _ => {
-                    println!("addr_mode: {:?}", addr_mode);
-                    unimplemented!()
-                }
             };
             // println!("r: {:0x?}", r);
 
             match addr_mode {
-                AddrMode::AccA | AddrMode::Impl => (),
-                AddrMode::ImmA
-                | AddrMode::ZPA
-                | AddrMode::ZPAX
-                | AddrMode::ZPAY
-                | AddrMode::RelA
-                | AddrMode::IdrIA
-                | AddrMode::IdxIA => self.register.pc += 1,
-                AddrMode::AbsA
-                | AddrMode::AbsAX
-                | AddrMode::AbsAY
-                | AddrMode::AIA
-                | AddrMode::IZPA
-                | AddrMode::AbsIA => self.register.pc += 2,
+                AddrMode::Acc | AddrMode::Impl => (),
+                AddrMode::Imm
+                | AddrMode::Zp
+                | AddrMode::ZpX
+                | AddrMode::ZpY
+                | AddrMode::Rel
+                | AddrMode::IndX
+                | AddrMode::IndY => self.register.pc += 1,
+                AddrMode::Abs | AddrMode::AbsX | AddrMode::AbsY | AddrMode::Ind => {
+                    self.register.pc += 2
+                }
             }
 
             match opekind {
-                OpeKind::ADC => {
+                OpeKind::Adc => {
                     let t = self.map.addr(r) >> 7;
                     if self
                         .register
@@ -482,7 +473,7 @@ mod cpu {
                         self.register.p.carry = true;
                     }
                 }
-                OpeKind::SBC => {
+                OpeKind::Sbc => {
                     let t = self.map.addr(r) >> 7;
                     if self
                         .register
@@ -499,56 +490,56 @@ mod cpu {
                         self.register.p.carry = true;
                     }
                 }
-                OpeKind::AND => {
+                OpeKind::And => {
                     self.register.a &= self.map.addr(r) as i8;
                 }
-                OpeKind::ORA => {
+                OpeKind::Ora => {
                     self.register.a |= self.map.addr(r) as i8;
                 }
-                OpeKind::EOR => {
+                OpeKind::Eor => {
                     self.register.a ^= self.map.addr(r) as i8;
                 }
-                OpeKind::BCC => {
+                OpeKind::Bcc => {
                     if !self.register.p.carry {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::BCS => {
+                OpeKind::Bcs => {
                     if self.register.p.carry {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::BEQ => {
+                OpeKind::Beq => {
                     if self.register.p.zero {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::BNE => {
+                OpeKind::Bne => {
                     if self.register.p.overflow {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::BVC => {
+                OpeKind::Bvc => {
                     if !self.register.p.overflow {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::BVS => {
+                OpeKind::Bvs => {
                     if self.register.p.overflow {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::BPL => {
+                OpeKind::Bpl => {
                     if !self.register.p.negative {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::BMI => {
+                OpeKind::Bmi => {
                     if self.register.p.negative {
                         self.register.pc = r;
                     }
                 }
-                OpeKind::CMP => {
+                OpeKind::Cmp => {
                     let v = self.map.addr(r) as i8;
                     if self.register.a < v {
                         self.register.p.carry = false;
@@ -556,7 +547,7 @@ mod cpu {
                         self.register.p.carry = true;
                     };
                 }
-                OpeKind::CPX => {
+                OpeKind::Cpx => {
                     let v = self.map.addr(r) as i8;
                     if self.register.x < v {
                         self.register.p.carry = false;
@@ -564,7 +555,7 @@ mod cpu {
                         self.register.p.carry = true;
                     };
                 }
-                OpeKind::CPY => {
+                OpeKind::Cpy => {
                     let v = self.map.addr(r) as i8;
                     if self.register.y < v {
                         self.register.p.carry = false;
@@ -572,110 +563,111 @@ mod cpu {
                         self.register.p.carry = true;
                     };
                 }
-                OpeKind::INC => {
+                OpeKind::Inc => {
                     let v = self.map.addr(r);
-                    self.map.set(r, v + 1);
+                    let s = self.ex_plus(v, 1);
+                    self.map.set(r, s);
                     self.set_nz(self.map.addr(r));
                 }
-                OpeKind::DEC => {
+                OpeKind::Dec => {
                     let v = self.map.addr(r);
                     let s = self.ex_minus(v, 1);
                     self.map.set(r, s);
                     self.set_nz(self.map.addr(r));
                 }
-                OpeKind::INX => {
+                OpeKind::Inx => {
                     self.register.x += 1;
                     self.set_nz(self.register.x as u8);
                 }
-                OpeKind::DEX => {
+                OpeKind::Dex => {
                     self.register.x -= 1;
                     self.set_nz(self.register.x as u8);
                 }
-                OpeKind::INY => {
+                OpeKind::Iny => {
                     self.register.y += 1;
                     self.set_nz(self.register.y as u8);
                 }
-                OpeKind::DEY => {
+                OpeKind::Dey => {
                     self.register.y -= 1;
                     self.set_nz(self.register.y as u8);
                 }
-                OpeKind::CLC => self.register.p.carry = false,
-                OpeKind::SEC => self.register.p.carry = true,
-                OpeKind::CLI => self.register.p.interrupt = false,
-                OpeKind::SEI => self.register.p.interrupt = true,
-                OpeKind::CLD => self.register.p.decimal = false,
-                OpeKind::SED => self.register.p.decimal = true,
-                OpeKind::CLV => self.register.p.overflow = false,
-                OpeKind::LDA => {
+                OpeKind::Clc => self.register.p.carry = false,
+                OpeKind::Sec => self.register.p.carry = true,
+                OpeKind::Cli => self.register.p.interrupt = false,
+                OpeKind::Sei => self.register.p.interrupt = true,
+                OpeKind::Cld => self.register.p.decimal = false,
+                OpeKind::Sed => self.register.p.decimal = true,
+                OpeKind::Clv => self.register.p.overflow = false,
+                OpeKind::Lda => {
                     self.register.a = self.map.addr(r) as i8;
                     self.set_nz(self.register.a as u8);
                 }
-                OpeKind::LDX => {
+                OpeKind::Ldx => {
                     self.register.x = self.map.addr(r) as i8;
                     self.set_nz(self.register.x as u8);
                 }
-                OpeKind::LDY => {
+                OpeKind::Ldy => {
                     self.register.y = self.map.addr(r) as i8;
                     self.set_nz(self.register.y as u8);
                 }
-                OpeKind::STA => {
+                OpeKind::Sta => {
                     self.map.set(r, self.register.a as u8);
                 }
-                OpeKind::STX => {
+                OpeKind::Stx => {
                     self.map.set(r, self.register.x as u8);
                 }
-                OpeKind::STY => {
+                OpeKind::Sty => {
                     self.map.set(r, self.register.y as u8);
                 }
-                OpeKind::TAX => {
+                OpeKind::Tax => {
                     self.register.x = self.register.a;
                     self.register.a = 0;
                     self.set_nz(self.register.x as u8);
                 }
-                OpeKind::TXA => {
+                OpeKind::Txa => {
                     self.register.a = self.register.x;
                     self.register.x = 0;
                     self.set_nz(self.register.a as u8);
                 }
-                OpeKind::TAY => {
+                OpeKind::Tay => {
                     self.register.y = self.register.a;
                     self.register.a = 0;
                     self.set_nz(self.register.y as u8);
                 }
-                OpeKind::TYA => {
+                OpeKind::Tya => {
                     self.register.a = self.register.y;
                     self.register.y = 0;
                     self.set_nz(self.register.a as u8);
                 }
-                OpeKind::TXS => {
+                OpeKind::Txs => {
                     self.register.set_s(self.register.x as u8);
                     self.register.x = 0;
                 }
-                OpeKind::PHA => {
+                OpeKind::Pha => {
                     self.register.a = self.map.addr(r).try_into().unwrap();
                     self.push_stack(self.register.a as u8);
                     self.register.a = 0;
                 }
-                OpeKind::PLA => {
+                OpeKind::Pla => {
                     let n = self.pull_stack();
                     self.register.a = n.try_into().unwrap();
                     self.set_nz(self.register.a as u8);
                 }
-                OpeKind::PHP => {
+                OpeKind::Php => {
                     let n = self.register.p.to_n();
                     self.push_stack(n);
                     self.set_nz(n);
                 }
-                OpeKind::PLP => {
+                OpeKind::Plp => {
                     let n = self.pull_stack();
                     self.register.p.set(n);
                     let n2 = self.register.p.to_n();
                     self.set_nz(n2);
                 }
-                OpeKind::JMP => {
+                OpeKind::Jmp => {
                     self.register.pc = r;
                 }
-                OpeKind::JSR => {
+                OpeKind::Jsr => {
                     let p = self.register.pc - 1;
                     let h = ((p & 0xFF00) >> 8) as u8;
                     let b = (p & 0x00FF) as u8;
@@ -683,14 +675,14 @@ mod cpu {
                     self.push_stack(b);
                     self.register.pc = r;
                 }
-                OpeKind::RTS => {
+                OpeKind::Rts => {
                     let b = self.pull_stack() as u16;
                     let h = self.pull_stack() as u16;
                     let t = b + (h << 8);
                     self.register.pc = t;
                     self.register.pc += 1;
                 }
-                OpeKind::BRK => {
+                OpeKind::Brk => {
                     if !self.register.p.interrupt {
                         self.register.pc -= 1;
                         let p = self.register.pc;
@@ -707,6 +699,9 @@ mod cpu {
                         self.register.pc = b + (h << 8);
                     }
                 }
+                OpeKind::Nop => {
+                    self.nop();
+                }
                 _ => {
                     println!("opekind: {:?}, r: {:0x?} {}(10)", opekind, r, r);
                     unimplemented!();
@@ -717,11 +712,11 @@ mod cpu {
         pub fn read_ope(&mut self) {
             let c = self.fetch_code();
             // print!("self.register.pc: {:0x?} ", self.register.pc);
-            // println!(
-            //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?}",
+            // print!(
+            //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?} ",
             //     c,
             //     self.fetch_next_register(),
-            //     self.fetch_next_next_register()
+            //     self._fetch_next_next_register()
             // );
             // print!("0x2000 {}, ", self.map.addr(0x2000));
             // print!("0x2001 {}, ", self.map.addr(0x2001));
@@ -733,276 +728,276 @@ mod cpu {
             // println!("0x2007 {}", self.map.addr(0x2007));
 
             match c {
-                0x00 => self.ex_ope(OpeKind::BRK, AddrMode::Impl),
-                0x01 => self.ex_ope(OpeKind::ORA, AddrMode::IdxIA),
+                0x00 => self.ex_ope(OpeKind::Brk, AddrMode::Impl),
+                0x01 => self.ex_ope(OpeKind::Ora, AddrMode::IndX),
                 0x02 => self.undef(),
                 0x03 => self.undef(),
                 0x04 => self.undef(),
-                0x05 => self.ex_ope(OpeKind::ORA, AddrMode::ZPA),
-                0x06 => self.ex_ope(OpeKind::ASL, AddrMode::ZPA),
+                0x05 => self.ex_ope(OpeKind::Ora, AddrMode::Zp),
+                0x06 => self.ex_ope(OpeKind::Asl, AddrMode::Zp),
                 0x07 => self.undef(),
-                0x08 => self.ex_ope(OpeKind::PHP, AddrMode::Impl),
-                0x09 => self.ex_ope(OpeKind::ORA, AddrMode::ImmA),
-                0x0A => self.ex_ope(OpeKind::ASL, AddrMode::AccA),
+                0x08 => self.ex_ope(OpeKind::Php, AddrMode::Impl),
+                0x09 => self.ex_ope(OpeKind::Ora, AddrMode::Imm),
+                0x0A => self.ex_ope(OpeKind::Asl, AddrMode::Acc),
                 0x0B => self.undef(),
                 0x0C => self.undef(),
-                0x0D => self.ex_ope(OpeKind::ORA, AddrMode::AbsA),
-                0x0E => self.ex_ope(OpeKind::ASL, AddrMode::AbsA),
+                0x0D => self.ex_ope(OpeKind::Ora, AddrMode::Abs),
+                0x0E => self.ex_ope(OpeKind::Asl, AddrMode::Abs),
                 0x0F => self.undef(),
 
-                0x10 => self.ex_ope(OpeKind::BPL, AddrMode::RelA),
-                0x11 => self.ex_ope(OpeKind::ORA, AddrMode::IdrIA),
+                0x10 => self.ex_ope(OpeKind::Bpl, AddrMode::Rel),
+                0x11 => self.ex_ope(OpeKind::Ora, AddrMode::IndY),
                 0x12 => self.undef(),
                 0x13 => self.undef(),
                 0x14 => self.undef(),
-                0x15 => self.ex_ope(OpeKind::ORA, AddrMode::ZPAX),
-                0x16 => self.ex_ope(OpeKind::ASL, AddrMode::ZPAX),
+                0x15 => self.ex_ope(OpeKind::Ora, AddrMode::ZpX),
+                0x16 => self.ex_ope(OpeKind::Asl, AddrMode::ZpX),
                 0x17 => self.undef(),
-                0x18 => self.ex_ope(OpeKind::CLC, AddrMode::Impl),
-                0x19 => self.ex_ope(OpeKind::ORA, AddrMode::AbsAY),
+                0x18 => self.ex_ope(OpeKind::Clc, AddrMode::Impl),
+                0x19 => self.ex_ope(OpeKind::Ora, AddrMode::AbsY),
                 0x1A => self.undef(),
                 0x1B => self.undef(),
                 0x1C => self.undef(),
-                0x1D => self.ex_ope(OpeKind::ORA, AddrMode::AbsAX),
-                0x1E => self.ex_ope(OpeKind::ASL, AddrMode::AbsAX),
+                0x1D => self.ex_ope(OpeKind::Ora, AddrMode::AbsX),
+                0x1E => self.ex_ope(OpeKind::Asl, AddrMode::AbsX),
                 0x1F => self.undef(),
 
-                0x20 => self.ex_ope(OpeKind::JSR, AddrMode::AbsA),
-                0x21 => self.ex_ope(OpeKind::AND, AddrMode::IdxIA),
+                0x20 => self.ex_ope(OpeKind::Jsr, AddrMode::Abs),
+                0x21 => self.ex_ope(OpeKind::And, AddrMode::IndX),
                 0x22 => self.undef(),
                 0x23 => self.undef(),
-                0x24 => self.ex_ope(OpeKind::BIT, AddrMode::ZPA),
-                0x25 => self.ex_ope(OpeKind::AND, AddrMode::ZPA),
-                0x26 => self.ex_ope(OpeKind::ROL, AddrMode::ZPA),
+                0x24 => self.ex_ope(OpeKind::Bit, AddrMode::Zp),
+                0x25 => self.ex_ope(OpeKind::And, AddrMode::Zp),
+                0x26 => self.ex_ope(OpeKind::Rol, AddrMode::Zp),
                 0x27 => self.undef(),
-                0x28 => self.ex_ope(OpeKind::PLP, AddrMode::Impl),
-                0x29 => self.ex_ope(OpeKind::AND, AddrMode::ImmA),
-                0x2A => self.ex_ope(OpeKind::ROL, AddrMode::AccA),
+                0x28 => self.ex_ope(OpeKind::Plp, AddrMode::Impl),
+                0x29 => self.ex_ope(OpeKind::And, AddrMode::Imm),
+                0x2A => self.ex_ope(OpeKind::Rol, AddrMode::Acc),
                 0x2B => self.undef(),
-                0x2C => self.ex_ope(OpeKind::BIT, AddrMode::AbsA),
-                0x2D => self.ex_ope(OpeKind::AND, AddrMode::AbsA),
-                0x2E => self.ex_ope(OpeKind::ROL, AddrMode::AbsA),
+                0x2C => self.ex_ope(OpeKind::Bit, AddrMode::Abs),
+                0x2D => self.ex_ope(OpeKind::And, AddrMode::Abs),
+                0x2E => self.ex_ope(OpeKind::Rol, AddrMode::Abs),
                 0x2F => self.undef(),
 
-                0x30 => self.ex_ope(OpeKind::BMI, AddrMode::RelA),
-                0x31 => self.ex_ope(OpeKind::AND, AddrMode::IdrIA),
+                0x30 => self.ex_ope(OpeKind::Bmi, AddrMode::Rel),
+                0x31 => self.ex_ope(OpeKind::And, AddrMode::IndY),
                 0x32 => self.undef(),
                 0x33 => self.undef(),
                 0x34 => self.undef(),
-                0x35 => self.ex_ope(OpeKind::AND, AddrMode::ZPAX),
-                0x36 => self.ex_ope(OpeKind::ROL, AddrMode::ZPAX),
+                0x35 => self.ex_ope(OpeKind::And, AddrMode::ZpX),
+                0x36 => self.ex_ope(OpeKind::Rol, AddrMode::ZpX),
                 0x37 => self.undef(),
-                0x38 => self.ex_ope(OpeKind::SEC, AddrMode::Impl),
-                0x39 => self.ex_ope(OpeKind::AND, AddrMode::AbsAY),
+                0x38 => self.ex_ope(OpeKind::Sec, AddrMode::Impl),
+                0x39 => self.ex_ope(OpeKind::And, AddrMode::AbsY),
                 0x3A => self.undef(),
                 0x3B => self.undef(),
                 0x3C => self.undef(),
-                0x3D => self.ex_ope(OpeKind::AND, AddrMode::AbsAX),
-                0x3E => self.ex_ope(OpeKind::ROL, AddrMode::AbsAX),
+                0x3D => self.ex_ope(OpeKind::And, AddrMode::AbsX),
+                0x3E => self.ex_ope(OpeKind::Rol, AddrMode::AbsX),
                 0x3F => self.undef(),
 
-                0x40 => self.ex_ope(OpeKind::RTI, AddrMode::Impl),
-                0x41 => self.ex_ope(OpeKind::EOR, AddrMode::IdxIA),
+                0x40 => self.ex_ope(OpeKind::Rti, AddrMode::Impl),
+                0x41 => self.ex_ope(OpeKind::Eor, AddrMode::IndX),
                 0x42 => self.undef(),
                 0x43 => self.undef(),
                 0x44 => self.undef(),
-                0x45 => self.ex_ope(OpeKind::EOR, AddrMode::ZPA),
-                0x46 => self.ex_ope(OpeKind::LSR, AddrMode::ZPA),
+                0x45 => self.ex_ope(OpeKind::Eor, AddrMode::Zp),
+                0x46 => self.ex_ope(OpeKind::Lsr, AddrMode::Zp),
                 0x47 => self.undef(),
-                0x48 => self.ex_ope(OpeKind::PHA, AddrMode::Impl),
-                0x49 => self.ex_ope(OpeKind::EOR, AddrMode::ImmA),
-                0x4A => self.ex_ope(OpeKind::LSR, AddrMode::AccA),
+                0x48 => self.ex_ope(OpeKind::Pha, AddrMode::Impl),
+                0x49 => self.ex_ope(OpeKind::Eor, AddrMode::Imm),
+                0x4A => self.ex_ope(OpeKind::Lsr, AddrMode::Acc),
                 0x4B => self.undef(),
-                0x4C => self.ex_ope(OpeKind::JMP, AddrMode::AbsA),
-                0x4D => self.ex_ope(OpeKind::EOR, AddrMode::AbsA),
-                0x4E => self.ex_ope(OpeKind::LSR, AddrMode::AbsA),
+                0x4C => self.ex_ope(OpeKind::Jmp, AddrMode::Abs),
+                0x4D => self.ex_ope(OpeKind::Eor, AddrMode::Abs),
+                0x4E => self.ex_ope(OpeKind::Lsr, AddrMode::Abs),
                 0x4F => self.undef(),
 
-                0x50 => self.ex_ope(OpeKind::BVC, AddrMode::RelA),
-                0x51 => self.ex_ope(OpeKind::EOR, AddrMode::IdrIA),
+                0x50 => self.ex_ope(OpeKind::Bvc, AddrMode::Rel),
+                0x51 => self.ex_ope(OpeKind::Eor, AddrMode::IndY),
                 0x52 => self.undef(),
                 0x53 => self.undef(),
                 0x54 => self.undef(),
-                0x55 => self.ex_ope(OpeKind::EOR, AddrMode::ZPAX),
-                0x56 => self.ex_ope(OpeKind::LSR, AddrMode::ZPAX),
+                0x55 => self.ex_ope(OpeKind::Eor, AddrMode::ZpX),
+                0x56 => self.ex_ope(OpeKind::Lsr, AddrMode::ZpX),
                 0x57 => self.undef(),
-                0x58 => self.ex_ope(OpeKind::CLI, AddrMode::Impl),
-                0x59 => self.ex_ope(OpeKind::EOR, AddrMode::AbsAY),
+                0x58 => self.ex_ope(OpeKind::Cli, AddrMode::Impl),
+                0x59 => self.ex_ope(OpeKind::Eor, AddrMode::AbsY),
                 0x5A => self.undef(),
                 0x5B => self.undef(),
                 0x5C => self.undef(),
-                0x5D => self.ex_ope(OpeKind::EOR, AddrMode::AbsAX),
-                0x5E => self.ex_ope(OpeKind::LSR, AddrMode::AbsAX),
+                0x5D => self.ex_ope(OpeKind::Eor, AddrMode::AbsX),
+                0x5E => self.ex_ope(OpeKind::Lsr, AddrMode::AbsX),
                 0x5F => self.undef(),
 
-                0x60 => self.ex_ope(OpeKind::RTS, AddrMode::Impl),
-                0x61 => self.ex_ope(OpeKind::ADC, AddrMode::IdxIA),
+                0x60 => self.ex_ope(OpeKind::Rts, AddrMode::Impl),
+                0x61 => self.ex_ope(OpeKind::Adc, AddrMode::IndX),
                 0x62 => self.undef(),
                 0x63 => self.undef(),
                 0x64 => self.undef(),
-                0x65 => self.ex_ope(OpeKind::ADC, AddrMode::ZPA),
-                0x66 => self.ex_ope(OpeKind::ROR, AddrMode::ZPA),
+                0x65 => self.ex_ope(OpeKind::Adc, AddrMode::Zp),
+                0x66 => self.ex_ope(OpeKind::Ror, AddrMode::Zp),
                 0x67 => self.undef(),
-                0x68 => self.ex_ope(OpeKind::PLA, AddrMode::Impl),
-                0x69 => self.ex_ope(OpeKind::ADC, AddrMode::ImmA),
-                0x6A => self.ex_ope(OpeKind::ROR, AddrMode::AccA),
+                0x68 => self.ex_ope(OpeKind::Pla, AddrMode::Impl),
+                0x69 => self.ex_ope(OpeKind::Adc, AddrMode::Imm),
+                0x6A => self.ex_ope(OpeKind::Ror, AddrMode::Acc),
                 0x6B => self.undef(),
-                0x6C => self.ex_ope(OpeKind::JMP, AddrMode::AbsIA),
-                0x6D => self.ex_ope(OpeKind::ADC, AddrMode::AbsA),
-                0x6E => self.ex_ope(OpeKind::ROR, AddrMode::AbsA),
+                0x6C => self.ex_ope(OpeKind::Jmp, AddrMode::Ind),
+                0x6D => self.ex_ope(OpeKind::Adc, AddrMode::Abs),
+                0x6E => self.ex_ope(OpeKind::Ror, AddrMode::Abs),
                 0x6F => self.undef(),
 
-                0x70 => self.ex_ope(OpeKind::BVS, AddrMode::RelA),
-                0x71 => self.ex_ope(OpeKind::ADC, AddrMode::IdrIA),
+                0x70 => self.ex_ope(OpeKind::Bvs, AddrMode::Rel),
+                0x71 => self.ex_ope(OpeKind::Adc, AddrMode::IndY),
                 0x72 => self.undef(),
                 0x73 => self.undef(),
                 0x74 => self.undef(),
-                0x75 => self.ex_ope(OpeKind::ADC, AddrMode::ZPAX),
-                0x76 => self.ex_ope(OpeKind::ROR, AddrMode::ZPAX),
+                0x75 => self.ex_ope(OpeKind::Adc, AddrMode::ZpX),
+                0x76 => self.ex_ope(OpeKind::Ror, AddrMode::ZpX),
                 0x77 => self.undef(),
-                0x78 => self.ex_ope(OpeKind::SEI, AddrMode::Impl),
-                0x79 => self.ex_ope(OpeKind::ADC, AddrMode::AbsAY),
+                0x78 => self.ex_ope(OpeKind::Sei, AddrMode::Impl),
+                0x79 => self.ex_ope(OpeKind::Adc, AddrMode::AbsY),
                 0x7A => self.undef(),
                 0x7B => self.undef(),
                 0x7C => self.undef(),
-                0x7D => self.ex_ope(OpeKind::ADC, AddrMode::AbsAX),
-                0x7E => self.ex_ope(OpeKind::ROR, AddrMode::AbsAX),
+                0x7D => self.ex_ope(OpeKind::Adc, AddrMode::AbsX),
+                0x7E => self.ex_ope(OpeKind::Ror, AddrMode::AbsX),
                 0x7F => self.undef(),
 
                 0x80 => self.undef(),
-                0x81 => self.ex_ope(OpeKind::STA, AddrMode::IdxIA),
+                0x81 => self.ex_ope(OpeKind::Sta, AddrMode::IndX),
                 0x82 => self.undef(),
                 0x83 => self.undef(),
-                0x84 => self.ex_ope(OpeKind::STY, AddrMode::ZPA),
-                0x85 => self.ex_ope(OpeKind::STA, AddrMode::ZPA),
-                0x86 => self.ex_ope(OpeKind::STX, AddrMode::ZPA),
+                0x84 => self.ex_ope(OpeKind::Sty, AddrMode::Zp),
+                0x85 => self.ex_ope(OpeKind::Sta, AddrMode::Zp),
+                0x86 => self.ex_ope(OpeKind::Stx, AddrMode::Zp),
                 0x87 => self.undef(),
-                0x88 => self.ex_ope(OpeKind::DEY, AddrMode::Impl),
+                0x88 => self.ex_ope(OpeKind::Dey, AddrMode::Impl),
                 0x89 => self.undef(),
-                0x8A => self.ex_ope(OpeKind::TXA, AddrMode::Impl),
+                0x8A => self.ex_ope(OpeKind::Txa, AddrMode::Impl),
                 0x8B => self.undef(),
-                0x8C => self.ex_ope(OpeKind::STY, AddrMode::AbsA),
-                0x8D => self.ex_ope(OpeKind::STA, AddrMode::AbsA),
-                0x8E => self.ex_ope(OpeKind::STX, AddrMode::AbsA),
+                0x8C => self.ex_ope(OpeKind::Sty, AddrMode::Abs),
+                0x8D => self.ex_ope(OpeKind::Sta, AddrMode::Abs),
+                0x8E => self.ex_ope(OpeKind::Stx, AddrMode::Abs),
                 0x8F => self.undef(),
 
-                0x90 => self.ex_ope(OpeKind::BCC, AddrMode::RelA),
-                0x91 => self.ex_ope(OpeKind::STA, AddrMode::IdrIA),
+                0x90 => self.ex_ope(OpeKind::Bcc, AddrMode::Rel),
+                0x91 => self.ex_ope(OpeKind::Sta, AddrMode::IndY),
                 0x92 => self.undef(),
                 0x93 => self.undef(),
-                0x94 => self.ex_ope(OpeKind::STY, AddrMode::ZPAX),
-                0x95 => self.ex_ope(OpeKind::STA, AddrMode::ZPAX),
-                0x96 => self.ex_ope(OpeKind::STX, AddrMode::ZPAY),
+                0x94 => self.ex_ope(OpeKind::Sty, AddrMode::ZpX),
+                0x95 => self.ex_ope(OpeKind::Sta, AddrMode::ZpX),
+                0x96 => self.ex_ope(OpeKind::Stx, AddrMode::ZpY),
                 0x97 => self.undef(),
-                0x98 => self.ex_ope(OpeKind::TYA, AddrMode::Impl),
-                0x99 => self.ex_ope(OpeKind::STA, AddrMode::AbsAY),
-                0x9A => self.ex_ope(OpeKind::TXS, AddrMode::Impl),
+                0x98 => self.ex_ope(OpeKind::Tya, AddrMode::Impl),
+                0x99 => self.ex_ope(OpeKind::Sta, AddrMode::AbsY),
+                0x9A => self.ex_ope(OpeKind::Txs, AddrMode::Impl),
                 0x9B => self.undef(),
                 0x9C => self.undef(),
-                0x9D => self.ex_ope(OpeKind::STA, AddrMode::AbsAX),
+                0x9D => self.ex_ope(OpeKind::Sta, AddrMode::AbsX),
                 0x9E => self.undef(),
                 0x9F => self.undef(),
 
-                0xA0 => self.ex_ope(OpeKind::LDY, AddrMode::ImmA),
-                0xA1 => self.ex_ope(OpeKind::LDA, AddrMode::IdxIA),
-                0xA2 => self.ex_ope(OpeKind::LDX, AddrMode::ImmA),
+                0xA0 => self.ex_ope(OpeKind::Ldy, AddrMode::Imm),
+                0xA1 => self.ex_ope(OpeKind::Lda, AddrMode::IndX),
+                0xA2 => self.ex_ope(OpeKind::Ldx, AddrMode::Imm),
                 0xA3 => self.undef(),
-                0xA4 => self.ex_ope(OpeKind::LDY, AddrMode::ZPA),
-                0xA5 => self.ex_ope(OpeKind::LDA, AddrMode::ZPA),
-                0xA6 => self.ex_ope(OpeKind::LDX, AddrMode::ZPA),
+                0xA4 => self.ex_ope(OpeKind::Ldy, AddrMode::Zp),
+                0xA5 => self.ex_ope(OpeKind::Lda, AddrMode::Zp),
+                0xA6 => self.ex_ope(OpeKind::Ldx, AddrMode::Zp),
                 0xA7 => self.undef(),
-                0xA8 => self.ex_ope(OpeKind::TAY, AddrMode::Impl),
-                0xA9 => self.ex_ope(OpeKind::LDA, AddrMode::ImmA),
-                0xAA => self.ex_ope(OpeKind::TAX, AddrMode::Impl),
+                0xA8 => self.ex_ope(OpeKind::Tay, AddrMode::Impl),
+                0xA9 => self.ex_ope(OpeKind::Lda, AddrMode::Imm),
+                0xAA => self.ex_ope(OpeKind::Tax, AddrMode::Impl),
                 0xAB => self.undef(),
-                0xAC => self.ex_ope(OpeKind::LDY, AddrMode::AbsA),
-                0xAD => self.ex_ope(OpeKind::LDA, AddrMode::AbsA),
-                0xAE => self.ex_ope(OpeKind::LDX, AddrMode::AbsA),
+                0xAC => self.ex_ope(OpeKind::Ldy, AddrMode::Abs),
+                0xAD => self.ex_ope(OpeKind::Lda, AddrMode::Abs),
+                0xAE => self.ex_ope(OpeKind::Ldx, AddrMode::Abs),
                 0xAF => self.undef(),
 
-                0xB0 => self.ex_ope(OpeKind::BCS, AddrMode::RelA),
-                0xB1 => self.ex_ope(OpeKind::LDA, AddrMode::IdrIA),
+                0xB0 => self.ex_ope(OpeKind::Bcs, AddrMode::Rel),
+                0xB1 => self.ex_ope(OpeKind::Lda, AddrMode::IndY),
                 0xB2 => self.undef(),
                 0xB3 => self.undef(),
-                0xB4 => self.ex_ope(OpeKind::LDY, AddrMode::ZPAX),
-                0xB5 => self.ex_ope(OpeKind::LDA, AddrMode::ZPAX),
-                0xB6 => self.ex_ope(OpeKind::LDX, AddrMode::ZPAY),
+                0xB4 => self.ex_ope(OpeKind::Ldy, AddrMode::ZpX),
+                0xB5 => self.ex_ope(OpeKind::Lda, AddrMode::ZpX),
+                0xB6 => self.ex_ope(OpeKind::Ldx, AddrMode::ZpY),
                 0xB7 => self.undef(),
-                0xB8 => self.ex_ope(OpeKind::CLV, AddrMode::Impl),
-                0xB9 => self.ex_ope(OpeKind::LDA, AddrMode::AbsAY),
-                0xBA => self.ex_ope(OpeKind::TSX, AddrMode::Impl),
+                0xB8 => self.ex_ope(OpeKind::Clv, AddrMode::Impl),
+                0xB9 => self.ex_ope(OpeKind::Lda, AddrMode::AbsY),
+                0xBA => self.ex_ope(OpeKind::Tsx, AddrMode::Impl),
                 0xBB => self.undef(),
-                0xBC => self.ex_ope(OpeKind::LDY, AddrMode::AbsAX),
-                0xBD => self.ex_ope(OpeKind::LDA, AddrMode::AbsAX),
-                0xBE => self.ex_ope(OpeKind::LDX, AddrMode::AbsAY),
+                0xBC => self.ex_ope(OpeKind::Ldy, AddrMode::AbsX),
+                0xBD => self.ex_ope(OpeKind::Lda, AddrMode::AbsX),
+                0xBE => self.ex_ope(OpeKind::Ldx, AddrMode::AbsY),
                 0xBF => self.undef(),
 
-                0xC0 => self.ex_ope(OpeKind::CPY, AddrMode::ImmA),
-                0xC1 => self.ex_ope(OpeKind::CMP, AddrMode::IdxIA),
+                0xC0 => self.ex_ope(OpeKind::Cpy, AddrMode::Imm),
+                0xC1 => self.ex_ope(OpeKind::Cmp, AddrMode::IndX),
                 0xC2 => self.undef(),
                 0xC3 => self.undef(),
-                0xC4 => self.ex_ope(OpeKind::CPY, AddrMode::ZPA),
-                0xC5 => self.ex_ope(OpeKind::CMP, AddrMode::ZPA),
-                0xC6 => self.ex_ope(OpeKind::DEC, AddrMode::ZPA),
+                0xC4 => self.ex_ope(OpeKind::Cpy, AddrMode::Zp),
+                0xC5 => self.ex_ope(OpeKind::Cmp, AddrMode::Zp),
+                0xC6 => self.ex_ope(OpeKind::Dec, AddrMode::Zp),
                 0xC7 => self.undef(),
-                0xC8 => self.ex_ope(OpeKind::INY, AddrMode::Impl),
-                0xC9 => self.ex_ope(OpeKind::CMP, AddrMode::ImmA),
-                0xCA => self.ex_ope(OpeKind::DEX, AddrMode::Impl),
+                0xC8 => self.ex_ope(OpeKind::Iny, AddrMode::Impl),
+                0xC9 => self.ex_ope(OpeKind::Cmp, AddrMode::Imm),
+                0xCA => self.ex_ope(OpeKind::Dex, AddrMode::Impl),
                 0xCB => self.undef(),
-                0xCC => self.ex_ope(OpeKind::CPY, AddrMode::AbsA),
-                0xCD => self.ex_ope(OpeKind::CMP, AddrMode::AbsA),
-                0xCE => self.ex_ope(OpeKind::DEC, AddrMode::AbsA),
+                0xCC => self.ex_ope(OpeKind::Cpy, AddrMode::Abs),
+                0xCD => self.ex_ope(OpeKind::Cmp, AddrMode::Abs),
+                0xCE => self.ex_ope(OpeKind::Dec, AddrMode::Abs),
                 0xCF => self.undef(),
 
-                0xD0 => self.ex_ope(OpeKind::BNE, AddrMode::RelA),
-                0xD1 => self.ex_ope(OpeKind::CMP, AddrMode::IdrIA),
+                0xD0 => self.ex_ope(OpeKind::Bne, AddrMode::Rel),
+                0xD1 => self.ex_ope(OpeKind::Cmp, AddrMode::IndY),
                 0xD2 => self.undef(),
                 0xD3 => self.undef(),
                 0xD4 => self.undef(),
-                0xD5 => self.ex_ope(OpeKind::CMP, AddrMode::ZPAX),
-                0xD6 => self.ex_ope(OpeKind::DEC, AddrMode::ZPAX),
+                0xD5 => self.ex_ope(OpeKind::Cmp, AddrMode::ZpX),
+                0xD6 => self.ex_ope(OpeKind::Dec, AddrMode::ZpX),
                 0xD7 => self.undef(),
-                0xD8 => self.ex_ope(OpeKind::CLD, AddrMode::Impl),
-                0xD9 => self.ex_ope(OpeKind::CMP, AddrMode::AbsAY),
+                0xD8 => self.ex_ope(OpeKind::Cld, AddrMode::Impl),
+                0xD9 => self.ex_ope(OpeKind::Cmp, AddrMode::AbsY),
                 0xDA => self.undef(),
                 0xDB => self.undef(),
                 0xDC => self.undef(),
-                0xDD => self.ex_ope(OpeKind::CMP, AddrMode::AbsAX),
-                0xDE => self.ex_ope(OpeKind::DEC, AddrMode::AbsAX),
+                0xDD => self.ex_ope(OpeKind::Cmp, AddrMode::AbsX),
+                0xDE => self.ex_ope(OpeKind::Dec, AddrMode::AbsX),
                 0xDF => self.undef(),
 
-                0xE0 => self.ex_ope(OpeKind::CPX, AddrMode::ImmA),
-                0xE1 => self.ex_ope(OpeKind::SBC, AddrMode::IdxIA),
+                0xE0 => self.ex_ope(OpeKind::Cpx, AddrMode::Imm),
+                0xE1 => self.ex_ope(OpeKind::Sbc, AddrMode::IndX),
                 0xE2 => self.undef(),
                 0xE3 => self.undef(),
-                0xE4 => self.ex_ope(OpeKind::CPX, AddrMode::ZPA),
-                0xE5 => self.ex_ope(OpeKind::SBC, AddrMode::ZPA),
-                0xE6 => self.ex_ope(OpeKind::INC, AddrMode::ZPA),
+                0xE4 => self.ex_ope(OpeKind::Cpx, AddrMode::Zp),
+                0xE5 => self.ex_ope(OpeKind::Sbc, AddrMode::Zp),
+                0xE6 => self.ex_ope(OpeKind::Inc, AddrMode::Zp),
                 0xE7 => self.undef(),
-                0xE8 => self.ex_ope(OpeKind::INX, AddrMode::Impl),
-                0xE9 => self.ex_ope(OpeKind::SBC, AddrMode::ImmA),
-                0xEA => self.ex_ope(OpeKind::NOP, AddrMode::Impl),
+                0xE8 => self.ex_ope(OpeKind::Inx, AddrMode::Impl),
+                0xE9 => self.ex_ope(OpeKind::Sbc, AddrMode::Imm),
+                0xEA => self.ex_ope(OpeKind::Nop, AddrMode::Impl),
                 0xEB => self.undef(),
-                0xEC => self.ex_ope(OpeKind::CPX, AddrMode::AbsA),
-                0xED => self.ex_ope(OpeKind::SBC, AddrMode::AbsA),
-                0xEE => self.ex_ope(OpeKind::INC, AddrMode::AbsA),
+                0xEC => self.ex_ope(OpeKind::Cpx, AddrMode::Abs),
+                0xED => self.ex_ope(OpeKind::Sbc, AddrMode::Abs),
+                0xEE => self.ex_ope(OpeKind::Inc, AddrMode::Abs),
                 0xEF => self.undef(),
 
-                0xF0 => self.ex_ope(OpeKind::BEQ, AddrMode::RelA),
-                0xF1 => self.ex_ope(OpeKind::SBC, AddrMode::IdrIA),
+                0xF0 => self.ex_ope(OpeKind::Beq, AddrMode::Rel),
+                0xF1 => self.ex_ope(OpeKind::Sbc, AddrMode::IndY),
                 0xF2 => self.undef(),
                 0xF3 => self.undef(),
                 0xF4 => self.undef(),
-                0xF5 => self.ex_ope(OpeKind::SBC, AddrMode::ZPAX),
-                0xF6 => self.ex_ope(OpeKind::INC, AddrMode::ZPAX),
+                0xF5 => self.ex_ope(OpeKind::Sbc, AddrMode::ZpX),
+                0xF6 => self.ex_ope(OpeKind::Inc, AddrMode::ZpX),
                 0xF7 => self.undef(),
-                0xF8 => self.ex_ope(OpeKind::SED, AddrMode::Impl),
-                0xF9 => self.ex_ope(OpeKind::SBC, AddrMode::AbsAY),
+                0xF8 => self.ex_ope(OpeKind::Sed, AddrMode::Impl),
+                0xF9 => self.ex_ope(OpeKind::Sbc, AddrMode::AbsY),
                 0xFA => self.undef(),
                 0xFB => self.undef(),
                 0xFC => self.undef(),
-                0xFD => self.ex_ope(OpeKind::SBC, AddrMode::AbsAX),
-                0xFE => self.ex_ope(OpeKind::INC, AddrMode::AbsAX),
+                0xFD => self.ex_ope(OpeKind::Sbc, AddrMode::AbsX),
+                0xFE => self.ex_ope(OpeKind::Inc, AddrMode::AbsX),
                 0xFF => self.undef(),
             }
         }
@@ -1010,105 +1005,103 @@ mod cpu {
 
     #[derive(Debug, Clone)]
     pub enum AddrMode {
-        AccA,
-        ImmA,
-        AbsA,
-        AbsAX,
-        AbsAY,
-        ZPA,
-        ZPAX,
-        ZPAY,
-        IZPA,
+        Acc,
+        Imm,
+        Abs,
+        AbsX,
+        AbsY,
+        Zp,
+        ZpX,
+        ZpY,
         Impl,
-        RelA,
-        IdxIA,
-        IdrIA,
-        AbsIA,
-        AIA,
+        Rel,
+        IndX,
+        IndY,
+        Ind,
     }
 
     #[derive(Debug, Clone)]
     pub enum OpeKind {
-        ADC,
-        SBC, // flags: N V Z C
+        Adc,
+        Sbc, // flags: N V Z C
 
-        AND,
-        ORA,
-        EOR, // flags: N Z
+        And,
+        Ora,
+        Eor, // flags: N Z
 
-        ASL,
-        LSR,
-        ROL,
-        ROR, // flags: N Z C
+        Asl,
+        Lsr,
+        Rol,
+        Ror, // flags: N Z C
 
-        BCC,
-        BCS,
-        BEQ,
-        BNE,
-        BVC,
-        BVS,
-        BPL,
-        BMI, // flags: none
+        Bcc,
+        Bcs,
+        Beq,
+        Bne,
+        Bvc,
+        Bvs,
+        Bpl,
+        Bmi, // flags: none
 
-        BIT, // flags: N V Z
+        Bit, // flags: N V Z
 
-        JMP,
-        JSR,
-        RTS, // flags: none
+        Jmp,
+        Jsr,
+        Rts, // flags: none
 
-        BRK, // flags: BI
-        RTI, // flags: all
+        Brk, // flags: Bi
+        Rti, // flags: all
 
-        CMP,
-        CPX,
-        CPY,
-        INC,
-        DEC,
-        INX,
-        DEX,
-        INY,
-        DEY, // flags: N Z
+        Cmp,
+        Cpx,
+        Cpy,
+        Inc,
+        Dec,
+        Inx,
+        Dex,
+        Iny,
+        Dey, // flags: N Z
 
-        CLC,
-        SEC,
-        CLI,
-        SEI,
-        CLD,
-        SED,
-        CLV, // flags: N Z
+        Clc,
+        Sec,
+        Cli,
+        Sei,
+        Cld,
+        Sed,
+        Clv, // flags: N Z
 
-        LDA,
-        LDX,
-        LDY, // flags: N Z
+        Lda,
+        Ldx,
+        Ldy, // flags: N Z
 
-        STA,
-        STX,
-        STY, // flags: none
+        Sta,
+        Stx,
+        Sty, // flags: none
 
-        TAX,
-        TXA,
-        TAY,
-        TYA,
-        TSX, // flags: N Z
-        TXS, // flags: none
+        Tax,
+        Txa,
+        Tay,
+        Tya,
+        Tsx, // flags: N Z
+        Txs, // flags: none
 
-        PHA, // flags: none
-        PLA, // flags: N Z
-        PHP, // flags: none
-        PLP, // flags: all
-        NOP, // flags: none
+        Pha, // flags: none
+        Pla, // flags: N Z
+        Php, // flags: none
+        Plp, // flags: all
+        Nop, // flags: none
     }
 
-    #[derive(Debug, Clone)]
-    pub enum OpeFlags {
-        NVZC,
-        NZ,
-        NZC,
-        NVZ,
-        BI,
-        All,
-        None,
-    }
+    // #[derive(Debug, Clone)]
+    // pub enum OpeFlags {
+    //     Nvzc,
+    //     Nz,
+    //     Nzc,
+    //     Nvz,
+    //     Bi,
+    //     All,
+    //     None,
+    // }
 
     #[derive(Debug, Clone)]
     pub struct Map {
@@ -1167,13 +1160,13 @@ mod cpu {
         }
     }
 
-    #[derive(Debug, Clone)]
-    pub enum Interrupt {
-        NMI,
-        RESET,
-        IRQ,
-        BRK,
-    }
+    // #[derive(Debug, Clone)]
+    // pub enum Interrupt {
+    //     Nmi,
+    //     Reset,
+    //     Irq,
+    //     Brk,
+    // }
 
     #[derive(Debug, Clone)]
     pub struct Register {
@@ -1252,7 +1245,7 @@ mod cpu {
 
         pub fn set(&mut self, n: u8) {
             let s = format!("{:08b}", n);
-            fn chars_nth(s: &String, n: usize) -> u32 {
+            fn chars_nth(s: &str, n: usize) -> u32 {
                 s.chars().nth(n).unwrap().to_digit(2).unwrap()
             }
 
@@ -1293,9 +1286,9 @@ mod emurator {
 }
 
 pub fn main() -> Result<(), String> {
-    let nes = nes::NES::new();
+    let nes = nes::Nes::new();
     // println!("{:#?}", nes);
-    let mut cpu = cpu::CPU::new();
+    let mut cpu = cpu::Cpu::new();
     // println!("{:#?}", cpu);
     {
         let prgs = &nes.header.info.prg_rom;
