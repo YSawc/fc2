@@ -326,7 +326,7 @@ impl Cpu {
         self.map.addr(r)
     }
 
-    pub fn ex_ope(&mut self, opekind: OpeKind, addr_mode: AddrMode) {
+    pub fn ex_addr_mode(&mut self, addr_mode: AddrMode) -> u16 {
         self.register.pc += 1;
         let r = match addr_mode {
             AddrMode::Acc | AddrMode::Impl => 0,
@@ -396,7 +396,6 @@ impl Cpu {
                 b + (h << 8)
             }
         };
-        // println!("r: {:0x?}", r);
 
         match addr_mode {
             AddrMode::Acc | AddrMode::Impl => (),
@@ -412,6 +411,10 @@ impl Cpu {
             }
         }
 
+        r
+    }
+
+    pub fn run_ope(&mut self, r: u16, opekind: OpeKind) {
         match opekind {
             OpeKind::Adc => {
                 let t = self.map.addr(r) >> 7;
@@ -666,7 +669,22 @@ impl Cpu {
         }
     }
 
-    pub fn read_ope(&mut self) {
+    pub fn ex_ope(&mut self) {
+        match self.read_ope() {
+            Some(Operator {
+                ope_kind,
+                addr_mode,
+            }) => {
+                let ope_kind = ope_kind.clone();
+                let addr_mode = addr_mode.clone();
+                let reg_addr = self.ex_addr_mode(addr_mode);
+                self.run_ope(reg_addr, ope_kind);
+            }
+            None => self.undef(),
+        }
+    }
+
+    pub fn read_ope(&mut self) -> Option<&Operator> {
         let c = self.fetch_code();
         // print!("self.register.pc: {:0x?} ", self.register.pc);
         // print!(
@@ -685,15 +703,8 @@ impl Cpu {
         // println!("0x2007 {}", self.map.addr(0x2007));
 
         match self.operators.get_mut(&c) {
-            Some(Operator {
-                ope_kind,
-                addr_mode,
-            }) => {
-                let ope_kind = ope_kind.clone();
-                let addr_mode = addr_mode.clone();
-                self.ex_ope(ope_kind, addr_mode)
-            }
-            None => self.undef(),
+            Some(operator) => Some(operator),
+            None => None,
         }
     }
 }
@@ -716,3 +727,95 @@ impl Cpu {
 //     Irq,
 //     Brk,
 // }
+
+#[cfg(test)]
+mod test {
+    use crate::cpu::*;
+    extern crate rand;
+    use rand::seq::IteratorRandom;
+
+    impl Cpu {
+        fn random_pick_operator_with_specify_ope_kind(&self, like_kind: OpeKind) -> (u8, Operator) {
+            let picked_operators = self
+                .operators
+                .iter()
+                .filter(|(_, Operator { ope_kind, .. })| *ope_kind == like_kind);
+
+            let mut rng = rand::thread_rng();
+            let (code, operator) = picked_operators.choose(&mut rng).unwrap();
+            (*code, operator.clone())
+        }
+
+        fn random_pick_operator_with_specify_addr_mode(
+            &self,
+            like_mode: AddrMode,
+        ) -> (u8, &Operator) {
+            let picked_operators = self
+                .operators
+                .iter()
+                .filter(|(_, Operator { addr_mode, .. })| *addr_mode == like_mode);
+
+            let mut rng = rand::thread_rng();
+            let (code, operator) = picked_operators.choose(&mut rng).unwrap();
+            (*code, operator)
+        }
+
+        fn set_next_reg_addr(&mut self, reg_addr: &mut u16) {
+            match self.read_ope() {
+                Some(Operator { addr_mode, .. }) => {
+                    let addr_mode = addr_mode.clone();
+                    *reg_addr = self.ex_addr_mode(addr_mode);
+                }
+                None => (),
+            };
+        }
+    }
+
+    fn rand_u8() -> u8 {
+        use crate::cpu::test::rand::Rng;
+
+        let mut rng = rand::thread_rng();
+        let n: u8 = rng.gen();
+        n
+    }
+
+    fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> Cpu {
+        let nes = Nes::new();
+        let mut cpu = Cpu::default();
+        cpu.init(&nes);
+        cpu.reset();
+        let (code, _) = cpu.random_pick_operator_with_specify_addr_mode(addr_mode);
+        cpu.map.prg_rom1[0] = code;
+        cpu
+    }
+
+    #[test]
+    fn acc_not_specify_addressing_register() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Acc);
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        let fetched_next_addr = cpu.fetch_next_register() as u16;
+        let fetched_next_next_addr = cpu._fetch_next_next_register() as u16;
+
+        assert_eq!(reg_addr, 0);
+        assert_ne!(reg_addr, fetched_next_addr);
+        assert_ne!(reg_addr, fetched_next_next_addr);
+    }
+
+    #[test]
+    fn imm_specify_immediate_register_as_addressing_register() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Imm);
+
+        let fetched_next_addr = cpu.fetch_next_register() as u16;
+        cpu.map.prg_rom1[2] = rand_u8();
+        let fetched_next_next_addr = cpu._fetch_next_next_register() as u16;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, fetched_next_addr);
+        assert_ne!(reg_addr, fetched_next_next_addr);
+    }
+}

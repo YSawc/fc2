@@ -94,7 +94,7 @@ pub fn main() -> Result<(), String> {
         }
 
         canvas.present();
-        cpu.read_ope();
+        cpu.ex_ope();
         // frame += 1;
     }
 

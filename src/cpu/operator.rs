@@ -4,7 +4,7 @@ pub struct Operator {
     pub addr_mode: AddrMode,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AddrMode {
     Acc,
     Imm,
@@ -21,7 +21,7 @@ pub enum AddrMode {
     Ind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OpeKind {
     Adc,
     Sbc, // flags: N V Z C
