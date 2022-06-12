@@ -7,3 +7,7 @@ edition = "2021"
 
 [dependencies]
 sdl2 = "0.35"
+rustc-hash = "1.1.0"
+
+[features]
+render_sprites = []
