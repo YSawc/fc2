@@ -293,7 +293,7 @@ impl Cpu {
         self.map.addr(pc)
     }
 
-    pub fn _fetch_next_next_register(&mut self) -> u8 {
+    pub fn fetch_next_next_register(&mut self) -> u8 {
         let pc = self.register.pc + 2;
         self.map.addr(pc)
     }
@@ -349,19 +349,19 @@ impl Cpu {
             AddrMode::Abs => {
                 let b = self.fetch_register() as u16;
                 let h = self.fetch_next_register() as u16;
-                (b + (h << 8)) as u16
+                ((h << 8) | b) as u16
             }
             AddrMode::AbsX => {
                 let mut b = self.fetch_register() as u16;
                 let h = self.fetch_next_register() as u16;
                 b += self.register.x as u16;
-                (b + (h << 8)) as u16
+                ((h << 8) | b) as u16
             }
             AddrMode::AbsY => {
                 let mut b = self.fetch_register() as u16;
                 let h = self.fetch_next_register() as u16;
                 b += self.register.y as u16;
-                (b + (h << 8)) as u16
+                ((h << 8) | b) as u16
             }
             AddrMode::Rel => {
                 let b = self.register.pc + 1;
@@ -390,11 +390,11 @@ impl Cpu {
                 let b = self.fetch_register() as u16;
                 let h = self.fetch_next_register() as u16;
 
-                let t = b + (h << 8);
+                let t = (h << 8) | b;
                 let b = self.map.addr(t) as u16;
                 let h = self.map.addr(t + 1) as u16;
 
-                b + (h << 8)
+                (h << 8) | b
             }
         };
 
@@ -639,7 +639,7 @@ impl Cpu {
             OpeKind::Rts => {
                 let b = self.pull_stack() as u16;
                 let h = self.pull_stack() as u16;
-                let t = b + (h << 8);
+                let t = (h << 8) | b;
                 self.register.pc = t;
                 self.register.pc += 1;
             }
@@ -657,7 +657,7 @@ impl Cpu {
                     self.register.p.interrupt = true;
                     let h = self.map.addr(0xFFFE) as u16;
                     let b = self.map.addr(0xFFFF) as u16;
-                    self.register.pc = b + (h << 8);
+                    self.register.pc = (h << 8) | b;
                 }
             }
             OpeKind::Nop => {
@@ -692,7 +692,7 @@ impl Cpu {
         //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?} ",
         //     c,
         //     self.fetch_next_register(),
-        //     self._fetch_next_next_register()
+        //     self.fetch_next_next_register()
         // );
         // print!("0x2000 {}, ", self.map.addr(0x2000));
         // print!("0x2001 {}, ", self.map.addr(0x2001));
@@ -803,7 +803,7 @@ mod test {
         cpu.set_next_reg_addr(&mut reg_addr);
 
         let fetched_next_addr = cpu.fetch_next_register() as u16;
-        let fetched_next_next_addr = cpu._fetch_next_next_register() as u16;
+        let fetched_next_next_addr = cpu.fetch_next_next_register() as u16;
 
         assert_eq!(reg_addr, 0);
         assert_ne!(reg_addr, fetched_next_addr);
@@ -818,7 +818,7 @@ mod test {
         cpu.set_next_reg_addr(&mut reg_addr);
 
         let fetched_next_addr = cpu.fetch_next_register() as u16;
-        let fetched_next_next_addr = cpu._fetch_next_next_register() as u16;
+        let fetched_next_next_addr = cpu.fetch_next_next_register() as u16;
 
         assert_eq!(reg_addr, 0);
         assert_ne!(reg_addr, fetched_next_addr);
@@ -831,7 +831,7 @@ mod test {
         cpu.insert_random_num_into_b1_b2();
 
         let fetched_next_addr = cpu.fetch_next_register() as u16;
-        let fetched_next_next_addr = cpu._fetch_next_next_register() as u16;
+        let fetched_next_next_addr = cpu.fetch_next_next_register() as u16;
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
@@ -846,8 +846,8 @@ mod test {
         cpu.insert_random_num_into_b1_b2();
 
         let b = cpu.fetch_next_register() as u16;
-        let h = cpu._fetch_next_next_register() as u16;
-        let r = (b + (h << 8)) as u16;
+        let h = cpu.fetch_next_next_register() as u16;
+        let r = ((h << 8) | b) as u16;
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
@@ -861,10 +861,10 @@ mod test {
         cpu.insert_random_num_into_b1_b2();
 
         let mut b = cpu.fetch_next_register() as u16;
-        let h = cpu._fetch_next_next_register() as u16;
+        let h = cpu.fetch_next_next_register() as u16;
         cpu.register.x = (rand_u8() / 2) as i8;
         b += cpu.register.x as u16;
-        let r = (b + (h << 8)) as u16;
+        let r = ((h << 8) | b) as u16;
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
@@ -878,10 +878,10 @@ mod test {
         cpu.insert_random_num_into_b1_b2();
 
         let mut b = cpu.fetch_next_register() as u16;
-        let h = cpu._fetch_next_next_register() as u16;
+        let h = cpu.fetch_next_next_register() as u16;
         cpu.register.y = (rand_u8() / 2) as i8;
         b += cpu.register.y as u16;
-        let r = (b + (h << 8)) as u16;
+        let r = ((h << 8) | b) as u16;
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
