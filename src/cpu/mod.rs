@@ -3,6 +3,7 @@ pub mod operator;
 pub mod register;
 
 use crate::nes::*;
+use crate::util::*;
 use mapper::*;
 use operator::*;
 use register::*;
@@ -368,22 +369,22 @@ impl Cpu {
                 (b + h) as u16
             }
             AddrMode::IndX => {
-                let mut b = self.fetch_register() as u16;
-                b += self.register.x as u16;
-                let t = b as u16;
+                let l = self.fetch_register();
+                let r = self.register.x as u8;
+                let t = ex_plus_ignoring_overflow(l, r) as u16;
 
                 let b = self.map.addr(t) as u16;
                 let h = self.map.addr(t + 1) as u16;
-                b + (h << 8)
+                (h << 8) | b
             }
             AddrMode::IndY => {
-                let mut b = self.fetch_register() as u16;
-                b += self.register.y as u16;
-                let t = b;
+                let t = self.fetch_register() as u16;
 
                 let b = self.map.addr(t) as u16;
                 let h = self.map.addr(t + 1) as u16;
-                b + (h << 8)
+                let l = ((h << 8) | b) as u8;
+                let r = self.register.y as u8;
+                ex_plus_ignoring_overflow(l, r) as u16
             }
             AddrMode::Ind => {
                 let b = self.fetch_register() as u16;
@@ -916,4 +917,47 @@ mod test {
         assert_eq!(reg_addr, r);
     }
 
+    #[test]
+    fn ind_x_specify_indexed_indirect_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::IndX);
+        cpu.insert_random_num_into_b1_b2();
+        cpu.register.x = (rand_u8()) as i8;
+
+        let l = cpu.fetch_next_register();
+        let r = cpu.register.x as u8;
+        let t = ex_plus_ignoring_overflow(l, r) as u16;
+        cpu.map.set(t, rand_u8());
+        cpu.map.set(t + 1, rand_u8());
+
+        let b = cpu.map.addr(t) as u16;
+        let h = cpu.map.addr(t + 1) as u16;
+        let r = b | (h << 8);
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
+
+    #[test]
+    fn ind_y_specify_indexed_indirect_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::IndY);
+        cpu.insert_random_num_into_b1_b2();
+        cpu.register.y = (rand_u8()) as i8;
+
+        let t = cpu.fetch_next_register() as u16;
+        cpu.map.set(t, rand_u8());
+        cpu.map.set(t + 1, rand_u8());
+
+        let b = cpu.map.addr(t) as u16;
+        let h = cpu.map.addr(t + 1) as u16;
+        let l = ((h << 8) | b) as u8;
+        let r = cpu.register.y as u8;
+        let r = ex_plus_ignoring_overflow(l, r) as u16;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
 }
