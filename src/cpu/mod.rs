@@ -377,12 +377,12 @@ impl Cpu {
                 b + (h << 8)
             }
             AddrMode::IndY => {
-                let b = self.fetch_register() as u16;
+                let mut b = self.fetch_register() as u16;
+                b += self.register.y as u16;
                 let t = b;
 
                 let b = self.map.addr(t) as u16;
-                let mut h = self.map.addr(t + 1) as u16;
-                h += self.register.y as u16;
+                let h = self.map.addr(t + 1) as u16;
                 b + (h << 8)
             }
             AddrMode::Ind => {
@@ -769,6 +769,11 @@ mod test {
                 None => (),
             };
         }
+
+        fn insert_random_num_into_b1_b2(&mut self) {
+            self.map.prg_rom1[1] = rand_u8();
+            self.map.prg_rom1[2] = rand_u8();
+        }
     }
 
     fn rand_u8() -> u8 {
@@ -805,11 +810,26 @@ mod test {
     }
 
     #[test]
-    fn imm_specify_immediate_register_as_addressing_register() {
-        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Imm);
+    fn impl_not_specify_addressing_register() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Impl);
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
 
         let fetched_next_addr = cpu.fetch_next_register() as u16;
-        cpu.map.prg_rom1[2] = rand_u8();
+        let fetched_next_next_addr = cpu._fetch_next_next_register() as u16;
+
+        assert_eq!(reg_addr, 0);
+        assert_ne!(reg_addr, fetched_next_addr);
+        assert_ne!(reg_addr, fetched_next_next_addr);
+    }
+
+    #[test]
+    fn imm_specify_immediate_register_as_addressing_register() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Imm);
+        cpu.insert_random_num_into_b1_b2();
+
+        let fetched_next_addr = cpu.fetch_next_register() as u16;
         let fetched_next_next_addr = cpu._fetch_next_next_register() as u16;
 
         let mut reg_addr = u16::MAX;
@@ -818,4 +838,82 @@ mod test {
         assert_eq!(reg_addr, fetched_next_addr);
         assert_ne!(reg_addr, fetched_next_next_addr);
     }
+
+    #[test]
+    fn abs_specify_b1_b2_register_as_absolute_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Abs);
+        cpu.insert_random_num_into_b1_b2();
+
+        let b = cpu.fetch_next_register() as u16;
+        let h = cpu._fetch_next_next_register() as u16;
+        let r = (b + (h << 8)) as u16;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
+
+    #[test]
+    fn abs_x_specify_b1_b2_register_as_indexed_absolute_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::AbsX);
+        cpu.insert_random_num_into_b1_b2();
+
+        let mut b = cpu.fetch_next_register() as u16;
+        let h = cpu._fetch_next_next_register() as u16;
+        cpu.register.x = (rand_u8() / 2) as i8;
+        b += cpu.register.x as u16;
+        let r = (b + (h << 8)) as u16;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
+
+    #[test]
+    fn abs_y_specify_b1_b2_register_as_indexed_absolute_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::AbsY);
+        cpu.insert_random_num_into_b1_b2();
+
+        let mut b = cpu.fetch_next_register() as u16;
+        let h = cpu._fetch_next_next_register() as u16;
+        cpu.register.y = (rand_u8() / 2) as i8;
+        b += cpu.register.y as u16;
+        let r = (b + (h << 8)) as u16;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
+
+    #[test]
+    fn zp_specify_zero_page_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Zp);
+        cpu.insert_random_num_into_b1_b2();
+
+        let r = cpu.fetch_next_register() as u16;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
+
+    #[test]
+    fn rel_specify_relation_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Rel);
+        cpu.insert_random_num_into_b1_b2();
+
+        let b = cpu.register.pc + 2;
+        let h = cpu.fetch_next_register() as u16;
+        let r = (b + h) as u16;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
+
 }
