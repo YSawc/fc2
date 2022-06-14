@@ -960,4 +960,26 @@ mod test {
 
         assert_eq!(reg_addr, r);
     }
+
+    #[test]
+    fn ind_specify_indexed_indirect_address() {
+        let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Ind);
+        cpu.insert_random_num_into_b1_b2();
+
+        let b = cpu.fetch_next_register() as u16;
+        let h = cpu.fetch_next_next_register() as u16;
+        let t = ((h << 8) | b) as u16;
+
+        cpu.map.set(t, rand_u8());
+        cpu.map.set(t + 1, rand_u8());
+
+        let b = cpu.map.addr(t) as u16;
+        let h = cpu.map.addr(t + 1) as u16;
+        let r = (h << 8) | b;
+
+        let mut reg_addr = u16::MAX;
+        cpu.set_next_reg_addr(&mut reg_addr);
+
+        assert_eq!(reg_addr, r);
+    }
 }
