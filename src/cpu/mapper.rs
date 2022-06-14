@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub struct Map {
     pub wram: [u8; 0x0800],
-    pub wram_mirror: [u8; 0x17FF],
+    pub wram_mirror: [u8; 0x1800],
     pub ppu_register: [u8; 0x0008],
     pub ppu_register_mirror: [u8; 0x1FF8],
     pub apu_pad: [u8; 0x0020],
@@ -21,7 +21,7 @@ impl Map {
     pub fn new() -> Self {
         Self {
             wram: [0; 0x0800],
-            wram_mirror: [0; 0x17FF],
+            wram_mirror: [0; 0x1800],
             ppu_register: [0; 0x0008],
             ppu_register_mirror: [0; 0x1FF8],
             apu_pad: [0; 0x0020],
