@@ -53,6 +53,36 @@ pub fn main() -> Result<(), String> {
     let mut event_pump = sdl_context.event_pump()?;
     // let mut frame: u32 = 0;
 
+    canvas.set_draw_color(Color::RGB(150, 150, 150));
+    canvas.clear();
+
+    for n in 0..nes.header.info.sprites_num {
+        for i in 0..8 {
+            for j in 0..8 {
+                let square_texture = match sprites[n as usize][i as usize][j as usize] {
+                    0 => &square_texture1,
+                    1 => &square_texture2,
+                    2 => &square_texture3,
+                    3 => &square_texture4,
+                    _ => unreachable!(),
+                };
+
+                canvas.copy(
+                    square_texture,
+                    None,
+                    Rect::new(
+                        (j + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
+                        (i + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
+                        SQUARE_SIZE,
+                        SQUARE_SIZE,
+                    ),
+                )?;
+            }
+        }
+    }
+
+    canvas.present();
+
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -65,35 +95,6 @@ pub fn main() -> Result<(), String> {
             }
         }
 
-        canvas.set_draw_color(Color::RGB(150, 150, 150));
-        canvas.clear();
-
-        for n in 0..nes.header.info.sprites_num {
-            for i in 0..8 {
-                for j in 0..8 {
-                    let square_texture = match sprites[n as usize][i as usize][j as usize] {
-                        0 => &square_texture1,
-                        1 => &square_texture2,
-                        2 => &square_texture3,
-                        3 => &square_texture4,
-                        _ => unreachable!(),
-                    };
-
-                    canvas.copy(
-                        square_texture,
-                        None,
-                        Rect::new(
-                            (j + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                            (i + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                            SQUARE_SIZE,
-                            SQUARE_SIZE,
-                        ),
-                    )?;
-                }
-            }
-        }
-
-        canvas.present();
         cpu.ex_ope();
         // frame += 1;
     }

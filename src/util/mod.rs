@@ -31,3 +31,7 @@ pub fn ex_minus_ignoring_overflow(l: u8, r: u8) -> u8 {
         l - r
     }
 }
+
+pub fn combine_high_low(l: u8, h: u8) -> u16 {
+    (((h as u16) << 8) | l as u16) as u16
+}

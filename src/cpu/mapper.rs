@@ -46,6 +46,18 @@ impl Map {
         }
     }
 
+    pub fn lh_addr(&self, n: u16) -> (u8, u8) {
+        let l = self.addr(n);
+        let h = self.addr(n + 1);
+        (l, h)
+    }
+
+    pub fn hl_addr(&self, n: u16) -> (u8, u8) {
+        let h = self.addr(n);
+        let l = self.addr(n + 1);
+        (h, l)
+    }
+
     pub fn set(&mut self, n: u16, r: u8) {
         match n {
             0x0000..=0x07FF => self.wram[n as usize] = r,

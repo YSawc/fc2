@@ -1,8 +1,8 @@
 #[derive(Debug, Clone)]
 pub struct Register {
-    pub a: i8,
-    pub x: i8,
-    pub y: i8,
+    pub a: u8,
+    pub x: u8,
+    pub y: u8,
     pub s: u16,
     pub p: P,
     pub pc: u16,
@@ -33,8 +33,7 @@ impl Register {
     }
 
     pub fn set_s(&mut self, n: u8) {
-        let h = 1 << 8;
-        self.s = (n as u16) + h;
+        self.s = (1 << 8) | (n as u16);
     }
 }
 
