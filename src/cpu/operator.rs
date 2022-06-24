@@ -2,6 +2,7 @@
 pub struct Operator {
     pub ope_kind: OpeKind,
     pub addr_mode: AddrMode,
+    pub cycle: u8,
 }
 
 #[derive(Debug, Clone, PartialEq)]

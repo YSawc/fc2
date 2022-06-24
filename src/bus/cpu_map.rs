@@ -1,8 +1,7 @@
 #[derive(Debug, Clone)]
-pub struct Map {
+pub struct CpuMap {
     pub wram: [u8; 0x0800],
     pub wram_mirror: [u8; 0x1800],
-    pub ppu_register: [u8; 0x0008],
     pub ppu_register_mirror: [u8; 0x1FF8],
     pub apu_pad: [u8; 0x0020],
     pub erom: [u8; 0x1FE0],
@@ -11,18 +10,17 @@ pub struct Map {
     pub prg_rom2: [u8; 0x4000],
 }
 
-impl Default for Map {
+impl Default for CpuMap {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Map {
+impl CpuMap {
     pub fn new() -> Self {
         Self {
             wram: [0; 0x0800],
             wram_mirror: [0; 0x1800],
-            ppu_register: [0; 0x0008],
             ppu_register_mirror: [0; 0x1FF8],
             apu_pad: [0; 0x0020],
             erom: [0; 0x1FE0],
@@ -36,7 +34,7 @@ impl Map {
         match n {
             0x0000..=0x07FF => self.wram[n as usize],
             0x0800..=0x1FFF => self.wram_mirror[(n - 0x0800) as usize],
-            0x2000..=0x2007 => self.ppu_register[(n - 0x2000) as usize],
+            0x2000..=0x2007 => unreachable!(),
             0x2008..=0x3FFF => self.ppu_register_mirror[(n - 0x2008) as usize],
             0x4000..=0x401F => self.apu_pad[(n - 0x4000) as usize],
             0x4020..=0x5FFF => self.erom[(n - 0x4020) as usize],
@@ -62,7 +60,7 @@ impl Map {
         match n {
             0x0000..=0x07FF => self.wram[n as usize] = r,
             0x0800..=0x1FFF => self.wram_mirror[(n - 0x0800) as usize] = r,
-            0x2000..=0x2007 => self.ppu_register[(n - 0x2000) as usize] = r,
+            0x2000..=0x2007 => unreachable!(),
             0x2008..=0x3FFF => self.ppu_register_mirror[(n - 0x2008) as usize] = r,
             0x4000..=0x401F => self.apu_pad[(n - 0x4000) as usize] = r,
             0x4020..=0x5FFF => self.erom[(n - 0x4020) as usize] = r,

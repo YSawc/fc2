@@ -1,3 +1,5 @@
+use crate::util::*;
+
 #[derive(Debug, Clone)]
 pub struct Register {
     pub a: u8,
@@ -69,51 +71,32 @@ impl P {
         }
     }
 
-    pub fn bool_to_n(&mut self, b: bool) -> u8 {
-        match b {
-            true => 1,
-            false => 0,
-        }
-    }
-
-    pub fn s_to_bool(&mut self, n: u32) -> bool {
-        match n {
-            1 => true,
-            0 => false,
-            _ => unimplemented!(),
-        }
-    }
-
     pub fn set(&mut self, n: u8) {
         let s = format!("{:08b}", n);
         fn chars_nth(s: &str, n: usize) -> u32 {
             s.chars().nth(n).unwrap().to_digit(2).unwrap()
         }
 
-        self.carry = self.s_to_bool(chars_nth(&s, 7));
-        self.zero = self.s_to_bool(chars_nth(&s, 6));
-        self.interrupt = self.s_to_bool(chars_nth(&s, 5));
-        self.decimal = self.s_to_bool(chars_nth(&s, 4));
-        self.break_mode = self.s_to_bool(chars_nth(&s, 3));
-        self.reserved = match chars_nth(&s, 2) {
-            1 => 1,
-            0 => 0,
-            _ => unimplemented!(),
-        };
-        self.overflow = self.s_to_bool(chars_nth(&s, 1));
-        self.negative = self.s_to_bool(chars_nth(&s, 0));
+        self.carry = n_to_bool(chars_nth(&s, 7));
+        self.zero = n_to_bool(chars_nth(&s, 6));
+        self.interrupt = n_to_bool(chars_nth(&s, 5));
+        self.decimal = n_to_bool(chars_nth(&s, 4));
+        self.break_mode = n_to_bool(chars_nth(&s, 3));
+        self.reserved = n & 0b00000100;
+        self.overflow = n_to_bool(chars_nth(&s, 1));
+        self.negative = n_to_bool(chars_nth(&s, 0));
     }
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += self.bool_to_n(self.carry) << 7;
-        n += self.bool_to_n(self.zero) << 6;
-        n += self.bool_to_n(self.interrupt) << 5;
-        n += self.bool_to_n(self.decimal) << 4;
-        n += self.bool_to_n(self.break_mode) << 3;
+        n += bool_to_n(self.carry) << 7;
+        n += bool_to_n(self.zero) << 6;
+        n += bool_to_n(self.interrupt) << 5;
+        n += bool_to_n(self.decimal) << 4;
+        n += bool_to_n(self.break_mode) << 3;
         n += self.reserved << 2;
-        n += self.bool_to_n(self.overflow) << 1;
-        n += self.bool_to_n(self.negative);
+        n += bool_to_n(self.overflow) << 1;
+        n += bool_to_n(self.negative);
         n
     }
 }
