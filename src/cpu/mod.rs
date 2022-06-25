@@ -10,13 +10,13 @@ use register::*;
 use rustc_hash::*;
 
 #[derive(Debug, Clone)]
-pub struct Cpu {
+pub struct CPU {
     pub register: Register,
     pub operators: FxHashMap<u8, Operator>,
     pub bus: Bus,
 }
 
-impl Default for Cpu {
+impl Default for CPU {
     fn default() -> Self {
         let mut cpu = Self::new();
         cpu.prepare_operators();
@@ -24,7 +24,7 @@ impl Default for Cpu {
     }
 }
 
-impl Cpu {
+impl CPU {
     pub fn new() -> Self {
         let register = Register::default();
         let operators = FxHashMap::default();
@@ -426,7 +426,7 @@ impl Cpu {
         self.bus.addr(r)
     }
 
-    pub fn ex_addr_mode(&mut self, addr_mode: AddrMode) -> u16 {
+    pub fn ex_addr_mode(&mut self, addr_mode: &AddrMode) -> u16 {
         self.register.pc += 1;
         let r = match addr_mode {
             AddrMode::Impl => 0,
@@ -765,23 +765,28 @@ impl Cpu {
         }
     }
 
-    pub fn ex_ope(&mut self) {
+    pub fn ex_ope(&mut self) -> u8 {
         match self.read_ope() {
             Some(Operator {
                 ope_kind,
                 addr_mode,
-                ..
+                cycle,
             }) => {
                 let ope_kind = ope_kind.clone();
                 let addr_mode = addr_mode.clone();
-                let reg_addr = self.ex_addr_mode(addr_mode.clone());
+                let cycle = cycle.clone();
+                let reg_addr = self.ex_addr_mode(&addr_mode);
                 self.run_ope(reg_addr, ope_kind, addr_mode);
                 // println!(
                 //     "self.register.pc: {:0x?}, reg_addr: {:0x?}",
                 //     self.register.pc, reg_addr
                 // );
+                cycle
             }
-            None => self.undef(),
+            None => {
+                self.undef();
+                unimplemented!();
+            }
         }
     }
 
@@ -839,7 +844,7 @@ mod test {
     extern crate rand;
     use rand::seq::IteratorRandom;
 
-    impl Cpu {
+    impl CPU {
         fn random_pick_operator_with_specify_addr_mode(
             &self,
             like_mode: AddrMode,
@@ -858,7 +863,7 @@ mod test {
             match self.read_ope() {
                 Some(Operator { addr_mode, .. }) => {
                     let addr_mode = addr_mode.clone();
-                    *reg_addr = self.ex_addr_mode(addr_mode);
+                    *reg_addr = self.ex_addr_mode(&addr_mode);
                 }
                 None => (),
             };
@@ -885,9 +890,9 @@ mod test {
         n
     }
 
-    fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> Cpu {
+    fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> CPU {
         let nes = Nes::new();
-        let mut cpu = Cpu::default();
+        let mut cpu = CPU::default();
         cpu.init(&nes);
         cpu.reset();
         let (code, _) = cpu.random_pick_operator_with_specify_addr_mode(addr_mode);

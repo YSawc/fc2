@@ -7,7 +7,7 @@ use ppu::*;
 #[derive(Debug, Clone)]
 pub struct Bus {
     pub cpu_bus: CpuMap,
-    pub ppu: PPU
+    pub ppu: PPU,
 }
 
 impl Default for Bus {
@@ -35,7 +35,7 @@ impl Bus {
         match n {
             0x0000..=0x07FF => self.cpu_bus.wram[n as usize] = r,
             0x0800..=0x1FFF => self.cpu_bus.wram_mirror[(n - 0x0800) as usize] = r,
-            0x2000..=0x2007 => self.ppu.map.set(n, r),
+            0x2000..=0x2007 => self.ppu.register.set(n, r),
             0x2008..=0x3FFF => self.cpu_bus.ppu_register_mirror[(n - 0x2008) as usize] = r,
             0x4000..=0x401F => self.cpu_bus.apu_pad[(n - 0x4000) as usize] = r,
             0x4020..=0x5FFF => self.cpu_bus.erom[(n - 0x4020) as usize] = r,

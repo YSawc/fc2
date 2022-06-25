@@ -1,8 +1,8 @@
 extern crate sdl2;
 
-use fc2::cpu::*;
-use fc2::emurator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SQUARE_SIZE};
-use fc2::emurator::renderer::*;
+use fc2::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SQUARE_SIZE};
+use fc2::emulator::renderer::*;
+use fc2::emulator::*;
 use fc2::nes::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -12,11 +12,11 @@ use sdl2::render::TextureCreator;
 
 pub fn main() -> Result<(), String> {
     let nes = Nes::new();
-    let mut cpu = Cpu::default();
-    cpu.init(&nes);
+    let mut emulator = Emulator::default();
+    emulator.cpu.init(&nes);
     // println!("{:#?}", nes);
-    // println!("{:#?}", cpu);
-    cpu.reset();
+    // println!("{:#?}", emulator.cpu);
+    emulator.reset();
 
     let sprites = nes.read_sprites();
 
@@ -95,7 +95,7 @@ pub fn main() -> Result<(), String> {
             }
         }
 
-        cpu.ex_ope();
+        emulator.run();
         // frame += 1;
     }
 

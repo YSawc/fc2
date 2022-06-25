@@ -5,7 +5,7 @@ pub struct Register {
     pub ppu_ctrl: PpuCtrl,
     pub ppu_mask: PpuMask,
     pub ppu_status: PpuStatus,
-    pub oam_addr: OamAddr,
+    pub oam_addr: u8,
     pub oam_data: u8,
     pub ppu_scroll: u8,
     pub ppu_addr: u8,
@@ -146,20 +146,20 @@ impl PpuStatus {
 }
 
 #[derive(Debug, Clone)]
-pub struct OamAddr {
+pub struct Oam {
     pos_y: u8,
     index_num: u8,
     attr: u8,
     pos_x: u8,
 }
 
-impl Default for OamAddr {
+impl Default for Oam {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl OamAddr {
+impl Oam {
     pub fn new() -> Self {
         Self {
             pos_y: 0,
@@ -189,7 +189,7 @@ impl Register {
             ppu_ctrl: PpuCtrl::default(),
             ppu_mask: PpuMask::default(),
             ppu_status: PpuStatus::default(),
-            oam_addr: OamAddr::default(),
+            oam_addr: 0,
             oam_data: 0,
             ppu_scroll: 0,
             ppu_addr: 0,
@@ -198,19 +198,17 @@ impl Register {
         }
     }
 
-    pub fn set_ppu_ctrl(&mut self, n: u8) {
-        let s = format!("{:08b}", n);
-        fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().nth(n).unwrap().to_digit(2).unwrap()
+    pub fn set(&mut self, n: u16, r: u8) {
+        match n {
+            0x2000 => self.ppu_ctrl.set(r),
+            0x2001 => self.ppu_mask.set(r),
+            0x2002 => self.ppu_status.set(r),
+            0x2003 => self.oam_addr = r,
+            0x2004 => self.oam_data = r,
+            0x2005 => self.ppu_scroll = r,
+            0x2006 => self.ppu_data = r,
+            0x2007 => self.oam_dma = r,
+            _ => unreachable!(),
         }
-
-        self.ppu_ctrl.set(n & 0b10000000);
-        self.ppu_mask.set(n & 0b01000000);
-        self.ppu_status.set(n & 0b00100000);
-        self.oam_addr.set(chars_nth(&s, 4));
-        self.oam_data = n & 0b00001000;
-        self.ppu_scroll = n & 0b00000100;
-        self.ppu_data = n & 0b00000010;
-        self.oam_dma = n & 0b00000001;
     }
 }
