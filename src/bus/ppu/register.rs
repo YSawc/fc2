@@ -7,10 +7,57 @@ pub struct Register {
     pub ppu_status: PpuStatus,
     pub oam_addr: u8,
     pub oam_data: u8,
-    pub ppu_scroll: u8,
-    pub ppu_addr: u8,
+    pub ppu_scroll: WriteTwiceRegister,
+    pub ppu_addr: WriteTwiceRegister,
     pub ppu_data: u8,
+    pub ppu_buffer: u16,
     pub oam_dma: u8,
+}
+
+#[derive(Debug, Clone)]
+pub struct WriteTwiceRegister {
+    write_flag: bool,
+    pub addr: u16,
+}
+
+impl Default for WriteTwiceRegister {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WriteTwiceRegister {
+    pub fn new() -> Self {
+        Self {
+            write_flag: false,
+            addr: 0,
+        }
+    }
+
+    pub fn toggle_flag(&mut self) {
+        match self.write_flag {
+            true => self.write_flag = false,
+            false => self.write_flag = true,
+        }
+    }
+
+    pub fn set(&mut self, r: u8) {
+        match self.write_flag {
+            true => {
+                self.addr = 0;
+                self.addr += (r as u16) << 8;
+            }
+            false => self.addr += r as u16,
+        }
+        self.toggle_flag();
+    }
+
+    pub fn addr(&mut self) -> u16 {
+        match self.write_flag {
+            true => unreachable!(),
+            false => self.addr,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +103,18 @@ impl PpuCtrl {
         self.sprite_ptn_table_addr = n_to_bool(chars_nth(&s, 3));
         self.vram_increment = n_to_bool(chars_nth(&s, 2));
         self.base_name_table_addr = n & 0b00000011;
+    }
+
+    pub fn to_n(&mut self) -> u8 {
+        let mut n = 0;
+        n += bool_to_n(self.nmi) << 7;
+        n += bool_to_n(self.ppu_selector) << 6;
+        n += bool_to_n(self.sprite_size) << 5;
+        n += bool_to_n(self.bk_table_addr) << 4;
+        n += bool_to_n(self.sprite_ptn_table_addr) << 3;
+        n += bool_to_n(self.vram_increment) << 2;
+        n += self.base_name_table_addr;
+        n
     }
 }
 
@@ -106,6 +165,19 @@ impl PpuMask {
         self.show_background_in_leftmost = n_to_bool(chars_nth(&s, 1));
         self.gray_scale = n_to_bool(chars_nth(&s, 0));
     }
+
+    pub fn to_n(&mut self) -> u8 {
+        let mut n = 0;
+        n += bool_to_n(self.emf_blue);
+        n += bool_to_n(self.emf_green);
+        n += bool_to_n(self.emf_red);
+        n += bool_to_n(self.show_sprites);
+        n += bool_to_n(self.show_background);
+        n += bool_to_n(self.show_sprites_in_leftmost);
+        n += bool_to_n(self.show_background_in_leftmost);
+        n += bool_to_n(self.gray_scale);
+        n
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -143,37 +215,14 @@ impl PpuStatus {
         self.sprite_evoluation = n_to_bool(chars_nth(&s, 5));
         self.bus = n & 0b00001111;
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct Oam {
-    pos_y: u8,
-    index_num: u8,
-    attr: u8,
-    pos_x: u8,
-}
-
-impl Default for Oam {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Oam {
-    pub fn new() -> Self {
-        Self {
-            pos_y: 0,
-            index_num: 0,
-            attr: 0,
-            pos_x: 0,
-        }
-    }
-
-    pub fn set(&mut self, n: u32) {
-        self.pos_y = (n & 0x11000000) as u8;
-        self.index_num = (n & 0x00110000) as u8;
-        self.attr = (n & 0x00001100) as u8;
-        self.pos_x = (n & 0x00000011) as u8;
+    pub fn to_n(&mut self) -> u8 {
+        let mut n = 0;
+        n += bool_to_n(self.virtical_blank_in_vlank) << 7;
+        n += bool_to_n(self.sprite_zero_hit) << 6;
+        n += bool_to_n(self.sprite_evoluation) << 5;
+        n += self.bus;
+        n
     }
 }
 
@@ -191,9 +240,10 @@ impl Register {
             ppu_status: PpuStatus::default(),
             oam_addr: 0,
             oam_data: 0,
-            ppu_scroll: 0,
-            ppu_addr: 0,
+            ppu_scroll: WriteTwiceRegister::default(),
+            ppu_addr: WriteTwiceRegister::default(),
             ppu_data: 0,
+            ppu_buffer: 0,
             oam_dma: 0,
         }
     }
@@ -205,9 +255,29 @@ impl Register {
             0x2002 => self.ppu_status.set(r),
             0x2003 => self.oam_addr = r,
             0x2004 => self.oam_data = r,
-            0x2005 => self.ppu_scroll = r,
-            0x2006 => self.ppu_data = r,
-            0x2007 => self.oam_dma = r,
+            0x2005 => self.ppu_scroll.set(r),
+            0x2006 => self.ppu_addr.set(r),
+            0x4014 => self.oam_dma = r,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn addr(&mut self, n: u16) -> u8 {
+        match n {
+            0x2000 => self.ppu_ctrl.to_n(),
+            0x2001 => self.ppu_mask.to_n(),
+            0x2002 => self.ppu_status.to_n(),
+            0x2003 => self.oam_addr,
+            0x2004 => self.oam_data,
+            0x4014 => self.oam_dma,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn relative_addr(&mut self, n: u16) -> u16 {
+        match n {
+            0x2005 => self.ppu_scroll.addr,
+            0x2006 => self.ppu_addr.addr,
             _ => unreachable!(),
         }
     }

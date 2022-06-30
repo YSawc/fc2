@@ -27,7 +27,11 @@ impl Bus {
     pub fn addr(&self, n: u16) -> u8 {
         match n {
             0x0000..=0x1FFF | 0x2008..=0xFFFF => self.cpu_bus.addr(n),
-            0x2000..=0x2007 => self.ppu.map.addr(n),
+            0x2000..=0x2004 | 0x2007 => self.ppu.register.clone().addr(n),
+            0x2005..=0x2006 => {
+                let r = self.ppu.register.clone().relative_addr(n);
+                self.ppu.map.addr(r)
+            }
         }
     }
 
@@ -35,7 +39,11 @@ impl Bus {
         match n {
             0x0000..=0x07FF => self.cpu_bus.wram[n as usize] = r,
             0x0800..=0x1FFF => self.cpu_bus.wram_mirror[(n - 0x0800) as usize] = r,
-            0x2000..=0x2007 => self.ppu.register.set(n, r),
+            0x2000..=0x2006 => self.ppu.register.set(n, r),
+            0x2007 => {
+                let n = self.ppu.register.ppu_buffer;
+                self.ppu.map.set(n, r);
+            }
             0x2008..=0x3FFF => self.cpu_bus.ppu_register_mirror[(n - 0x2008) as usize] = r,
             0x4000..=0x401F => self.cpu_bus.apu_pad[(n - 0x4000) as usize] = r,
             0x4020..=0x5FFF => self.cpu_bus.erom[(n - 0x4020) as usize] = r,
