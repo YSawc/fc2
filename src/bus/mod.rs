@@ -41,8 +41,12 @@ impl Bus {
             0x0800..=0x1FFF => self.cpu_bus.wram_mirror[(n - 0x0800) as usize] = r,
             0x2000..=0x2006 => self.ppu.register.set(n, r),
             0x2007 => {
-                let n = self.ppu.register.ppu_buffer;
+                let n = self.ppu.register.ppu_addr.addr();
+                let inc = self.ppu.register.ppu_ctrl.increment_vram_num() as u16;
+                self.ppu.register.ppu_addr.addr += inc;
                 self.ppu.map.set(n, r);
+                self.ppu.register.ppu_buffer +=
+                    self.ppu.register.ppu_ctrl.base_name_table_addr as u16;
             }
             0x2008..=0x3FFF => self.cpu_bus.ppu_register_mirror[(n - 0x2008) as usize] = r,
             0x4000..=0x401F => self.cpu_bus.apu_pad[(n - 0x4000) as usize] = r,

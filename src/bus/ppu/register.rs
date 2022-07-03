@@ -44,10 +44,12 @@ impl WriteTwiceRegister {
     pub fn set(&mut self, r: u8) {
         match self.write_flag {
             true => {
+                self.addr += r as u16;
+            }
+            false => {
                 self.addr = 0;
                 self.addr += (r as u16) << 8;
             }
-            false => self.addr += r as u16,
         }
         self.toggle_flag();
     }
@@ -65,10 +67,10 @@ pub struct PpuCtrl {
     nmi: bool,
     ppu_selector: bool,
     sprite_size: bool,
-    bk_table_addr: bool,
+    pub bk_table_addr: bool,
     sprite_ptn_table_addr: bool,
     vram_increment: bool,
-    base_name_table_addr: u8,
+    pub base_name_table_addr: u8,
 }
 
 impl Default for PpuCtrl {
@@ -115,6 +117,13 @@ impl PpuCtrl {
         n += bool_to_n(self.vram_increment) << 2;
         n += self.base_name_table_addr;
         n
+    }
+
+    pub fn increment_vram_num(&mut self) -> u8 {
+        match self.vram_increment {
+            false => 1,
+            true => 32,
+        }
     }
 }
 
