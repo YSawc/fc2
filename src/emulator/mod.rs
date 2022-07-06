@@ -4,7 +4,7 @@ use crate::nes::Sprites;
 
 use crate::cpu::*;
 use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SQUARE_SIZE};
-use configure::{PPU_CLOCK_RATE_FOR_CPU, PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VERTICAL_PIXE};
+use configure::{PPU_CLOCK_RATE_FOR_CPU, PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VERTICAL_PIXEL};
 
 use crate::emulator::renderer::*;
 use sdl2::rect::Rect;
@@ -86,32 +86,33 @@ impl Emulator {
         self.cpu_cycle += cycle as u16;
         if self.cpu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.cpu_cycle -= PPU_DRAW_LINE_CYCLE;
-            if self.drawing_line <= VERTICAL_PIXE && self.drawing_line % 8 == 0 {
-                self.canvas.clear();
-                for n in 0..self.cpu.bus.ppu.map.name_table_00.len() {
-                    let sprite_idx = self.cpu.bus.ppu.map.name_table_00[n] as usize;
-                    for i in 0..8 {
-                        for j in 0..8 {
-                            let square_texture =
-                                match self.sprites[sprite_idx][i as usize][j as usize] {
-                                    0 => &square_texture1,
-                                    1 => &square_texture2,
-                                    2 => &square_texture3,
-                                    3 => &square_texture4,
-                                    _ => unreachable!(),
-                                };
+            if self.drawing_line < VERTICAL_PIXEL {
+                for n in 0..PLAYGROUND_WIDTH {
+                    let i1 = self.drawing_line / 8;
+                    let i2 = self.drawing_line % 8;
+                    let sprite_idx = self.cpu.bus.ppu.map.name_table_00
+                        [((i1 as usize) * PLAYGROUND_WIDTH as usize) + n as usize]
+                        as usize;
+                    for j in 0..8 {
+                        let square_texture = match self.sprites[sprite_idx][i2 as usize][j as usize]
+                        {
+                            0 => &square_texture1,
+                            1 => &square_texture2,
+                            2 => &square_texture3,
+                            3 => &square_texture4,
+                            _ => unreachable!(),
+                        };
 
-                            self.canvas.copy(
-                                square_texture,
-                                None,
-                                Rect::new(
-                                    (j + ((n as u32) % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                                    (i + ((n as u32) / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                                    SQUARE_SIZE,
-                                    SQUARE_SIZE,
-                                ),
-                            )?;
-                        }
+                        self.canvas.copy(
+                            square_texture,
+                            None,
+                            Rect::new(
+                                (j + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
+                                (self.drawing_line) as i32,
+                                SQUARE_SIZE,
+                                SQUARE_SIZE,
+                            ),
+                        )?;
                     }
                 }
                 self.canvas.present();
