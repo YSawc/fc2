@@ -4,7 +4,7 @@ use crate::nes::Sprites;
 
 use crate::cpu::*;
 use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SQUARE_SIZE};
-use configure::{PPU_CLOCK_RATE_FOR_CPU, PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VERTICAL_PIXEL};
+use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VERTICAL_PIXEL};
 
 use crate::emulator::renderer::*;
 use sdl2::rect::Rect;
@@ -76,16 +76,10 @@ impl Emulator {
         let (square_texture1, square_texture2, square_texture3, square_texture4) =
             dummy_texture(&mut self.canvas, &texture_creator)?;
 
-        let cycle = match self.ppu_clock_sync {
-            PPU_CLOCK_RATE_FOR_CPU => {
-                self.ppu_clock_sync = 0;
-                self.cpu.ex_ope()
-            }
-            _ => 0,
-        };
-        self.cpu_cycle += cycle as u16;
-        if self.cpu_cycle >= PPU_DRAW_LINE_CYCLE {
-            self.cpu_cycle -= PPU_DRAW_LINE_CYCLE;
+        let cycle = self.cpu.ex_ope();
+        self.ppu_cycle += (cycle * 3) as u16;
+        if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
+            self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VERTICAL_PIXEL {
                 for n in 0..PLAYGROUND_WIDTH {
                     let i1 = self.drawing_line / 8;
@@ -115,17 +109,15 @@ impl Emulator {
                         )?;
                     }
                 }
-                self.canvas.present();
             }
 
             if self.drawing_line == TOTAL_LINE {
+                self.canvas.present();
                 self.drawing_line = 0;
             } else {
                 self.drawing_line += 1;
             }
         }
-        self.ppu_clock_sync += 1;
-
         Ok(())
     }
 }
