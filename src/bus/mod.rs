@@ -4,6 +4,11 @@ pub mod ppu;
 use cpu_map::*;
 use ppu::*;
 
+pub trait Mapper {
+    fn addr(&self, n: u16) -> u8;
+    fn set(&mut self, n: u16, r: u8);
+}
+
 #[derive(Debug, Clone)]
 pub struct Bus {
     pub cpu_bus: CpuMap,
@@ -23,8 +28,10 @@ impl Bus {
             ppu: PPU::default(),
         }
     }
+}
 
-    pub fn addr(&self, n: u16) -> u8 {
+impl Mapper for Bus {
+    fn addr(&self, n: u16) -> u8 {
         match n {
             0x0000..=0x1FFF | 0x2008..=0xFFFF => self.cpu_bus.addr(n),
             0x2000..=0x2004 | 0x2007 => self.ppu.register.clone().addr(n),
@@ -35,7 +42,7 @@ impl Bus {
         }
     }
 
-    pub fn set(&mut self, n: u16, r: u8) {
+    fn set(&mut self, n: u16, r: u8) {
         match n {
             0x0000..=0x07FF => self.cpu_bus.wram[n as usize] = r,
             0x0800..=0x1FFF => self.cpu_bus.wram_mirror[(n - 0x0800) as usize] = r,

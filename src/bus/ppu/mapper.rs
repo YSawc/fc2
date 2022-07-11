@@ -1,3 +1,5 @@
+use crate::bus::Mapper;
+
 #[derive(Debug, Clone)]
 pub struct Map {
     pub pattern_table_00: [u8; 0x1000],
@@ -41,8 +43,10 @@ impl Map {
             background_and_sprite_pallet_mirror: [0; 0x00DF],
         }
     }
+}
 
-    pub fn addr(&self, n: u16) -> u8 {
+impl Mapper for Map {
+    fn addr(&self, n: u16) -> u8 {
         match n {
             0x0000..=0x0FFF => self.pattern_table_00[n as usize],
             0x1000..=0x1FFF => self.pattern_table_01[(n - 0x1000) as usize],
@@ -62,7 +66,7 @@ impl Map {
         }
     }
 
-    pub fn set(&mut self, n: u16, r: u8) {
+    fn set(&mut self, n: u16, r: u8) {
         match n {
             0x0000..=0x0FFF => self.pattern_table_00[n as usize] = r,
             0x1000..=0x1FFF => self.pattern_table_01[(n - 0x1000) as usize] = r,
