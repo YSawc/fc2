@@ -1,23 +1,22 @@
-pub mod mapper;
 pub mod operator;
 pub mod register;
 
+use crate::bus::*;
 use crate::nes::*;
 use crate::util::*;
-use mapper::*;
 use operator::*;
 use register::*;
 
 use rustc_hash::*;
 
 #[derive(Debug, Clone)]
-pub struct Cpu {
-    pub map: mapper::Map,
+pub struct CPU {
     pub register: Register,
     pub operators: FxHashMap<u8, Operator>,
+    pub bus: Bus,
 }
 
-impl Default for Cpu {
+impl Default for CPU {
     fn default() -> Self {
         let mut cpu = Self::new();
         cpu.prepare_operators();
@@ -25,21 +24,41 @@ impl Default for Cpu {
     }
 }
 
-impl Cpu {
+impl CPU {
     pub fn new() -> Self {
-        let map = Map::default();
         let register = Register::default();
         let operators = FxHashMap::default();
+        let bus = Bus::default();
 
         Self {
-            map,
             register,
             operators,
+            bus,
         }
     }
 
     fn prepare_operators(&mut self) {
         let mut operators = FxHashMap::default();
+        let cycles = [
+            7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6, // 0x00
+            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7, // 0x10
+            6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6, // 0x20
+            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7, // 0x30
+            6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6, // 0x40
+            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7, // 0x50
+            6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6, // 0x60
+            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7, // 0x70
+            2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, // 0x80
+            2, 6, 2, 6, 4, 4, 4, 4, 2, 4, 2, 5, 5, 4, 5, 5, // 0x90
+            2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, // 0xA0
+            2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4, // 0xB0
+            2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, // 0xC0
+            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, // 0xD0
+            2, 6, 3, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, // 0xE0
+            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+            // 0xF0
+        ];
+
         macro_rules! ope_reserved {
             ( $($id:expr => ($ope_kind:path, $addr_mode:path)),+ ) => {
                 $(
@@ -47,7 +66,8 @@ impl Cpu {
                         $id,
                         Operator {
                             ope_kind: $ope_kind,
-                            addr_mode: $addr_mode
+                            addr_mode: $addr_mode,
+                            cycle: cycles[$id]
                         }
                     );
                 )+
@@ -231,8 +251,8 @@ impl Cpu {
         }
         for (i, n) in prgs.iter().enumerate() {
             match i {
-                0x0000..=0x3FFF => self.map.prg_rom1[i] = *n,
-                0x4000..=0x8000 => self.map.prg_rom2[i - 0x4000] = *n,
+                0x0000..=0x3FFF => self.bus.set((i + 0x8000) as u16, *n),
+                0x4000..=0x8000 => self.bus.set((i + 0x8000) as u16, *n),
                 _ => unreachable!(),
             }
         }
@@ -248,8 +268,8 @@ impl Cpu {
     // }
 
     pub fn reset(&mut self) {
-        self.register.x = self.map.addr(0xFFFC);
-        self.register.y = self.map.addr(0xFFFD);
+        self.register.x = self.bus.addr(0xFFFC);
+        self.register.y = self.bus.addr(0xFFFD);
         self.register.set_pc();
     }
 
@@ -359,12 +379,12 @@ impl Cpu {
 
     pub fn fetch_code(&mut self) -> u8 {
         let pc = self.register.pc;
-        self.map.addr(pc)
+        self.bus.addr(pc)
     }
 
     pub fn fetch_register(&mut self) -> u8 {
         let pc = self.register.pc;
-        self.map.addr(pc)
+        self.bus.addr(pc)
     }
 
     pub fn fetch_lh_register(&mut self) -> (u8, u8) {
@@ -375,12 +395,12 @@ impl Cpu {
 
     pub fn fetch_next_register(&mut self) -> u8 {
         let pc = self.register.pc + 1;
-        self.map.addr(pc)
+        self.bus.addr(pc)
     }
 
     pub fn fetch_next_next_register(&mut self) -> u8 {
         let pc = self.register.pc + 2;
-        self.map.addr(pc)
+        self.bus.addr(pc)
     }
 
     pub fn undef(&mut self) {
@@ -395,7 +415,7 @@ impl Cpu {
         let l = self.register.s as u16;
         self.register.s -= 1;
         let r = l + (1 << 8);
-        self.map.set(r, n);
+        self.bus.set(r, n);
     }
 
     pub fn pull_stack(&mut self) -> u8 {
@@ -403,10 +423,10 @@ impl Cpu {
         self.register.s += 1;
         let h = 0x100;
         let r = l + h;
-        self.map.addr(r)
+        self.bus.addr(r)
     }
 
-    pub fn ex_addr_mode(&mut self, addr_mode: AddrMode) -> u16 {
+    pub fn ex_addr_mode(&mut self, addr_mode: &AddrMode) -> u16 {
         self.register.pc += 1;
         let r = match addr_mode {
             AddrMode::Impl => 0,
@@ -459,19 +479,19 @@ impl Cpu {
                 let l = self.fetch_register();
                 let r = self.register.x;
                 let t = combine_high_low(l, r);
-                let (l, h) = self.map.lh_addr(t);
+                let (l, h) = self.bus.cpu_bus.lh_addr(t);
                 combine_high_low(l, h)
             }
             AddrMode::IndY => {
                 let t = self.fetch_register() as u16;
-                let (l, h) = self.map.lh_addr(t);
+                let (l, h) = self.bus.cpu_bus.lh_addr(t);
                 let y = self.register.y as u16;
                 combine_high_low(l, h) + y
             }
             AddrMode::Ind => {
                 let (l, h) = self.fetch_lh_register();
                 let t = combine_high_low(l, h);
-                let (l, h) = self.map.lh_addr(t);
+                let (l, h) = self.bus.cpu_bus.lh_addr(t);
                 combine_high_low(l, h)
             }
         };
@@ -498,7 +518,7 @@ impl Cpu {
         if imm {
             r
         } else {
-            self.map.addr(r) as u16
+            self.bus.addr(r) as u16
         }
     }
 
@@ -602,16 +622,16 @@ impl Cpu {
                 self.set_carry(s as i8);
             }
             OpeKind::Inc => {
-                let v = self.map.addr(r);
+                let v = self.bus.addr(r);
                 let s = self.ex_plus(v, 1);
-                self.map.set(r, s);
-                self.set_nz(self.map.addr(r));
+                self.bus.set(r, s);
+                self.set_nz(self.bus.addr(r));
             }
             OpeKind::Dec => {
-                let v = self.map.addr(r);
+                let v = self.bus.addr(r);
                 let s = self.ex_minus(v, 1);
-                self.map.set(r, s);
-                self.set_nz(self.map.addr(r));
+                self.bus.set(r, s);
+                self.set_nz(self.bus.addr(r));
             }
             OpeKind::Inx => {
                 let x = self.register.x + 1;
@@ -656,13 +676,13 @@ impl Cpu {
                 self.set_nz(self.register.y);
             }
             OpeKind::Sta => {
-                self.map.set(r, self.register.a);
+                self.bus.set(r, self.register.a);
             }
             OpeKind::Stx => {
-                self.map.set(r, self.register.x);
+                self.bus.set(r, self.register.x);
             }
             OpeKind::Sty => {
-                self.map.set(r, self.register.y);
+                self.bus.set(r, self.register.y);
             }
             OpeKind::Tax => {
                 self.register.x = self.register.a;
@@ -684,7 +704,7 @@ impl Cpu {
                 self.register.set_s(self.register.x);
             }
             OpeKind::Pha => {
-                self.register.a = self.map.addr(r);
+                self.register.a = self.bus.addr(r);
                 self.push_stack(self.register.a);
             }
             OpeKind::Pla => {
@@ -731,7 +751,7 @@ impl Cpu {
                     self.push_stack(n);
                     self.set_break_mode(true);
                     self.set_interrupt(true);
-                    let (h, l) = self.map.hl_addr(0xFFFE);
+                    let (h, l) = self.bus.cpu_bus.hl_addr(0xFFFE);
                     self.register.pc = combine_high_low(l, h);
                 }
             }
@@ -745,22 +765,28 @@ impl Cpu {
         }
     }
 
-    pub fn ex_ope(&mut self) {
+    pub fn ex_ope(&mut self) -> u8 {
         match self.read_ope() {
             Some(Operator {
                 ope_kind,
                 addr_mode,
+                cycle,
             }) => {
                 let ope_kind = ope_kind.clone();
                 let addr_mode = addr_mode.clone();
-                let reg_addr = self.ex_addr_mode(addr_mode.clone());
+                let cycle = cycle.clone();
+                let reg_addr = self.ex_addr_mode(&addr_mode);
                 self.run_ope(reg_addr, ope_kind, addr_mode);
                 // println!(
                 //     "self.register.pc: {:0x?}, reg_addr: {:0x?}",
                 //     self.register.pc, reg_addr
                 // );
+                cycle
             }
-            None => self.undef(),
+            None => {
+                self.undef();
+                unimplemented!();
+            }
         }
     }
 
@@ -777,14 +803,14 @@ impl Cpu {
         //     "self.operators.get_mut(&c): {:?} ",
         //     self.operators.get_mut(&c)
         // );
-        // print!("0x2000 {}, ", self.map.addr(0x2000));
-        // print!("0x2001 {}, ", self.map.addr(0x2001));
-        // print!("0x2002 {}, ", self.map.addr(0x2002));
-        // print!("0x2003 {}, ", self.map.addr(0x2003));
-        // print!("0x2004 {}, ", self.map.addr(0x2004));
-        // print!("0x2005 {}, ", self.map.addr(0x2005));
-        // print!("0x2006 {}, ", self.map.addr(0x2006));
-        // println!("0x2007 {}, ", self.map.addr(0x2007));
+        // print!("0x2000 {}, ", self.bus.addr(0x2000));
+        // print!("0x2001 {}, ", self.bus.addr(0x2001));
+        // print!("0x2002 {}, ", self.bus.addr(0x2002));
+        // print!("0x2003 {}, ", self.bus.addr(0x2003));
+        // print!("0x2004 {}, ", self.bus.addr(0x2004));
+        // print!("0x2005 {}, ", self.bus.addr(0x2005));
+        // print!("0x2006 {}, ", self.bus.addr(0x2006));
+        // println!("0x2007 {}, ", self.bus.addr(0x2007));
 
         match self.operators.get_mut(&c) {
             Some(operator) => Some(operator),
@@ -818,7 +844,7 @@ mod test {
     extern crate rand;
     use rand::seq::IteratorRandom;
 
-    impl Cpu {
+    impl CPU {
         fn random_pick_operator_with_specify_addr_mode(
             &self,
             like_mode: AddrMode,
@@ -837,15 +863,15 @@ mod test {
             match self.read_ope() {
                 Some(Operator { addr_mode, .. }) => {
                     let addr_mode = addr_mode.clone();
-                    *reg_addr = self.ex_addr_mode(addr_mode);
+                    *reg_addr = self.ex_addr_mode(&addr_mode);
                 }
                 None => (),
             };
         }
 
         fn insert_random_num_into_b1_b2(&mut self) {
-            self.map.prg_rom1[1] = rand_u8();
-            self.map.prg_rom1[2] = rand_u8();
+            self.bus.cpu_bus.prg_rom1[1] = rand_u8();
+            self.bus.cpu_bus.prg_rom1[2] = rand_u8();
         }
 
         fn fetch_next_lh_register(&mut self) -> (u8, u8) {
@@ -864,13 +890,13 @@ mod test {
         n
     }
 
-    fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> Cpu {
+    fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> CPU {
         let nes = Nes::new();
-        let mut cpu = Cpu::default();
+        let mut cpu = CPU::default();
         cpu.init(&nes);
         cpu.reset();
         let (code, _) = cpu.random_pick_operator_with_specify_addr_mode(addr_mode);
-        cpu.map.prg_rom1[0] = code;
+        cpu.bus.cpu_bus.prg_rom1[0] = code;
         cpu
     }
 
@@ -1005,10 +1031,10 @@ mod test {
         let l = cpu.fetch_next_register();
         let h = cpu.register.x;
         let t = combine_high_low(l, h);
-        cpu.map.set(t, rand_u8());
-        cpu.map.set(t + 1, rand_u8());
+        cpu.bus.set(t, rand_u8());
+        cpu.bus.set(t + 1, rand_u8());
 
-        let (l, h) = cpu.map.lh_addr(t);
+        let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
         let r = combine_high_low(l, h);
 
         let mut reg_addr = u16::MAX;
@@ -1024,10 +1050,10 @@ mod test {
         cpu.register.y = rand_u8();
 
         let t = cpu.fetch_next_register() as u16;
-        cpu.map.set(t, rand_u8());
-        cpu.map.set(t + 1, rand_u8());
+        cpu.bus.set(t, rand_u8());
+        cpu.bus.set(t + 1, rand_u8());
 
-        let (l, h) = cpu.map.lh_addr(t);
+        let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
         let y = cpu.register.y as u16;
         let r = combine_high_low(l, h) + y;
 
@@ -1045,10 +1071,10 @@ mod test {
         let (l, h) = cpu.fetch_next_lh_register();
         let t = combine_high_low(l, h);
 
-        cpu.map.set(t, rand_u8());
-        cpu.map.set(t + 1, rand_u8());
+        cpu.bus.set(t, rand_u8());
+        cpu.bus.set(t + 1, rand_u8());
 
-        let (l, h) = cpu.map.lh_addr(t);
+        let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
         let r = combine_high_low(l, h);
 
         let mut reg_addr = u16::MAX;

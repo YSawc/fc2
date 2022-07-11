@@ -1,4 +1,4 @@
-use crate::emurator::configure::*;
+use crate::emulator::configure::*;
 use crate::util::*;
 use std::fs::File;
 use std::io::Read;

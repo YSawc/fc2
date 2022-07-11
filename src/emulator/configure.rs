@@ -1,0 +1,12 @@
+pub const SQUARE_SIZE: u32 = 8;
+pub const PLAYGROUND_WIDTH: u32 = 32;
+pub const PLAYGROUND_HEIGHT: u32 = 30;
+pub const NES_FILE: &str = "hello-world.nes";
+const CPU_CLOCK: f32 = 1.79;
+const PPU_CLOCK: f32 = CPU_CLOCK * 3.0;
+pub const PPU_CLOCK_RATE_FOR_CPU: u8 = (PPU_CLOCK / CPU_CLOCK) as u8;
+pub const PPU_DRAW_LINE_CYCLE: u16 = 341;
+pub const VBLANK_LINE: u16 = 20;
+pub const VERTICAL_PIXEL: u16 = 240;
+pub const TOTAL_LINE: u16 = VBLANK_LINE + VERTICAL_PIXEL + 2;
+pub const WIDTH_PIXEL: u16 = 256;
