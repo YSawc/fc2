@@ -6,9 +6,8 @@ use crate::cpu::*;
 use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SQUARE_SIZE};
 use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VERTICAL_PIXEL};
 
-use crate::emulator::renderer::*;
 use sdl2::rect::Rect;
-use sdl2::render::TextureCreator;
+use sdl2::render::Texture;
 use sdl2::Sdl;
 
 pub struct Emulator {
@@ -70,12 +69,7 @@ impl Emulator {
         self.cpu.reset();
     }
 
-    pub fn run(&mut self) -> Result<(), String> {
-        let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
-
-        let (square_texture1, square_texture2, square_texture3, square_texture4) =
-            dummy_texture(&mut self.canvas, &texture_creator)?;
-
+    pub fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
         let cycle = self.cpu.ex_ope();
         self.ppu_cycle += (cycle * 3) as u16;
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
@@ -88,20 +82,16 @@ impl Emulator {
                         [((i1 as usize) * PLAYGROUND_WIDTH as usize) + n as usize]
                         as usize;
                     for j in 0..8 {
-                        let square_texture = match self.sprites[sprite_idx][i2 as usize][j as usize]
-                        {
-                            0 => &square_texture1,
-                            1 => &square_texture2,
-                            2 => &square_texture3,
-                            3 => &square_texture4,
-                            _ => unreachable!(),
-                        };
+                        let background_idx = self.sprites[sprite_idx][i2 as usize][j as usize];
+                        let sprite_color_idx =
+                            self.cpu.bus.ppu.map.background_table[background_idx as usize];
+                        let square_texture = &textures[sprite_color_idx as usize];
 
                         self.canvas.copy(
                             square_texture,
                             None,
                             Rect::new(
-                                (j + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
+                                (j + n * SQUARE_SIZE) as i32,
                                 (self.drawing_line) as i32,
                                 SQUARE_SIZE,
                                 SQUARE_SIZE,

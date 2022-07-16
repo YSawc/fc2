@@ -55,6 +55,7 @@ pub fn main() -> Result<(), String> {
         }
     }
 
+    let textures = texture_combine_builtin_colors(&mut emulator.canvas, &texture_creator)?;
     emulator.canvas.present();
 
     'running: loop {
@@ -69,7 +70,7 @@ pub fn main() -> Result<(), String> {
             }
         }
 
-        emulator.run()?;
+        emulator.run(&textures)?;
     }
 
     Ok(())
