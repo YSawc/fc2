@@ -366,9 +366,9 @@ pub fn texture_combine_builtin_colors<'a>(
                 texture_canvas.clear();
                 match *user_context {
                     TextureColor::T0 => {
-                        let r = colors[1][0];
-                        let g = colors[1][1];
-                        let b = colors[1][2];
+                        let r = colors[0][0];
+                        let g = colors[0][1];
+                        let b = colors[0][2];
                         for i in 0..SQUARE_SIZE {
                             for j in 0..SQUARE_SIZE {
                                 texture_canvas.set_draw_color(Color::RGB(r, g, b));

@@ -70,6 +70,8 @@ impl Emulator {
     }
 
     pub fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
+        use crate::bus::Mapper;
+
         let cycle = self.cpu.ex_ope();
         self.ppu_cycle += (cycle * 3) as u16;
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
@@ -81,8 +83,31 @@ impl Emulator {
                     let sprite_idx = self.cpu.bus.ppu.map.name_table_00
                         [((i1 as usize) * PLAYGROUND_WIDTH as usize) + n as usize]
                         as usize;
+                    let attr_idx = (0x23C0 + (n / 4) + (self.drawing_line as u32 / 32) * 8) as u16;
+                    let attr_arr_idx = ((n / 2) % 2) | (((self.drawing_line as u32 / 16) % 2) << 1);
+                    let background_pallets = self.cpu.bus.ppu.map.addr(attr_idx);
+                    let background_pallete_idx = self.cpu.bus.ppu.map.background_table
+                        [(background_pallets & (0x1 << attr_arr_idx)) as usize];
+
+                    let background_texture = &textures[background_pallete_idx as usize];
+
+                    self.canvas.copy(
+                        background_texture,
+                        None,
+                        Rect::new(
+                            (n * SQUARE_SIZE) as i32,
+                            (self.drawing_line) as i32,
+                            SQUARE_SIZE,
+                            SQUARE_SIZE,
+                        ),
+                    )?;
+
+                    let sprite = &self.sprites[sprite_idx][i2 as usize];
+                    if *sprite == [0; 8] {
+                        continue;
+                    }
                     for j in 0..8 {
-                        let background_idx = self.sprites[sprite_idx][i2 as usize][j as usize];
+                        let background_idx = sprite[j as usize];
                         let sprite_color_idx =
                             self.cpu.bus.ppu.map.background_table[background_idx as usize];
                         let square_texture = &textures[sprite_color_idx as usize];

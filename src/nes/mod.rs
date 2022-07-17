@@ -219,17 +219,19 @@ impl Nes {
             let mut sprite = vec![vec![0; 8]; 8];
             for i in 0..16 {
                 let val_str = self.header.info.chr_rom[(n * 16 + i) as usize];
+                let h = i / 8;
                 sprite[(i % 8) as usize] = sprite[(i % 8) as usize]
                     .clone()
                     .into_iter()
                     .enumerate()
                     .map(|(idx, x)| {
-                        x + format!("{:08b}", val_str)
+                        let n = format!("{:08b}", val_str)
                             .chars()
                             .nth(idx)
                             .unwrap()
                             .to_digit(2)
-                            .unwrap()
+                            .unwrap();
+                        x + (n << (0x1 * h))
                     })
                     .collect::<Vec<_>>();
             }
