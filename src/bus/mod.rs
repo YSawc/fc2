@@ -1,8 +1,7 @@
 pub mod cpu_map;
-pub mod ppu;
 
+use crate::ppu::*;
 use cpu_map::*;
-use ppu::*;
 
 pub trait Mapper {
     fn addr(&self, n: u16) -> u8;
