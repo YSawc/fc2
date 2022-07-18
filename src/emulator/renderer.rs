@@ -364,735 +364,78 @@ pub fn texture_combine_builtin_colors<'a>(
             .with_multiple_texture_canvas(textures.iter(), |texture_canvas, user_context| {
                 texture_canvas.set_draw_color(Color::RGB(0, 0, 0));
                 texture_canvas.clear();
+                macro_rules! set_texture {
+                    ($id:expr) => {{
+                        let r = colors[$id][0];
+                        let g = colors[$id][1];
+                        let b = colors[$id][2];
+                        for i in 0..SQUARE_SIZE {
+                            for j in 0..SQUARE_SIZE {
+                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
+                                texture_canvas
+                                    .draw_point(Point::new(i as i32, j as i32))
+                                    .expect("could not draw point");
+                            }
+                        }
+                    }};
+                }
                 match *user_context {
-                    TextureColor::T0 => {
-                        let r = colors[0][0];
-                        let g = colors[0][1];
-                        let b = colors[0][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T1 => {
-                        let r = colors[1][0];
-                        let g = colors[1][1];
-                        let b = colors[1][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T2 => {
-                        let r = colors[2][0];
-                        let g = colors[2][1];
-                        let b = colors[2][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T3 => {
-                        let r = colors[3][0];
-                        let g = colors[3][1];
-                        let b = colors[3][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T4 => {
-                        let r = colors[4][0];
-                        let g = colors[4][1];
-                        let b = colors[4][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T5 => {
-                        let r = colors[5][0];
-                        let g = colors[5][1];
-                        let b = colors[5][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T6 => {
-                        let r = colors[6][0];
-                        let g = colors[6][1];
-                        let b = colors[6][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T7 => {
-                        let r = colors[7][0];
-                        let g = colors[7][1];
-                        let b = colors[7][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T8 => {
-                        let r = colors[8][0];
-                        let g = colors[8][1];
-                        let b = colors[8][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T9 => {
-                        let r = colors[9][0];
-                        let g = colors[9][1];
-                        let b = colors[9][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T10 => {
-                        let r = colors[10][0];
-                        let g = colors[10][1];
-                        let b = colors[10][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T11 => {
-                        let r = colors[11][0];
-                        let g = colors[11][1];
-                        let b = colors[11][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T12 => {
-                        let r = colors[12][0];
-                        let g = colors[12][1];
-                        let b = colors[12][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T13 => {
-                        let r = colors[13][0];
-                        let g = colors[13][1];
-                        let b = colors[13][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T14 => {
-                        let r = colors[14][0];
-                        let g = colors[14][1];
-                        let b = colors[14][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T15 => {
-                        let r = colors[15][0];
-                        let g = colors[15][1];
-                        let b = colors[15][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T16 => {
-                        let r = colors[16][0];
-                        let g = colors[16][1];
-                        let b = colors[16][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T17 => {
-                        let r = colors[17][0];
-                        let g = colors[17][1];
-                        let b = colors[17][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T18 => {
-                        let r = colors[18][0];
-                        let g = colors[18][1];
-                        let b = colors[18][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T19 => {
-                        let r = colors[19][0];
-                        let g = colors[19][1];
-                        let b = colors[19][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T20 => {
-                        let r = colors[20][0];
-                        let g = colors[20][1];
-                        let b = colors[20][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T21 => {
-                        let r = colors[21][0];
-                        let g = colors[21][1];
-                        let b = colors[21][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T22 => {
-                        let r = colors[22][0];
-                        let g = colors[22][1];
-                        let b = colors[22][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T23 => {
-                        let r = colors[23][0];
-                        let g = colors[23][1];
-                        let b = colors[23][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T24 => {
-                        let r = colors[24][0];
-                        let g = colors[24][1];
-                        let b = colors[24][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T25 => {
-                        let r = colors[25][0];
-                        let g = colors[25][1];
-                        let b = colors[25][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T26 => {
-                        let r = colors[26][0];
-                        let g = colors[26][1];
-                        let b = colors[26][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T27 => {
-                        let r = colors[27][0];
-                        let g = colors[27][1];
-                        let b = colors[27][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T28 => {
-                        let r = colors[28][0];
-                        let g = colors[28][1];
-                        let b = colors[28][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T29 => {
-                        let r = colors[29][0];
-                        let g = colors[29][1];
-                        let b = colors[29][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T30 => {
-                        let r = colors[30][0];
-                        let g = colors[30][1];
-                        let b = colors[30][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T31 => {
-                        let r = colors[31][0];
-                        let g = colors[31][1];
-                        let b = colors[31][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T32 => {
-                        let r = colors[32][0];
-                        let g = colors[32][1];
-                        let b = colors[32][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T33 => {
-                        let r = colors[33][0];
-                        let g = colors[33][1];
-                        let b = colors[33][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T34 => {
-                        let r = colors[34][0];
-                        let g = colors[34][1];
-                        let b = colors[34][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T35 => {
-                        let r = colors[35][0];
-                        let g = colors[35][1];
-                        let b = colors[35][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T36 => {
-                        let r = colors[36][0];
-                        let g = colors[36][1];
-                        let b = colors[36][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T37 => {
-                        let r = colors[37][0];
-                        let g = colors[37][1];
-                        let b = colors[37][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T38 => {
-                        let r = colors[38][0];
-                        let g = colors[38][1];
-                        let b = colors[38][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T39 => {
-                        let r = colors[39][0];
-                        let g = colors[39][1];
-                        let b = colors[39][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T40 => {
-                        let r = colors[40][0];
-                        let g = colors[40][1];
-                        let b = colors[40][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T41 => {
-                        let r = colors[41][0];
-                        let g = colors[41][1];
-                        let b = colors[41][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T42 => {
-                        let r = colors[42][0];
-                        let g = colors[42][1];
-                        let b = colors[42][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T43 => {
-                        let r = colors[43][0];
-                        let g = colors[43][1];
-                        let b = colors[43][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T44 => {
-                        let r = colors[44][0];
-                        let g = colors[44][1];
-                        let b = colors[44][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T45 => {
-                        let r = colors[45][0];
-                        let g = colors[45][1];
-                        let b = colors[45][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T46 => {
-                        let r = colors[46][0];
-                        let g = colors[46][1];
-                        let b = colors[46][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T47 => {
-                        let r = colors[47][0];
-                        let g = colors[47][1];
-                        let b = colors[47][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T48 => {
-                        let r = colors[48][0];
-                        let g = colors[48][1];
-                        let b = colors[48][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T49 => {
-                        let r = colors[49][0];
-                        let g = colors[49][1];
-                        let b = colors[49][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T50 => {
-                        let r = colors[50][0];
-                        let g = colors[50][1];
-                        let b = colors[50][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T51 => {
-                        let r = colors[51][0];
-                        let g = colors[51][1];
-                        let b = colors[51][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T52 => {
-                        let r = colors[52][0];
-                        let g = colors[52][1];
-                        let b = colors[52][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T53 => {
-                        let r = colors[53][0];
-                        let g = colors[53][1];
-                        let b = colors[53][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T54 => {
-                        let r = colors[54][0];
-                        let g = colors[54][1];
-                        let b = colors[54][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::T55 => {
-                        let r = colors[55][0];
-                        let g = colors[55][1];
-                        let b = colors[55][2];
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(r, g, b));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
+                    TextureColor::T0 => set_texture!(0),
+                    TextureColor::T1 => set_texture!(1),
+                    TextureColor::T2 => set_texture!(2),
+                    TextureColor::T3 => set_texture!(3),
+                    TextureColor::T4 => set_texture!(4),
+                    TextureColor::T5 => set_texture!(5),
+                    TextureColor::T6 => set_texture!(6),
+                    TextureColor::T7 => set_texture!(7),
+                    TextureColor::T8 => set_texture!(8),
+                    TextureColor::T9 => set_texture!(9),
+                    TextureColor::T10 => set_texture!(10),
+                    TextureColor::T11 => set_texture!(11),
+                    TextureColor::T12 => set_texture!(12),
+                    TextureColor::T13 => set_texture!(13),
+                    TextureColor::T14 => set_texture!(14),
+                    TextureColor::T15 => set_texture!(15),
+                    TextureColor::T16 => set_texture!(16),
+                    TextureColor::T17 => set_texture!(17),
+                    TextureColor::T18 => set_texture!(18),
+                    TextureColor::T19 => set_texture!(19),
+                    TextureColor::T20 => set_texture!(20),
+                    TextureColor::T21 => set_texture!(21),
+                    TextureColor::T22 => set_texture!(22),
+                    TextureColor::T23 => set_texture!(23),
+                    TextureColor::T24 => set_texture!(24),
+                    TextureColor::T25 => set_texture!(25),
+                    TextureColor::T26 => set_texture!(26),
+                    TextureColor::T27 => set_texture!(27),
+                    TextureColor::T28 => set_texture!(28),
+                    TextureColor::T29 => set_texture!(29),
+                    TextureColor::T30 => set_texture!(30),
+                    TextureColor::T31 => set_texture!(31),
+                    TextureColor::T32 => set_texture!(32),
+                    TextureColor::T33 => set_texture!(33),
+                    TextureColor::T34 => set_texture!(34),
+                    TextureColor::T35 => set_texture!(35),
+                    TextureColor::T36 => set_texture!(36),
+                    TextureColor::T37 => set_texture!(37),
+                    TextureColor::T38 => set_texture!(38),
+                    TextureColor::T39 => set_texture!(39),
+                    TextureColor::T40 => set_texture!(40),
+                    TextureColor::T41 => set_texture!(41),
+                    TextureColor::T42 => set_texture!(42),
+                    TextureColor::T43 => set_texture!(43),
+                    TextureColor::T44 => set_texture!(44),
+                    TextureColor::T45 => set_texture!(45),
+                    TextureColor::T46 => set_texture!(46),
+                    TextureColor::T47 => set_texture!(47),
+                    TextureColor::T48 => set_texture!(48),
+                    TextureColor::T49 => set_texture!(49),
+                    TextureColor::T50 => set_texture!(50),
+                    TextureColor::T51 => set_texture!(51),
+                    TextureColor::T52 => set_texture!(52),
+                    TextureColor::T53 => set_texture!(53),
+                    TextureColor::T54 => set_texture!(54),
+                    TextureColor::T55 => set_texture!(55),
                 };
             })
             .map_err(|e| e.to_string())?;
@@ -1165,10 +508,10 @@ pub fn dummy_texture<'a>(
     texture_creator: &'a TextureCreator<WindowContext>,
 ) -> Result<(Texture<'a>, Texture<'a>, Texture<'a>, Texture<'a>), String> {
     enum TextureColor {
-        Zero,
-        One,
-        Two,
-        Three,
+        T0,
+        T1,
+        T2,
+        T3,
     }
     let mut square_texture1 = texture_creator
         .create_texture_target(None, SQUARE_SIZE, SQUARE_SIZE)
@@ -1185,56 +528,34 @@ pub fn dummy_texture<'a>(
 
     {
         let textures = vec![
-            (&mut square_texture1, TextureColor::Zero),
-            (&mut square_texture2, TextureColor::One),
-            (&mut square_texture3, TextureColor::Two),
-            (&mut square_texture4, TextureColor::Three),
+            (&mut square_texture1, TextureColor::T0),
+            (&mut square_texture2, TextureColor::T1),
+            (&mut square_texture3, TextureColor::T2),
+            (&mut square_texture4, TextureColor::T3),
         ];
+
         canvas
             .with_multiple_texture_canvas(textures.iter(), |texture_canvas, user_context| {
                 texture_canvas.set_draw_color(Color::RGB(0, 0, 0));
                 texture_canvas.clear();
+                macro_rules! set_texture {
+                    ($id:expr) => {{
+                        let d = $id * 85;
+                        for i in 0..SQUARE_SIZE {
+                            for j in 0..SQUARE_SIZE {
+                                texture_canvas.set_draw_color(Color::RGB(d, d, d));
+                                texture_canvas
+                                    .draw_point(Point::new(i as i32, j as i32))
+                                    .expect("could not draw point");
+                            }
+                        }
+                    }};
+                }
                 match *user_context {
-                    TextureColor::Zero => {
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(0, 0, 0));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::One => {
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(85, 85, 85));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::Two => {
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(170, 170, 170));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
-                    TextureColor::Three => {
-                        for i in 0..SQUARE_SIZE {
-                            for j in 0..SQUARE_SIZE {
-                                texture_canvas.set_draw_color(Color::RGB(250, 250, 250));
-                                texture_canvas
-                                    .draw_point(Point::new(i as i32, j as i32))
-                                    .expect("could not draw point");
-                            }
-                        }
-                    }
+                    TextureColor::T0 => set_texture!(0),
+                    TextureColor::T1 => set_texture!(1),
+                    TextureColor::T2 => set_texture!(2),
+                    TextureColor::T3 => set_texture!(3),
                 };
             })
             .map_err(|e| e.to_string())?;
