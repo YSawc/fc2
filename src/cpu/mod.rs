@@ -260,10 +260,18 @@ impl CPU {
 
     pub fn interrupt(&mut self, intr: Interrupt) {
         match intr {
-            Interrupt::Nmi => (),
+            Interrupt::Nmi => {
+                self.register.p.break_mode = false;
+                self.register.p.interrupt = true;
+                self.push_pc();
+                let p = self.register.p.to_n();
+                self.push_stack(p);
+                let (l, h) = self.bus.cpu_bus.lh_addr(0xFFFA);
+                self.register.pc = combine_high_low(l, h);
+            }
             Interrupt::Reset => self.reset(),
-            Interrupt::Irq => (),
-            Interrupt::Brk => (),
+            Interrupt::Irq => unimplemented!(),
+            Interrupt::Brk => unimplemented!(),
         }
     }
 
@@ -294,10 +302,10 @@ impl CPU {
     }
 
     pub fn ex_i8_plus(&mut self, l: u8, r: u8) -> u8 {
-        if l & 0x80 == 0x80 {
-            l - r + 0xf0
-        } else {
+        if l < 0x80 {
             l + r
+        } else {
+            l + r - u8::MAX
         }
     }
 
@@ -458,10 +466,10 @@ impl CPU {
             AddrMode::Rel => {
                 let l = self.register.pc + 1;
                 let h = self.fetch_register() as u16;
-                if h & 0x80 == 0x80 {
-                    (l - h + 0xf0) as u16
-                } else {
+                if h < 0x80 {
                     (l + h) as u16
+                } else {
+                    (l + h - 256) as u16
                 }
             }
             AddrMode::IndX => {
@@ -511,12 +519,20 @@ impl CPU {
         }
     }
 
+    pub fn push_pc(&mut self) {
+        let p = self.register.pc;
+        let h = ((p & 0xFF00) >> 8) as u8;
+        let l = (p & 0x00FF) as u8;
+        self.push_stack(h);
+        self.push_stack(l);
+    }
+
     pub fn run_ope(&mut self, r: u16, opekind: OpeKind, addr_mode: AddrMode) {
         match opekind {
             OpeKind::Adc => {
-                let r = self.get_addr_for_mixed_imm_mode(r, addr_mode);
-                if self.register.a.checked_add(r as u8).is_some() {
-                    self.register.a += r as u8;
+                let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
+                if self.register.a.checked_add(r).is_some() {
+                    self.register.a += r;
                     self.set_nz(self.register.a);
                     self.set_carry(false);
                 } else {
@@ -731,11 +747,7 @@ impl CPU {
             OpeKind::Brk => {
                 if !self.get_interrupt() {
                     self.register.pc -= 1;
-                    let p = self.register.pc;
-                    let h = ((p & 0xFF00) >> 8) as u8;
-                    let l = (p & 0x00FF) as u8;
-                    self.push_stack(h);
-                    self.push_stack(l);
+                    self.push_pc();
                     let n = self.register.p.to_n();
                     self.push_stack(n);
                     self.set_break_mode(true);
@@ -743,6 +755,13 @@ impl CPU {
                     let (h, l) = self.bus.cpu_bus.hl_addr(0xFFFE);
                     self.register.pc = combine_high_low(l, h);
                 }
+            }
+            OpeKind::Rti => {
+                let l = self.pull_stack();
+                let h = self.pull_stack();
+                let p = self.pull_stack();
+                self.register.pc = combine_high_low(l, h);
+                self.register.p.set(p);
             }
             OpeKind::Nop => {
                 self.nop();
@@ -999,10 +1018,10 @@ mod test {
 
         let l = cpu.register.pc + 2;
         let h = cpu.fetch_next_register() as u16;
-        let r = if h & 0x80 == 0x80 {
-            (l - h + 0xf0) as u16
-        } else {
+        let r = if h < 0x80 {
             (l + h) as u16
+        } else {
+            (l + h - 256) as u16
         };
 
         let mut reg_addr = u16::MAX;

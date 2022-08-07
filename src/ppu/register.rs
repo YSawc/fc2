@@ -64,7 +64,7 @@ impl WriteTwiceRegister {
 
 #[derive(Debug, Clone)]
 pub struct PpuCtrl {
-    nmi: bool,
+    pub gen_nmi: bool,
     ppu_selector: bool,
     sprite_size: bool,
     pub bk_table_addr: bool,
@@ -82,7 +82,7 @@ impl Default for PpuCtrl {
 impl PpuCtrl {
     pub fn new() -> Self {
         Self {
-            nmi: false,
+            gen_nmi: false,
             ppu_selector: false,
             sprite_size: false,
             bk_table_addr: false,
@@ -98,7 +98,7 @@ impl PpuCtrl {
             s.chars().nth(n).unwrap().to_digit(2).unwrap()
         }
 
-        self.nmi = n_to_bool(chars_nth(&s, 7));
+        self.gen_nmi = n_to_bool(chars_nth(&s, 7));
         self.ppu_selector = n_to_bool(chars_nth(&s, 6));
         self.sprite_size = n_to_bool(chars_nth(&s, 5));
         self.bk_table_addr = n_to_bool(chars_nth(&s, 4));
@@ -109,7 +109,7 @@ impl PpuCtrl {
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += bool_to_n(self.nmi) << 7;
+        n += bool_to_n(self.gen_nmi) << 7;
         n += bool_to_n(self.ppu_selector) << 6;
         n += bool_to_n(self.sprite_size) << 5;
         n += bool_to_n(self.bk_table_addr) << 4;
@@ -278,6 +278,7 @@ impl Register {
             0x2002 => self.ppu_status.to_n(),
             0x2003 => self.oam_addr,
             0x2004 => self.oam_data,
+            0x2007 => self.ppu_buffer as u8,
             0x4014 => self.oam_dma,
             _ => unreachable!(),
         }
