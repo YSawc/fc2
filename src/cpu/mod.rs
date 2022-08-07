@@ -275,20 +275,21 @@ impl CPU {
 
     pub fn ex_plus(&mut self, l: u8, r: u8) -> u8 {
         if l.checked_add(r).is_none() {
-            self.set_break_mode(true);
             self.set_overflow(true);
             l + r - u8::MAX
         } else {
+            self.set_overflow(false);
             l + r
         }
     }
 
     pub fn ex_minus(&mut self, l: u8, r: u8) -> u8 {
-        if l < r {
-            self.set_negative(1);
-            r - l
-        } else {
+        if l > r {
+            self.set_negative(false);
             l - r
+        } else {
+            self.set_negative(true);
+            r - l
         }
     }
 
@@ -316,12 +317,8 @@ impl CPU {
         self.register.p.interrupt
     }
 
-    pub fn set_negative(&mut self, n: u8) {
-        if n & 0x80 == 0x80 {
-            self.register.p.negative = true;
-        } else {
-            self.register.p.negative = false;
-        }
+    pub fn set_negative(&mut self, b: bool) {
+        self.register.p.negative = b;
     }
 
     pub fn get_negative(&mut self) -> bool {
@@ -336,12 +333,8 @@ impl CPU {
         self.register.p.overflow
     }
 
-    pub fn set_zero(&mut self, n: u8) {
-        if n == 0 {
-            self.register.p.zero = true;
-        } else {
-            self.register.p.zero = false;
-        }
+    pub fn set_zero(&mut self, b: bool) {
+        self.register.p.zero = b;
     }
 
     pub fn get_zero(&mut self) -> bool {
@@ -349,16 +342,12 @@ impl CPU {
     }
 
     pub fn set_nz(&mut self, n: u8) {
-        self.set_negative(n);
-        self.set_zero(n);
+        self.set_negative(n >= 0x80);
+        self.set_zero(n == 0);
     }
 
-    pub fn set_carry(&mut self, n: i8) {
-        if n > 0 {
-            self.register.p.carry = true;
-        } else {
-            self.register.p.carry = false;
-        }
+    pub fn set_carry(&mut self, b: bool) {
+        self.register.p.carry = b;
     }
 
     pub fn get_carry(&mut self) -> bool {
@@ -529,11 +518,11 @@ impl CPU {
                 if self.register.a.checked_add(r as u8).is_some() {
                     self.register.a += r as u8;
                     self.set_nz(self.register.a);
-                    self.set_carry(0);
+                    self.set_carry(false);
                 } else {
                     let s = (self.register.a as u16 + (r as u16)) - u8::MAX as u16;
                     self.register.a = s as u8;
-                    self.set_carry(1);
+                    self.set_carry(true);
                 }
             }
             OpeKind::Sbc => {
@@ -541,11 +530,11 @@ impl CPU {
                 if self.register.a.checked_sub(r).is_some() {
                     self.register.a -= r;
                     self.set_nz(self.register.a);
-                    self.set_carry(1);
+                    self.set_carry(true);
                 } else {
                     let s = r - self.register.a;
                     self.register.a = s;
-                    self.set_carry(0);
+                    self.set_carry(false);
                     self.register.p.carry = false;
                 }
             }
@@ -605,21 +594,21 @@ impl CPU {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode);
                 let s: i16 = (self.register.a as i16) - (r as i16);
                 self.set_nz(s as u8);
-                self.set_carry(s as i8);
+                self.set_carry(s > 0);
             }
             OpeKind::Cpx => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
                 let v = r;
                 let s = self.register.x > v;
                 self.set_nz(s as u8);
-                self.set_carry(s as i8);
+                self.set_carry(s);
             }
             OpeKind::Cpy => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
                 let v = r;
                 let s = self.register.y > v;
                 self.set_nz(s as u8);
-                self.set_carry(s as i8);
+                self.set_carry(s);
             }
             OpeKind::Inc => {
                 let v = self.bus.addr(r);
