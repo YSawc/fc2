@@ -258,14 +258,14 @@ impl CPU {
         }
     }
 
-    // pub fn handle_interrupt(&mut self, intr: Interrupt) {
-    //     match intr {
-    //         Interrupt::Nmi => (),
-    //         Interrupt::Reset => self.reset(),
-    //         Interrupt::Irq => (),
-    //         Interrupt::Brk => (),
-    //     }
-    // }
+    pub fn interrupt(&mut self, intr: Interrupt) {
+        match intr {
+            Interrupt::Nmi => (),
+            Interrupt::Reset => self.reset(),
+            Interrupt::Irq => (),
+            Interrupt::Brk => (),
+        }
+    }
 
     pub fn reset(&mut self) {
         self.register.x = self.bus.addr(0xFFFC);
@@ -830,13 +830,13 @@ impl CPU {
 //     None,
 // }
 
-// #[derive(Debug, Clone)]
-// pub enum Interrupt {
-//     Nmi,
-//     Reset,
-//     Irq,
-//     Brk,
-// }
+#[derive(Debug, Clone)]
+pub enum Interrupt {
+    Nmi,
+    Reset,
+    Irq,
+    Brk,
+}
 
 #[cfg(test)]
 mod test {
@@ -894,7 +894,7 @@ mod test {
         let nes = Nes::new();
         let mut cpu = CPU::default();
         cpu.init(&nes);
-        cpu.reset();
+        cpu.interrupt(Interrupt::Reset);
         let (code, _) = cpu.random_pick_operator_with_specify_addr_mode(addr_mode);
         cpu.bus.cpu_bus.prg_rom1[0] = code;
         cpu
