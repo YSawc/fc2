@@ -1,7 +1,7 @@
 pub mod configure;
-pub mod renderer;
 use crate::nes::Sprites;
 
+pub mod texture;
 use crate::cpu::*;
 use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SQUARE_SIZE};
 use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VERTICAL_PIXEL};

@@ -1,7 +1,7 @@
 extern crate sdl2;
 
 use fc2::emulator::configure::{PLAYGROUND_WIDTH, SQUARE_SIZE};
-use fc2::emulator::renderer::*;
+use fc2::emulator::texture::*;
 use fc2::emulator::*;
 use fc2::nes::*;
 use sdl2::event::Event;
