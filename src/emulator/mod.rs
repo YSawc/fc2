@@ -69,9 +69,14 @@ impl Emulator {
         self.cpu.reset();
     }
 
+    pub fn inc_ppu_cycle(&mut self) {
+        self.ppu_cycle += (self.cpu.cycle * 3) as u16;
+        self.cpu.clear_cycle();
+    }
+
     pub fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
-        let cycle = self.cpu.ex_ope();
-        self.ppu_cycle += (cycle * 3) as u16;
+        self.cpu.ex_ope();
+        self.inc_ppu_cycle();
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VERTICAL_PIXEL {
