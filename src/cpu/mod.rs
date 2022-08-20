@@ -307,7 +307,7 @@ impl CPU {
         if l < 0x80 {
             l + r
         } else {
-            l + r - u8::MAX
+            (l as i16 + r as i16) as u8
         }
     }
 
@@ -425,14 +425,26 @@ impl CPU {
         self.bus.addr(r)
     }
 
+    fn set_oam(&mut self) {
+        self.cycle += 513;
+        if self.cycle % 2 != 0 {
+            self.cycle += 1;
+        }
+        let mut data_vec = vec![];
+
+        let r = self.bus.addr(0x4014) as u16;
+        for n in 0..0xff {
+            let data = self.bus.addr((r << 8) as u16 | n as u16);
+            data_vec.push(data);
+        }
+        // print!("data_vec: {:0x?}, ", data_vec);
+    }
+
     fn bus_set(&mut self, n: u16, r: u8) {
         self.bus.set(n, r);
         match n {
-            4014 => {
-                self.cycle += 513;
-                if self.cycle % 2 != 0 {
-                    self.cycle += 1;
-                }
+            0x4014 => {
+                self.set_oam();
             }
             _ => (),
         }
@@ -581,6 +593,38 @@ impl CPU {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
                 self.register.a ^= r;
             }
+            OpeKind::Asl => {
+                let mut a = self.register.a;
+                a = a >> 1;
+                a &= 0b11111110;
+                self.set_carry((a & 0b10000000) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
+            OpeKind::Lsr => {
+                let mut a = self.register.a;
+                a = a << 1;
+                a = a & 0b01111111;
+                self.set_carry((a & 0b00000001) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
+            OpeKind::Rol => {
+                let mut a = self.register.a;
+                a = a >> 1;
+                a = a | (self.register.p.carry as u8);
+                self.set_carry((a & 0b10000000) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
+            OpeKind::Ror => {
+                let mut a = self.register.a;
+                a = a << 1;
+                a = a | (self.register.p.carry as u8) << 7;
+                self.set_carry((a & 0b00000001) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
             OpeKind::Bcc => {
                 if !self.get_carry() {
                     self.register.pc = r;
@@ -621,6 +665,12 @@ impl CPU {
                     self.register.pc = r;
                 }
             }
+            OpeKind::Bit => {
+                let v = self.bus.addr(r);
+                self.set_zero((v & self.register.a) == 0);
+                self.register.p.negative = (v & 0b10000000) != 0;
+                self.register.p.overflow = (v & 0b01000000) != 0;
+            }
             OpeKind::Cmp => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode);
                 let s: i16 = (self.register.a as i16) - (r as i16);
@@ -654,7 +704,7 @@ impl CPU {
                 self.set_nz(self.bus.addr(r));
             }
             OpeKind::Inx => {
-                let x = self.register.x + 1;
+                let x = self.ex_i8_plus(self.register.x, 1);
                 self.set_x(x);
                 self.set_nz(x);
             }
@@ -772,9 +822,9 @@ impl CPU {
                 }
             }
             OpeKind::Rti => {
+                let p = self.pull_stack();
                 let l = self.pull_stack();
                 let h = self.pull_stack();
-                let p = self.pull_stack();
                 self.register.pc = combine_high_low(l, h);
                 self.register.p.set(p);
             }
@@ -800,15 +850,12 @@ impl CPU {
                 let cycle = cycle.clone();
                 let reg_addr = self.ex_addr_mode(&addr_mode);
                 self.run_ope(reg_addr, ope_kind, addr_mode);
-                // println!(
-                //     "self.register.pc: {:0x?}, reg_addr: {:0x?}",
-                //     self.register.pc, reg_addr
-                // );
                 self.cycle += cycle as u16;
+                // println!("pc: {:0x?}, reg_addr: {:0x?}", self.register.pc, reg_addr);
             }
             None => {
                 self.undef();
-                unimplemented!();
+                self.cycle += 1;
             }
         }
     }
@@ -819,17 +866,14 @@ impl CPU {
 
     pub fn read_ope(&mut self) -> Option<&Operator> {
         let c = self.fetch_code();
-        // print!("self.register.pc: {:0x?} ", self.register.pc);
+        // print!("pc: {:0x?} ", self.register.pc);
         // print!(
         //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?} ",
         //     c,
         //     self.fetch_next_register(),
         //     self.fetch_next_next_register()
         // );
-        // print!(
-        //     "self.operators.get_mut(&c): {:?} ",
-        //     self.operators.get_mut(&c)
-        // );
+        // print!("{:?} ,", self.operators.get_mut(&c).unwrap());
         // print!("0x2000 {}, ", self.bus.addr(0x2000));
         // print!("0x2001 {}, ", self.bus.addr(0x2001));
         // print!("0x2002 {}, ", self.bus.addr(0x2002));
