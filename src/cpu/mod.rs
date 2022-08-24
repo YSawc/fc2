@@ -851,6 +851,18 @@ mod test {
     use crate::cpu::*;
     extern crate rand;
     use rand::seq::IteratorRandom;
+    use std::fs::File;
+    use std::io::Read;
+
+    impl Nes {
+        pub fn new_for_test() -> Self {
+            let mut f = File::open("roms/hello-world.nes").unwrap();
+            let mut buffer = Vec::new();
+            f.read_to_end(&mut buffer).unwrap();
+            let header = Header::new(&buffer);
+            Self { header }
+        }
+    }
 
     impl CPU {
         fn random_pick_operator_with_specify_addr_mode(
@@ -899,7 +911,7 @@ mod test {
     }
 
     fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> CPU {
-        let nes = Nes::new();
+        let nes = Nes::new_for_test();
         let mut cpu = CPU::default();
         cpu.init(&nes);
         cpu.interrupt(Interrupt::Reset);
