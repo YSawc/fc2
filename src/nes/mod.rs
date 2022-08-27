@@ -1,7 +1,8 @@
-use crate::emulator::configure::*;
 use crate::util::*;
+use std::env;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct Nes {
@@ -206,7 +207,9 @@ pub type Sprites = Vec<Vec<Vec<u32>>>;
 
 impl Nes {
     pub fn new() -> Self {
-        let mut f = File::open(NES_FILE).unwrap();
+        let file_path: Vec<String> = env::args().collect();
+        let file_path = Path::new(&file_path[file_path.len() - 1]);
+        let mut f = File::open(file_path).expect("File path need.");
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer).unwrap();
         let header = Header::new(&buffer);

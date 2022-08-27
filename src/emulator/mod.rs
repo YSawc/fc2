@@ -3,7 +3,7 @@ pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
 use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SQUARE_SIZE};
-use crate::nes::Sprites;
+use crate::ppu::mapper::Map;
 use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VBLANK_LINE, VERTICAL_PIXEL};
 
 use sdl2::rect::Rect;
@@ -16,7 +16,6 @@ pub struct Emulator {
     pub ppu_cycle: u16,
     pub ppu_clock_sync: u8,
     pub drawing_line: u16,
-    pub sprites: Sprites,
     pub sdl: Sdl,
     pub canvas: sdl2::render::Canvas<sdl2::video::Window>,
 }
@@ -59,7 +58,6 @@ impl Emulator {
             ppu_cycle: 0,
             ppu_clock_sync: 0,
             drawing_line: 0,
-            sprites: vec![],
             sdl: sdl_context,
             canvas,
         }
@@ -98,66 +96,90 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
-        for n in 0..PLAYGROUND_WIDTH {
-            let attr_idx = (0x23C0 + (n / 4) + (self.drawing_line as u32 / 32) * 8) as u16;
-            let attr_arr_idx = ((n / 2) % 2) | (((self.drawing_line as u32 / 16) % 2) << 1);
-            let background_pallets = self.cpu.bus.ppu.map.addr(attr_idx);
-            // println!("self.cpu.bus.ppu.map.background_table: {:?}", self.cpu.bus.ppu.map.background_table);
-            let background_pallete_idx = self.cpu.bus.ppu.map.background_table
-                [(background_pallets & (0x1 << attr_arr_idx)) as usize];
-            // if background_pallete_idx != 0 {
-            //     println!("background_pallete_idx: {:?}", background_pallete_idx);
-            // }
-            let background_texture = &textures[background_pallete_idx as usize];
+    pub fn ppu_map(&mut self) -> &Map {
+        &self.cpu.bus.ppu.map
+    }
+
+    pub fn draw_backgraund_line(
+        &mut self,
+        textures: &[Texture],
+        x: u16,
+        y: u16,
+    ) -> Result<(), String> {
+        let attr_idx = (0x23C0 + (x / 4) + (y / 32) * 8) as u16;
+        let attr_arr_idx = ((x / 2) % 2) | (((y / 16) % 2) << 1);
+        let pallets = self.ppu_map().addr(attr_idx);
+        let pallete_idx = self
+            .ppu_map()
+            .addr(0x3F00 + (pallets & (0x1 << attr_arr_idx)) as u16);
+        let texture = &textures[pallete_idx as usize];
+
+        self.canvas.copy(
+            texture,
+            None,
+            Rect::new(
+                (x as u32 * SQUARE_SIZE) as i32,
+                (self.drawing_line) as i32,
+                SQUARE_SIZE,
+                SQUARE_SIZE,
+            ),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn draw_sprite_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
+        let i1 = y / 8;
+        let i2 = y % 8;
+        let sprite_idx = self.ppu_map().name_table_00
+            [((i1 as usize) * PLAYGROUND_WIDTH as usize) + x as usize]
+            as usize;
+        let sprite_row = self
+            .ppu_map()
+            .addr((sprite_idx * 0x10 as usize) as u16 + i2);
+        let sprite_high = self
+            .ppu_map()
+            .addr((sprite_idx * 0x10 as usize + 0x8) as u16 + i2);
+        for j in 0..8 {
+            let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
+            let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
+            let idx = high_idx << 1 | row_idx;
+            let sprite_color_idx = self.ppu_map().addr(0x3F00 + idx);
+            let square_texture = &textures[sprite_color_idx as usize];
 
             self.canvas.copy(
-                background_texture,
+                square_texture,
                 None,
                 Rect::new(
-                    (n * SQUARE_SIZE) as i32,
-                    (self.drawing_line) as i32,
+                    (j + x as u32 * SQUARE_SIZE) as i32,
+                    y as i32,
                     SQUARE_SIZE,
                     SQUARE_SIZE,
                 ),
             )?;
+        }
 
-            let i1 = self.drawing_line / 8;
-            let i2 = self.drawing_line % 8;
-            let sprite_idx = self.cpu.bus.ppu.map.name_table_00
-                [((i1 as usize) * PLAYGROUND_WIDTH as usize) + n as usize]
-                as usize;
-            let sprite = &self.sprites[sprite_idx][i2 as usize];
-            // println!("sprite_idx: {:#?}, n: {:?}, i1: {:?}, i2: {:?}", sprite_idx, n, i1, i2);
-            // println!("((i1 as usize) * PLAYGROUND_WIDTH as usize) + n as usize: {:#?}", ((i1 as usize) * PLAYGROUND_WIDTH as usize) + n as usize);
-            // println!("{:?}", self.cpu.bus.ppu.map.name_table_00);
-            if *sprite == [0; 8] {
-                continue;
-            }
-            // println!("sprite_idx: {:#?}, i1: {:?}, i2: {:?}", sprite_idx, i1, i2);
-            // println!("{:#?}", sprite);
-            for j in 0..8 {
-                let background_idx = sprite[j as usize];
-                let sprite_color_idx =
-                    self.cpu.bus.ppu.map.background_table[background_idx as usize];
-                let square_texture = &textures[sprite_color_idx as usize];
-                // println!("color_idx: {:?}", sprite_color_idx);
-                self.canvas.copy(
-                    square_texture,
-                    None,
-                    Rect::new(
-                        (j + n * SQUARE_SIZE) as i32,
-                        (self.drawing_line) as i32,
-                        SQUARE_SIZE,
-                        SQUARE_SIZE,
-                    ),
-                )?;
-            }
+        Ok(())
+    }
+
+    pub fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
+        for n in 0..PLAYGROUND_WIDTH {
+            self.draw_backgraund_line(textures, n as u16, self.drawing_line)?;
+            self.draw_sprite_line(textures, n as u16, self.drawing_line)?;
         }
         Ok(())
     }
 
     pub fn is_just_in_vblank_line(&self) -> bool {
         self.drawing_line == VBLANK_LINE
+    }
+
+    pub fn set_sprites(&mut self, chars: &Vec<u8>) {
+        if chars.len() > 0x2000 {
+            unimplemented!();
+        }
+        for (i, chr) in chars.iter().enumerate() {
+            self.cpu.bus.ppu.map.set(i as u16, *chr);
+        }
     }
 }
