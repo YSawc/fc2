@@ -430,14 +430,15 @@ impl CPU {
         if self.cycle % 2 != 0 {
             self.cycle += 1;
         }
-        let mut data_vec = vec![];
+        let mut sprite_infos = vec![];
 
         let r = self.bus.addr(0x4014) as u16;
         for n in 0..0xff {
             let data = self.bus.addr((r << 8) as u16 | n as u16);
-            data_vec.push(data);
+            sprite_infos.push(data);
         }
-        // print!("data_vec: {:0x?}, ", data_vec);
+        // print!("sprite_infos: {:0x?}, ", sprite_infos);
+        self.bus.ppu.primary_oam.set_sprite_infos(sprite_infos);
     }
 
     fn bus_set(&mut self, n: u16, r: u8) {

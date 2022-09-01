@@ -74,7 +74,7 @@ impl P {
     pub fn set(&mut self, n: u8) {
         let s = format!("{:08b}", n);
         fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().nth(n).unwrap().to_digit(2).unwrap()
+            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
         }
 
         self.carry = n_to_bool(chars_nth(&s, 7));
