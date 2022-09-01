@@ -1,4 +1,5 @@
 pub const SQUARE_SIZE: u32 = 8;
+pub const SPRITE_SIZE: u32 = SQUARE_SIZE / 8;
 pub const PLAYGROUND_WIDTH: u32 = 32;
 pub const PLAYGROUND_HEIGHT: u32 = 30;
 const CPU_CLOCK: f32 = 1.79;

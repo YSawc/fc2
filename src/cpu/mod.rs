@@ -14,6 +14,7 @@ pub struct CPU {
     pub register: Register,
     pub operators: FxHashMap<u8, Operator>,
     pub bus: Bus,
+    pub cycle: u16,
 }
 
 impl Default for CPU {
@@ -34,6 +35,7 @@ impl CPU {
             register,
             operators,
             bus,
+            cycle: 0,
         }
     }
 
@@ -305,7 +307,7 @@ impl CPU {
         if l < 0x80 {
             l + r
         } else {
-            l + r - u8::MAX
+            (l as i16 + r as i16) as u8
         }
     }
 
@@ -412,7 +414,7 @@ impl CPU {
         let l = self.register.s as u16;
         self.register.s -= 1;
         let r = l + (1 << 8);
-        self.bus.set(r, n);
+        self.bus_set(r, n);
     }
 
     pub fn pull_stack(&mut self) -> u8 {
@@ -421,6 +423,32 @@ impl CPU {
         let h = 0x100;
         let r = l + h;
         self.bus.addr(r)
+    }
+
+    fn set_oam(&mut self) {
+        self.cycle += 513;
+        if self.cycle % 2 != 0 {
+            self.cycle += 1;
+        }
+        let mut sprite_infos = vec![];
+
+        let r = self.bus.addr(0x4014) as u16;
+        for n in 0..0xff {
+            let data = self.bus.addr((r << 8) as u16 | n as u16);
+            sprite_infos.push(data);
+        }
+        // print!("sprite_infos: {:0x?}, ", sprite_infos);
+        self.bus.ppu.primary_oam.set_sprite_infos(sprite_infos);
+    }
+
+    fn bus_set(&mut self, n: u16, r: u8) {
+        self.bus.set(n, r);
+        match n {
+            0x4014 => {
+                self.set_oam();
+            }
+            _ => (),
+        }
     }
 
     pub fn ex_addr_mode(&mut self, addr_mode: &AddrMode) -> u16 {
@@ -566,6 +594,38 @@ impl CPU {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
                 self.register.a ^= r;
             }
+            OpeKind::Asl => {
+                let mut a = self.register.a;
+                a = a >> 1;
+                a &= 0b11111110;
+                self.set_carry((a & 0b10000000) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
+            OpeKind::Lsr => {
+                let mut a = self.register.a;
+                a = a << 1;
+                a = a & 0b01111111;
+                self.set_carry((a & 0b00000001) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
+            OpeKind::Rol => {
+                let mut a = self.register.a;
+                a = a >> 1;
+                a = a | (self.register.p.carry as u8);
+                self.set_carry((a & 0b10000000) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
+            OpeKind::Ror => {
+                let mut a = self.register.a;
+                a = a << 1;
+                a = a | (self.register.p.carry as u8) << 7;
+                self.set_carry((a & 0b00000001) != 0);
+                self.set_nz(a);
+                self.register.a = a;
+            }
             OpeKind::Bcc => {
                 if !self.get_carry() {
                     self.register.pc = r;
@@ -606,6 +666,12 @@ impl CPU {
                     self.register.pc = r;
                 }
             }
+            OpeKind::Bit => {
+                let v = self.bus.addr(r);
+                self.set_zero((v & self.register.a) == 0);
+                self.register.p.negative = (v & 0b10000000) != 0;
+                self.register.p.overflow = (v & 0b01000000) != 0;
+            }
             OpeKind::Cmp => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode);
                 let s: i16 = (self.register.a as i16) - (r as i16);
@@ -629,17 +695,17 @@ impl CPU {
             OpeKind::Inc => {
                 let v = self.bus.addr(r);
                 let s = self.ex_plus(v, 1);
-                self.bus.set(r, s);
+                self.bus_set(r, s);
                 self.set_nz(self.bus.addr(r));
             }
             OpeKind::Dec => {
                 let v = self.bus.addr(r);
                 let s = self.ex_minus(v, 1);
-                self.bus.set(r, s);
+                self.bus_set(r, s);
                 self.set_nz(self.bus.addr(r));
             }
             OpeKind::Inx => {
-                let x = self.register.x + 1;
+                let x = self.ex_i8_plus(self.register.x, 1);
                 self.set_x(x);
                 self.set_nz(x);
             }
@@ -681,13 +747,13 @@ impl CPU {
                 self.set_nz(self.register.y);
             }
             OpeKind::Sta => {
-                self.bus.set(r, self.register.a);
+                self.bus_set(r, self.register.a);
             }
             OpeKind::Stx => {
-                self.bus.set(r, self.register.x);
+                self.bus_set(r, self.register.x);
             }
             OpeKind::Sty => {
-                self.bus.set(r, self.register.y);
+                self.bus_set(r, self.register.y);
             }
             OpeKind::Tax => {
                 self.register.x = self.register.a;
@@ -757,9 +823,9 @@ impl CPU {
                 }
             }
             OpeKind::Rti => {
+                let p = self.pull_stack();
                 let l = self.pull_stack();
                 let h = self.pull_stack();
-                let p = self.pull_stack();
                 self.register.pc = combine_high_low(l, h);
                 self.register.p.set(p);
             }
@@ -773,7 +839,7 @@ impl CPU {
         }
     }
 
-    pub fn ex_ope(&mut self) -> u8 {
+    pub fn ex_ope(&mut self) {
         match self.read_ope() {
             Some(Operator {
                 ope_kind,
@@ -785,32 +851,30 @@ impl CPU {
                 let cycle = cycle.clone();
                 let reg_addr = self.ex_addr_mode(&addr_mode);
                 self.run_ope(reg_addr, ope_kind, addr_mode);
-                // println!(
-                //     "self.register.pc: {:0x?}, reg_addr: {:0x?}",
-                //     self.register.pc, reg_addr
-                // );
-                cycle
+                self.cycle += cycle as u16;
+                // println!("pc: {:0x?}, reg_addr: {:0x?}", self.register.pc, reg_addr);
             }
             None => {
                 self.undef();
-                unimplemented!();
+                self.cycle += 1;
             }
         }
     }
 
+    pub fn clear_cycle(&mut self) {
+        self.cycle = 0;
+    }
+
     pub fn read_ope(&mut self) -> Option<&Operator> {
         let c = self.fetch_code();
-        // print!("self.register.pc: {:0x?} ", self.register.pc);
+        // print!("pc: {:0x?} ", self.register.pc);
         // print!(
         //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?} ",
         //     c,
         //     self.fetch_next_register(),
         //     self.fetch_next_next_register()
         // );
-        // print!(
-        //     "self.operators.get_mut(&c): {:?} ",
-        //     self.operators.get_mut(&c)
-        // );
+        // print!("{:?} ,", self.operators.get_mut(&c).unwrap());
         // print!("0x2000 {}, ", self.bus.addr(0x2000));
         // print!("0x2001 {}, ", self.bus.addr(0x2001));
         // print!("0x2002 {}, ", self.bus.addr(0x2002));
@@ -1051,8 +1115,8 @@ mod test {
         let l = cpu.fetch_next_register();
         let h = cpu.register.x;
         let t = combine_high_low(l, h);
-        cpu.bus.set(t, rand_u8());
-        cpu.bus.set(t + 1, rand_u8());
+        cpu.bus_set(t, rand_u8());
+        cpu.bus_set(t + 1, rand_u8());
 
         let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
         let r = combine_high_low(l, h);
@@ -1070,8 +1134,8 @@ mod test {
         cpu.register.y = rand_u8();
 
         let t = cpu.fetch_next_register() as u16;
-        cpu.bus.set(t, rand_u8());
-        cpu.bus.set(t + 1, rand_u8());
+        cpu.bus_set(t, rand_u8());
+        cpu.bus_set(t + 1, rand_u8());
 
         let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
         let y = cpu.register.y as u16;
@@ -1091,8 +1155,8 @@ mod test {
         let (l, h) = cpu.fetch_next_lh_register();
         let t = combine_high_low(l, h);
 
-        cpu.bus.set(t, rand_u8());
-        cpu.bus.set(t + 1, rand_u8());
+        cpu.bus_set(t, rand_u8());
+        cpu.bus_set(t + 1, rand_u8());
 
         let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
         let r = combine_high_low(l, h);

@@ -1,13 +1,12 @@
 extern crate sdl2;
 
 use fc2::bus::Mapper;
-use fc2::emulator::configure::{PLAYGROUND_WIDTH, SQUARE_SIZE};
+use fc2::emulator::configure::{PLAYGROUND_WIDTH, SPRITE_SIZE, SQUARE_SIZE};
 use fc2::emulator::texture::*;
 use fc2::emulator::*;
 use fc2::nes::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::TextureCreator;
 use std::env;
@@ -19,11 +18,7 @@ pub fn main() -> Result<(), String> {
     // println!("{:#?}", nes);
     // println!("{:#?}", emulator.cpu);
     emulator.reset();
-
     emulator.set_sprites(&nes.header.info.chr_rom);
-    emulator.canvas.set_draw_color(Color::RGB(255, 0, 0));
-    emulator.canvas.clear();
-    emulator.canvas.present();
 
     let mut event_pump = emulator.sdl.event_pump()?;
     let texture_creator: TextureCreator<_> = emulator.canvas.texture_creator();
@@ -55,8 +50,8 @@ pub fn main() -> Result<(), String> {
                         Rect::new(
                             (j as u32 + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
                             (i as u32 + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                            SQUARE_SIZE,
-                            SQUARE_SIZE,
+                            SPRITE_SIZE,
+                            SPRITE_SIZE,
                         ),
                     )?;
                 }

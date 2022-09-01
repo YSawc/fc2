@@ -95,7 +95,7 @@ impl PpuCtrl {
     pub fn set(&mut self, n: u8) {
         let s = format!("{:08b}", n);
         fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().nth(n).unwrap().to_digit(2).unwrap()
+            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
         }
 
         self.gen_nmi = n_to_bool(chars_nth(&s, 7));
@@ -132,7 +132,7 @@ pub struct PpuMask {
     emf_blue: bool,
     emf_green: bool,
     emf_red: bool,
-    show_sprites: bool,
+    pub show_sprites: bool,
     show_background: bool,
     show_sprites_in_leftmost: bool,
     show_background_in_leftmost: bool,
@@ -162,7 +162,7 @@ impl PpuMask {
     pub fn set(&mut self, n: u8) {
         let s = format!("{:08b}", n);
         fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().nth(n).unwrap().to_digit(2).unwrap()
+            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
         }
 
         self.emf_blue = n_to_bool(chars_nth(&s, 7));
@@ -191,7 +191,7 @@ impl PpuMask {
 
 #[derive(Debug, Clone)]
 pub struct PpuStatus {
-    virtical_blank_in_vlank: bool,
+    pub in_vlank: bool,
     sprite_zero_hit: bool,
     sprite_evoluation: bool,
     bus: u8,
@@ -206,7 +206,7 @@ impl Default for PpuStatus {
 impl PpuStatus {
     pub fn new() -> Self {
         Self {
-            virtical_blank_in_vlank: false,
+            in_vlank: false,
             sprite_zero_hit: false,
             sprite_evoluation: false,
             bus: 0,
@@ -216,10 +216,10 @@ impl PpuStatus {
         let s = format!("{:08b}", n);
         let s = s.to_string();
         fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().nth(n).unwrap().to_digit(2).unwrap()
+            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
         }
 
-        self.virtical_blank_in_vlank = n_to_bool(chars_nth(&s, 7));
+        self.in_vlank = n_to_bool(chars_nth(&s, 7));
         self.sprite_zero_hit = n_to_bool(chars_nth(&s, 6));
         self.sprite_evoluation = n_to_bool(chars_nth(&s, 5));
         self.bus = n & 0b00001111;
@@ -227,7 +227,7 @@ impl PpuStatus {
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += bool_to_n(self.virtical_blank_in_vlank) << 7;
+        n += bool_to_n(self.in_vlank) << 7;
         n += bool_to_n(self.sprite_zero_hit) << 6;
         n += bool_to_n(self.sprite_evoluation) << 5;
         n += self.bus;
@@ -258,6 +258,7 @@ impl Register {
     }
 
     pub fn set(&mut self, n: u16, r: u8) {
+        // println!("n: {:0x?}, r: {:0x?}", n, r);
         match n {
             0x2000 => self.ppu_ctrl.set(r),
             0x2001 => self.ppu_mask.set(r),
