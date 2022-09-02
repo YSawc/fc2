@@ -35,18 +35,3 @@ pub fn ex_minus_ignoring_overflow(l: u8, r: u8) -> u8 {
 pub fn combine_high_low(l: u8, h: u8) -> u16 {
     (((h as u16) << 8) | l as u16) as u16
 }
-
-pub fn bool_to_n(b: bool) -> u8 {
-    match b {
-        true => 1,
-        false => 0,
-    }
-}
-
-pub fn n_to_bool(n: u32) -> bool {
-    match n {
-        1 => true,
-        0 => false,
-        _ => unimplemented!(),
-    }
-}

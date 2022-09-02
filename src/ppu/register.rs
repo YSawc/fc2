@@ -1,5 +1,3 @@
-use crate::util::*;
-
 #[derive(Debug, Clone)]
 pub struct Register {
     pub ppu_ctrl: PpuCtrl,
@@ -93,28 +91,23 @@ impl PpuCtrl {
     }
 
     pub fn set(&mut self, n: u8) {
-        let s = format!("{:08b}", n);
-        fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
-        }
-
-        self.gen_nmi = n_to_bool(chars_nth(&s, 7));
-        self.ppu_selector = n_to_bool(chars_nth(&s, 6));
-        self.sprite_size = n_to_bool(chars_nth(&s, 5));
-        self.bk_table_addr = n_to_bool(chars_nth(&s, 4));
-        self.sprite_ptn_table_addr = n_to_bool(chars_nth(&s, 3));
-        self.vram_increment = n_to_bool(chars_nth(&s, 2));
+        self.gen_nmi = (n & 0b10000000) != 0;
+        self.ppu_selector = (n & 0b01000000) != 0;
+        self.sprite_size = (n & 0b00100000) != 0;
+        self.bk_table_addr = (n & 0b00010000) != 0;
+        self.sprite_ptn_table_addr = (n & 0b00001000) != 0;
+        self.vram_increment = (n & 0b00000100) != 0;
         self.base_name_table_addr = n & 0b00000011;
     }
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += bool_to_n(self.gen_nmi) << 7;
-        n += bool_to_n(self.ppu_selector) << 6;
-        n += bool_to_n(self.sprite_size) << 5;
-        n += bool_to_n(self.bk_table_addr) << 4;
-        n += bool_to_n(self.sprite_ptn_table_addr) << 3;
-        n += bool_to_n(self.vram_increment) << 2;
+        n += self.gen_nmi as u8 * 0b10000000;
+        n += self.ppu_selector as u8 * 0b01000000;
+        n += self.sprite_size as u8 * 0b00100000;
+        n += self.bk_table_addr as u8 * 0b00010000;
+        n += self.sprite_ptn_table_addr as u8 * 0b00001000;
+        n += self.vram_increment as u8 * 0b00000100;
         n += self.base_name_table_addr;
         n
     }
@@ -160,31 +153,26 @@ impl PpuMask {
     }
 
     pub fn set(&mut self, n: u8) {
-        let s = format!("{:08b}", n);
-        fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
-        }
-
-        self.emf_blue = n_to_bool(chars_nth(&s, 7));
-        self.emf_green = n_to_bool(chars_nth(&s, 6));
-        self.emf_red = n_to_bool(chars_nth(&s, 5));
-        self.show_sprites = n_to_bool(chars_nth(&s, 4));
-        self.show_background = n_to_bool(chars_nth(&s, 3));
-        self.show_sprites_in_leftmost = n_to_bool(chars_nth(&s, 2));
-        self.show_background_in_leftmost = n_to_bool(chars_nth(&s, 1));
-        self.gray_scale = n_to_bool(chars_nth(&s, 0));
+        self.emf_blue = (n & 0b10000000) != 0;
+        self.emf_green = (n & 0b01000000) != 0;
+        self.emf_red = (n & 0b00100000) != 0;
+        self.show_sprites = (n & 0b00010000) != 0;
+        self.show_background = (n & 0b00001000) != 0;
+        self.show_sprites_in_leftmost = (n & 0b00000100) != 0;
+        self.show_background_in_leftmost = (n & 0b00000010) != 0;
+        self.gray_scale = (n & 0b00000001) != 0;
     }
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += bool_to_n(self.emf_blue);
-        n += bool_to_n(self.emf_green);
-        n += bool_to_n(self.emf_red);
-        n += bool_to_n(self.show_sprites);
-        n += bool_to_n(self.show_background);
-        n += bool_to_n(self.show_sprites_in_leftmost);
-        n += bool_to_n(self.show_background_in_leftmost);
-        n += bool_to_n(self.gray_scale);
+        n += self.emf_blue as u8 * 0b10000000;
+        n += self.emf_green as u8 * 0b01000000;
+        n += self.emf_red as u8 * 0b00100000;
+        n += self.show_sprites as u8 * 0b00010000;
+        n += self.show_background as u8 * 0b00001000;
+        n += self.show_sprites_in_leftmost as u8 * 0b00000100;
+        n += self.show_background_in_leftmost as u8 * 0b00000010;
+        n += self.gray_scale as u8;
         n
     }
 }
@@ -213,23 +201,17 @@ impl PpuStatus {
         }
     }
     pub fn set(&mut self, n: u8) {
-        let s = format!("{:08b}", n);
-        let s = s.to_string();
-        fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
-        }
-
-        self.in_vlank = n_to_bool(chars_nth(&s, 7));
-        self.sprite_zero_hit = n_to_bool(chars_nth(&s, 6));
-        self.sprite_evoluation = n_to_bool(chars_nth(&s, 5));
+        self.in_vlank = (n & 0b10000000) != 0;
+        self.sprite_zero_hit = (n & 0b01000000) != 0;
+        self.sprite_evoluation = (n & 0b00100000) != 0;
         self.bus = n & 0b00001111;
     }
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += bool_to_n(self.in_vlank) << 7;
-        n += bool_to_n(self.sprite_zero_hit) << 6;
-        n += bool_to_n(self.sprite_evoluation) << 5;
+        n += self.in_vlank as u8 * 0b10000000;
+        n += self.sprite_zero_hit as u8 * 0b01000000;
+        n += self.sprite_evoluation as u8 * 0b00100000;
         n += self.bus;
         n
     }

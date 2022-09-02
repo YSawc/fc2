@@ -1,5 +1,3 @@
-use crate::util::*;
-
 #[derive(Debug, Clone)]
 pub struct Register {
     pub a: u8,
@@ -72,31 +70,26 @@ impl P {
     }
 
     pub fn set(&mut self, n: u8) {
-        let s = format!("{:08b}", n);
-        fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
-        }
-
-        self.carry = n_to_bool(chars_nth(&s, 7));
-        self.zero = n_to_bool(chars_nth(&s, 6));
-        self.interrupt = n_to_bool(chars_nth(&s, 5));
-        self.decimal = n_to_bool(chars_nth(&s, 4));
-        self.break_mode = n_to_bool(chars_nth(&s, 3));
-        self.reserved = n & 0b00000100;
-        self.overflow = n_to_bool(chars_nth(&s, 1));
-        self.negative = n_to_bool(chars_nth(&s, 0));
+        self.carry = (n & 0b10000000) != 0;
+        self.zero = (n & 0b01000000) != 0;
+        self.interrupt = (n & 0b00100000) != 0;
+        self.decimal = (n & 0b00010000) != 0;
+        self.break_mode = (n & 0b00001000) != 0;
+        self.reserved = n & 0b00001000;
+        self.overflow = (n & 0b00000010) != 0;
+        self.negative = (n & 0b00000001) != 0;
     }
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += bool_to_n(self.carry) << 7;
-        n += bool_to_n(self.zero) << 6;
-        n += bool_to_n(self.interrupt) << 5;
-        n += bool_to_n(self.decimal) << 4;
-        n += bool_to_n(self.break_mode) << 3;
-        n += self.reserved << 2;
-        n += bool_to_n(self.overflow) << 1;
-        n += bool_to_n(self.negative);
+        n += self.carry as u8 * 0b10000000;
+        n += self.zero as u8 * 0b01000000;
+        n += self.interrupt as u8 * 0b00100000;
+        n += self.decimal as u8 * 0b00010000;
+        n += self.break_mode as u8 * 0b00001000;
+        n += self.reserved;
+        n += self.overflow as u8 * 0b00000010;
+        n += self.negative as u8 * 0b00000001;
         n
     }
 }

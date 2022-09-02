@@ -1,5 +1,4 @@
 pub type SpriteInfos = Vec<SpriteInfo>;
-use crate::util::*;
 
 #[derive(Debug, Clone)]
 pub struct PrimaryOAM {
@@ -91,12 +90,8 @@ impl TileIndex {
     }
 
     pub fn set(&mut self, n: u8) {
-        let s = format!("{:08b}", n);
-        fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
-        }
         self.tile_number = n & 0b11111110;
-        self.bank_of_tile = n_to_bool(chars_nth(&s, 0));
+        self.bank_of_tile = (n & 0b00000001) != 0;
     }
 
     pub fn to_name_table_addr(&self) -> u16 {
@@ -135,13 +130,9 @@ impl Attr {
     }
 
     pub fn set(&mut self, n: u8) {
-        let s = format!("{:08b}", n);
-        fn chars_nth(s: &str, n: usize) -> u32 {
-            s.chars().rev().nth(n).unwrap().to_digit(2).unwrap()
-        }
-        self.flip_sprite_vertically = n_to_bool(chars_nth(&s, 7));
-        self.flip_sprite_horizontally = n_to_bool(chars_nth(&s, 6));
-        self.priority = n_to_bool(chars_nth(&s, 5));
+        self.flip_sprite_vertically = (n & 0b10000000) != 0;
+        self.flip_sprite_horizontally = (n & 0b01000000) != 0;
+        self.priority = (n & 0b00100000) != 0;
         self.unimplemented = n & 0b00011100;
         self.palette = n & 0b00000011;
     }
