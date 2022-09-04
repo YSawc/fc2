@@ -3,9 +3,13 @@ pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
 use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SPRITE_SIZE, SQUARE_SIZE};
+use crate::emulator::texture::{dummy_texture, texture_combine_builtin_colors};
 use crate::ppu::mapper::Map;
 use crate::ppu::oam::SpriteInfo;
 use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VBLANK_LINE, VERTICAL_PIXEL};
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::render::TextureCreator;
 
 use sdl2::rect::Rect;
 use sdl2::render::Texture;
@@ -71,6 +75,84 @@ impl Emulator {
     pub fn inc_ppu_cycle(&mut self) {
         self.ppu_cycle += (self.cpu.cycle * 3) as u16;
         self.cpu.clear_cycle();
+    }
+
+    pub fn render_all_sprites(&mut self, sprites_num: u32) -> Result<(), String> {
+        let mut event_pump = self.sdl.event_pump()?;
+        let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
+        let (square_texture1, square_texture2, square_texture3, square_texture4) =
+            dummy_texture(&mut self.canvas, &texture_creator)?;
+
+        for n in 0..sprites_num {
+            for i in 0..8 {
+                let sprite_row_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i);
+                let sprite_high_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i + 0x8);
+                for j in 0..8 {
+                    let r = ((sprite_row_line & (0b1 << (7 - j))) != 0) as u16;
+                    let h = ((sprite_high_line & (0b1 << (7 - j))) != 0) as u16;
+                    let sprite_dot = h << 1 | r;
+                    let square_texture = match sprite_dot {
+                        0 => &square_texture1,
+                        1 => &square_texture2,
+                        2 => &square_texture3,
+                        3 => &square_texture4,
+                        _ => unreachable!(),
+                    };
+
+                    self.canvas.copy(
+                        square_texture,
+                        None,
+                        Rect::new(
+                            (j as u32 + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
+                            (i as u32 + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
+                            SPRITE_SIZE,
+                            SPRITE_SIZE,
+                        ),
+                    )?;
+                }
+            }
+        }
+        self.canvas.present();
+
+        'show_sprites: loop {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => break 'show_sprites,
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn main_loop(&mut self) -> Result<(), String> {
+        let mut event_pump = self.sdl.event_pump()?;
+        let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
+        let textures = texture_combine_builtin_colors(&mut self.canvas, &texture_creator)?;
+        'running: loop {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => break 'running,
+                    Event::KeyDown {
+                        keycode: Some(Keycode::Space),
+                        ..
+                    } => println!("hello world!"),
+                    _ => {}
+                }
+            }
+
+            self.run(&textures)?;
+        }
+
+        Ok(())
     }
 
     pub fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
