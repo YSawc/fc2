@@ -46,7 +46,7 @@ impl Map {
 }
 
 impl Mapper for Map {
-    fn addr(&self, n: u16) -> u8 {
+    fn addr(&mut self, n: u16) -> u8 {
         match n {
             0x0000..=0x0FFF => self.pattern_table_00[n as usize],
             0x1000..=0x1FFF => self.pattern_table_01[(n - 0x1000) as usize],

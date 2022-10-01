@@ -11,3 +11,4 @@ pub const VBLANK_LINES: u16 = 20;
 pub const VERTICAL_PIXEL: u16 = 240;
 pub const TOTAL_LINE: u16 = VBLANK_LINES + VERTICAL_PIXEL + 2;
 pub const WIDTH_PIXEL: u16 = 256;
+pub const CONTROLLER01_IDX: u16 = 0x4016;

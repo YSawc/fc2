@@ -7,12 +7,14 @@ use crate::emulator::texture::{dummy_texture, texture_combine_builtin_colors};
 use crate::ppu::mapper::Map;
 use crate::ppu::oam::SpriteInfo;
 use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VBLANK_LINE, VERTICAL_PIXEL};
+use rustc_hash::FxHashSet;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::TextureCreator;
 
 use sdl2::rect::Rect;
 use sdl2::render::Texture;
+use sdl2::EventPump;
 use sdl2::Sdl;
 
 pub struct Emulator {
@@ -84,6 +86,9 @@ impl Emulator {
             dummy_texture(&mut self.canvas, &texture_creator)?;
 
         for n in 0..sprites_num {
+            // if n != 0x48 && n != 0x160 {
+            //     continue;
+            // }
             for i in 0..8 {
                 let sprite_row_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i);
                 let sprite_high_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i + 0x8);
@@ -129,27 +134,44 @@ impl Emulator {
         Ok(())
     }
 
+    fn handle_keyboard(&mut self, event_pump: &EventPump) -> Option<u32> {
+        let pressed_scancodes: FxHashSet<Keycode> = event_pump
+            .keyboard_state()
+            .pressed_scancodes()
+            .filter_map(Keycode::from_scancode)
+            .collect();
+
+        for scancode in pressed_scancodes.iter() {
+            match *scancode {
+                Keycode::Escape => return None,
+                Keycode::A => self.cpu.bus.controller_0_polling_data |= 0b00000001,
+                Keycode::B => self.cpu.bus.controller_0_polling_data |= 0b00000010,
+                Keycode::Up => self.cpu.bus.controller_0_polling_data |= 0b00010000,
+                Keycode::Down => self.cpu.bus.controller_0_polling_data |= 0b00100000,
+                Keycode::Left => self.cpu.bus.controller_0_polling_data |= 0b01000000,
+                Keycode::Right => self.cpu.bus.controller_0_polling_data |= 0b10000000,
+                _ => (),
+            };
+        }
+        if self.cpu.bus.controller_0_polled_data != 0 {
+            print!(" BUS: {:08b}, ", self.cpu.bus.controller_0_polled_data);
+        }
+        Some(1)
+    }
+
     pub fn main_loop(&mut self) -> Result<(), String> {
         let mut event_pump = self.sdl.event_pump()?;
         let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
         let textures = texture_combine_builtin_colors(&mut self.canvas, &texture_creator)?;
         'running: loop {
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => break 'running,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::Space),
-                        ..
-                    } => println!("hello world!"),
-                    _ => {}
-                }
+            match self.handle_keyboard(&event_pump) {
+                Some(_) => (),
+                None => break 'running,
             }
+            event_pump.poll_event();
 
             self.run(&textures)?;
+            println!("");
         }
 
         Ok(())
@@ -158,6 +180,12 @@ impl Emulator {
     pub fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
         self.cpu.ex_ope();
         self.inc_ppu_cycle();
+        // for n in 0..4 {
+        //     if self.cpu.bus.addr(n) != 0 {
+        //     print!("MEMORY(n({})..{:0x?}), ", n, self.cpu.bus.addr(n));
+        //     }
+        // }
+
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VERTICAL_PIXEL {
@@ -207,7 +235,7 @@ impl Emulator {
     }
 
     pub fn ppu_map(&mut self) -> &Map {
-        &self.cpu.bus.ppu.map
+        &mut self.cpu.bus.ppu.map
     }
 
     pub fn draw_backgraund_line(
@@ -218,10 +246,9 @@ impl Emulator {
     ) -> Result<(), String> {
         let attr_idx = (0x23C0 + (x / 4) + (y / 32) * 8) as u16;
         let attr_arr_idx = ((x / 2) % 2) | (((y / 16) % 2) << 1);
-        let pallets = self.ppu_map().addr(attr_idx);
-        let pallete_idx = self
-            .ppu_map()
-            .addr(0x3F00 + (pallets & (0x1 << attr_arr_idx)) as u16);
+        let ppu_map = &mut self.cpu.bus.ppu.map;
+        let pallets = ppu_map.addr(attr_idx);
+        let pallete_idx = ppu_map.addr(0x3F00 + (pallets & (0x1 << attr_arr_idx)) as u16);
         let texture = &textures[pallete_idx as usize];
 
         self.canvas.copy(
@@ -241,18 +268,16 @@ impl Emulator {
     pub fn draw_sprite_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
         let i1 = y / 8;
         let i2 = y % 8;
-        let sprite_idx = self
-            .ppu_map()
-            .addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + x);
-        let sprite_row = self.ppu_map().addr((sprite_idx as u16 * 0x10) as u16 + i2);
-        let sprite_high = self
-            .ppu_map()
-            .addr((sprite_idx as u16 * 0x10 + 0x8) as u16 + i2);
+        let ppu_map = &mut self.cpu.bus.ppu.map;
+
+        let sprite_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + x);
+        let sprite_row = ppu_map.addr((sprite_idx as u16 * 0x10) as u16 + i2);
+        let sprite_high = ppu_map.addr((sprite_idx as u16 * 0x10 + 0x8) as u16 + i2);
         for j in 0..8 {
             let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
             let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
             let idx = high_idx << 1 | row_idx;
-            let sprite_color_idx = self.ppu_map().addr(0x3F00 + idx);
+            let sprite_color_idx = ppu_map.addr(0x3F00 + idx);
             let square_texture = &textures[sprite_color_idx as usize];
 
             self.canvas.copy(
@@ -295,6 +320,10 @@ impl Emulator {
         &mut self,
         textures: &[Texture],
     ) -> Result<(), String> {
+        println!(
+            "render secondary_oams. secondary_oams: {:#?}",
+            self.cpu.bus.ppu.secondary_oam
+        );
         for n in 0..PLAYGROUND_WIDTH {
             match self
                 .cpu
@@ -307,13 +336,14 @@ impl Emulator {
                     pos_y,
                     tile_index,
                     pos_x,
-                    ..
+                    attr,
                 }) => {
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let base_addr = tile_index.bank_of_tile as u16 * 0x1000
                         + (tile_index.tile_number as u16) * 0x10
                         + relative_hight;
-                    let ppu_map = &self.cpu.bus.ppu.map;
+                    print!("(attr: {:#?}), ", attr);
+                    let ppu_map = &mut self.cpu.bus.ppu.map;
                     let sprite_row = ppu_map.addr(base_addr);
                     let sprite_high = ppu_map.addr(base_addr + 8);
                     for j in 0..8 {
