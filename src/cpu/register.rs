@@ -60,36 +60,36 @@ impl P {
         Self {
             carry: false,
             zero: false,
-            interrupt: false,
+            interrupt: true,
             decimal: false,
-            break_mode: true,
-            reserved: 0,
+            break_mode: false,
+            reserved: 1,
             overflow: false,
             negative: false,
         }
     }
 
     pub fn set(&mut self, n: u8) {
-        self.carry = (n & 0b10000000) != 0;
-        self.zero = (n & 0b01000000) != 0;
-        self.interrupt = (n & 0b00100000) != 0;
-        self.decimal = (n & 0b00010000) != 0;
-        self.break_mode = (n & 0b00001000) != 0;
-        self.reserved = n & 0b00001000;
-        self.overflow = (n & 0b00000010) != 0;
-        self.negative = (n & 0b00000001) != 0;
+        self.carry = (n & 0b00000001) != 0;
+        self.zero = (n & 0b00000010) != 0;
+        self.interrupt = (n & 0b00000100) != 0;
+        self.decimal = (n & 0b00001000) != 0;
+        self.break_mode = (n & 0b00010000) != 0;
+        self.reserved = 1;
+        self.overflow = (n & 0b01000000) != 0;
+        self.negative = (n & 0b10000000) != 0;
     }
 
     pub fn to_n(&mut self) -> u8 {
         let mut n = 0;
-        n += self.carry as u8 * 0b10000000;
-        n += self.zero as u8 * 0b01000000;
-        n += self.interrupt as u8 * 0b00100000;
-        n += self.decimal as u8 * 0b00010000;
-        n += self.break_mode as u8 * 0b00001000;
-        n += self.reserved;
-        n += self.overflow as u8 * 0b00000010;
-        n += self.negative as u8 * 0b00000001;
+        n += self.carry as u8 * 0b00000001;
+        n += self.zero as u8 * 0b00000010;
+        n += self.interrupt as u8 * 0b00000100;
+        n += self.decimal as u8 * 0b00001000;
+        n += self.break_mode as u8 * 0b00010000;
+        n += self.reserved as u8 * 0b00100000;
+        n += self.overflow as u8 * 0b01000000;
+        n += self.negative as u8 * 0b10000000;
         n
     }
 }
