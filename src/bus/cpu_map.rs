@@ -85,12 +85,6 @@ impl RP2A03 {
             0x4010..=0x4013 => self.dmc[(n - 0x4010) as usize] = r,
             0x4014 => self.oam_dma = r,
             0x4015 => self.snd_chn = r,
-            // 0x4016 => match self.controller_0.d0 {
-            //     0 => (),
-            //     1 => self.controller_0 = r,
-            //     _ => (),
-            // },
-            // 0x4017 => self.controller_1 = r,
             _ => {
                 print!("{:0x?}", n);
                 unreachable!();

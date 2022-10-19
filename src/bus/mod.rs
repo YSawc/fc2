@@ -73,7 +73,6 @@ impl Mapper for Bus {
             }
             0x4016 => match r {
                 1 => {
-                    println!("HEREHERE");
                     self.controller_0_polled_data = self.controller_0_polling_data;
                     self.controller_0_polling_data = 0;
                 }

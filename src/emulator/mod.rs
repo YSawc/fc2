@@ -71,6 +71,10 @@ impl Emulator {
     }
 
     pub fn reset(&mut self) {
+        let pc = self.cpu.register.pc as u8;
+        self.cpu.push_stack(pc);
+        let p = self.cpu.register.p.to_n();
+        self.cpu.push_stack(p);
         self.cpu.reset();
     }
 
@@ -86,9 +90,6 @@ impl Emulator {
             dummy_texture(&mut self.canvas, &texture_creator)?;
 
         for n in 0..sprites_num {
-            // if n != 0x48 && n != 0x160 {
-            //     continue;
-            // }
             for i in 0..8 {
                 let sprite_row_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i);
                 let sprite_high_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i + 0x8);
@@ -153,9 +154,6 @@ impl Emulator {
                 _ => (),
             };
         }
-        if self.cpu.bus.controller_0_polled_data != 0 {
-            print!(" BUS: {:08b}, ", self.cpu.bus.controller_0_polled_data);
-        }
         Some(1)
     }
 
@@ -171,7 +169,6 @@ impl Emulator {
             event_pump.poll_event();
 
             self.run(&textures)?;
-            println!("");
         }
 
         Ok(())
@@ -180,12 +177,6 @@ impl Emulator {
     pub fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
         self.cpu.ex_ope();
         self.inc_ppu_cycle();
-        // for n in 0..4 {
-        //     if self.cpu.bus.addr(n) != 0 {
-        //     print!("MEMORY(n({})..{:0x?}), ", n, self.cpu.bus.addr(n));
-        //     }
-        // }
-
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VERTICAL_PIXEL {
@@ -320,10 +311,6 @@ impl Emulator {
         &mut self,
         textures: &[Texture],
     ) -> Result<(), String> {
-        println!(
-            "render secondary_oams. secondary_oams: {:#?}",
-            self.cpu.bus.ppu.secondary_oam
-        );
         for n in 0..PLAYGROUND_WIDTH {
             match self
                 .cpu
@@ -336,13 +323,12 @@ impl Emulator {
                     pos_y,
                     tile_index,
                     pos_x,
-                    attr,
+                    ..
                 }) => {
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let base_addr = tile_index.bank_of_tile as u16 * 0x1000
                         + (tile_index.tile_number as u16) * 0x10
                         + relative_hight;
-                    print!("(attr: {:#?}), ", attr);
                     let ppu_map = &mut self.cpu.bus.ppu.map;
                     let sprite_row = ppu_map.addr(base_addr);
                     let sprite_high = ppu_map.addr(base_addr + 8);

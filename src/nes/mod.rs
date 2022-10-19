@@ -36,8 +36,6 @@ impl Info {
         use std::str;
         if str::from_utf8(&buffer[0..3]) != Ok("NES") {
             panic!("File format is not nes!");
-        } else {
-            println!("NES file read!");
         }
 
         let prm_rom_size = buffer[4] as u32;

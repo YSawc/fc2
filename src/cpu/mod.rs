@@ -248,16 +248,34 @@ impl CPU {
 
     pub fn init(&mut self, nes: &Nes) {
         let prgs = &nes.header.info.prg_rom;
-        if prgs.len() != 0x8000 {
-            unimplemented!("prg_rom lengh is not 0x8000!");
-        }
-        for (i, n) in prgs.iter().enumerate() {
-            match i {
-                0x0000..=0x3FFF => self.bus.set((i + 0x8000) as u16, *n),
-                0x4000..=0x8000 => self.bus.set((i + 0x8000) as u16, *n),
-                _ => unreachable!(),
+        match prgs.len() {
+            0x8000 => {
+                for (i, n) in prgs.iter().enumerate() {
+                    match i {
+                        0x0000..=0x3FFF => self.bus.set((i + 0x8000) as u16, *n),
+                        0x4000..=0x8000 => self.bus.set((i + 0x8000) as u16, *n),
+                        _ => unreachable!(),
+                    }
+                }
             }
+            0x4000 => {
+                for (i, n) in prgs.iter().enumerate() {
+                    match i {
+                        0x0000..=0x3FFF => {
+                            self.bus.set((i + 0x8000) as u16, *n);
+                            self.bus.set((i + 0xC000) as u16, *n);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            _ => unimplemented!(
+                "prg_rom lengh {:0x?} detected, but not implemented!",
+                prgs.len()
+            ),
         }
+        // println!("{:0x?}", prgs);
+        // unimplemented!("!!!");
     }
 
     pub fn interrupt(&mut self, intr: Interrupt) {
@@ -276,6 +294,11 @@ impl CPU {
             Interrupt::Brk => unimplemented!(),
         }
     }
+
+    // MEMO: use for nestest.nes
+    // pub fn reset(&mut self) {
+    //     self.register.pc = 0 + (0xc0 << 8);
+    // }
 
     pub fn reset(&mut self) {
         self.register.x = self.bus.addr(0xFFFC);
@@ -406,9 +429,7 @@ impl CPU {
         self.register.pc += 1;
     }
 
-    pub fn nop(&mut self) {
-        self.register.pc += 1;
-    }
+    pub fn nop(&mut self) {}
 
     pub fn push_stack(&mut self, n: u8) {
         let l = self.register.s as u16;
@@ -558,15 +579,17 @@ impl CPU {
     pub fn run_ope(&mut self, r: u16, opekind: OpeKind, addr_mode: AddrMode) {
         match opekind {
             OpeKind::Adc => {
+                let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u16;
                 let m = r + (self.register.p.carry as u16);
                 if self.register.a.checked_add(m as u8).is_some() {
                     self.register.a += m as u8;
                     self.set_nz(self.register.a);
+                    self.register.p.overflow = false;
                     self.set_carry(false);
                 } else {
-                    let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                    let s = (self.register.a as u16 + m as u16) - u8::MAX as u16;
+                    let s = (self.register.a as u16 + r) - u8::MAX as u16;
                     self.register.a = s as u8;
+                    self.set_nz(self.register.a);
                     self.set_carry(true);
                 }
             }
@@ -809,6 +832,9 @@ impl CPU {
                 self.register.a = self.register.x;
                 self.set_nz(self.register.a);
             }
+            OpeKind::Tsx => {
+                self.register.x = self.pull_stack();
+            }
             OpeKind::Tay => {
                 self.register.y = self.register.a;
                 self.set_nz(self.register.y);
@@ -821,7 +847,6 @@ impl CPU {
                 self.register.set_s(self.register.x);
             }
             OpeKind::Pha => {
-                self.register.a = self.bus.addr(r);
                 self.push_stack(self.register.a);
             }
             OpeKind::Pla => {
@@ -829,13 +854,14 @@ impl CPU {
                 self.set_nz(self.register.a);
             }
             OpeKind::Php => {
-                let n = self.register.p.to_n();
+                let mut n = self.register.p.to_n();
+                n |= 0b00010000;
                 self.push_stack(n);
             }
             OpeKind::Plp => {
-                let n = self.pull_stack();
+                let mut n = self.pull_stack();
+                n &= 0b11101111;
                 self.register.p.set(n);
-                self.set_nz(n);
             }
             OpeKind::Jmp => {
                 self.register.pc = r;
@@ -859,7 +885,8 @@ impl CPU {
                 if !self.get_interrupt() {
                     self.register.pc -= 1;
                     self.push_pc();
-                    let n = self.register.p.to_n();
+                    let mut n = self.register.p.to_n();
+                    n |= 0b00010000;
                     self.push_stack(n);
                     self.set_break_mode(true);
                     self.set_interrupt(true);
@@ -876,10 +903,6 @@ impl CPU {
             }
             OpeKind::Nop => {
                 self.nop();
-            }
-            _ => {
-                println!("opekind: {:?}, r: {:0x?} {}(10)", opekind, r, r);
-                unimplemented!();
             }
         }
     }
@@ -912,22 +935,19 @@ impl CPU {
 
     pub fn read_ope(&mut self) -> Option<&Operator> {
         let c = self.fetch_code();
-        // print!("pc: {:0x?} ", self.register.pc);
+        // print!("\n{:0x?} ", self.register.pc);
         // print!(
-        //     "c: {:0x?}, c1: {:0x?}, c2: {:0x?} ",
+        //     "{:0x?} {:0x?} {:0x?} ",
         //     c,
         //     self.fetch_next_register(),
         //     self.fetch_next_next_register()
         // );
         // print!("{:?} ,", self.operators.get_mut(&c).unwrap());
-        // print!("0x2000 {}, ", self.bus.addr(0x2000));
-        // print!("0x2001 {}, ", self.bus.addr(0x2001));
-        // print!("0x2002 {}, ", self.bus.addr(0x2002));
-        // print!("0x2003 {}, ", self.bus.addr(0x2003));
-        // print!("0x2004 {}, ", self.bus.addr(0x2004));
-        // print!("0x2005 {}, ", self.bus.addr(0x2005));
-        // print!("0x2006 {}, ", self.bus.addr(0x2006));
-        // println!("0x2007 {}, ", self.bus.addr(0x2007));
+        // print!("A:{:0x?} ,", self.register.a);
+        // print!("X:{:0x?} ,", self.register.x);
+        // print!("Y:{:0x?} ,", self.register.y);
+        // print!("P:{:0x?} ,", self.register.p.to_n());
+        // print!("S:{:0x?} ,", self.register.s);
 
         match self.operators.get_mut(&c) {
             Some(operator) => Some(operator),
