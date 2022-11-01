@@ -127,6 +127,22 @@ impl CpuMap {
         }
     }
 
+    pub fn lh_ignore_overflowing_addr(&mut self, n: u16) -> (u8, u8) {
+        let h = n & 0xff00;
+        let l = (n as u8).wrapping_add(1);
+        let next_addr = h | l as u16;
+        let l = self.addr(n as u16);
+        let h = self.addr(next_addr as u16);
+        (l, h)
+    }
+
+    pub fn lh_zeropage_addr(&mut self, n: u8) -> (u8, u8) {
+        let next_addr_mem = n.wrapping_add(1);
+        let l = self.addr(n as u16);
+        let h = self.addr(next_addr_mem as u16);
+        (l, h)
+    }
+
     pub fn lh_addr(&mut self, n: u16) -> (u8, u8) {
         let l = self.addr(n);
         let h = self.addr(n + 1);

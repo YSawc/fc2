@@ -10,10 +10,9 @@ use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VBLANK_LINE, VERTICAL_PIXEL};
 use rustc_hash::FxHashSet;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::render::TextureCreator;
-
 use sdl2::rect::Rect;
-use sdl2::render::Texture;
+use sdl2::render::{Canvas, Texture, TextureCreator};
+use sdl2::video::Window;
 use sdl2::EventPump;
 use sdl2::Sdl;
 
@@ -24,7 +23,7 @@ pub struct Emulator {
     pub ppu_clock_sync: u8,
     pub drawing_line: u16,
     pub sdl: Sdl,
-    pub canvas: sdl2::render::Canvas<sdl2::video::Window>,
+    canvas: Canvas<Window>,
 }
 
 impl Default for Emulator {

@@ -33,7 +33,7 @@ impl Register {
     }
 
     pub fn set_s(&mut self, n: u8) {
-        self.s = (1 << 8) | (n as u16);
+        self.s = n as u16;
     }
 }
 
