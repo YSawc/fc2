@@ -20,6 +20,7 @@ pub enum AddrMode {
     IndX,
     IndY,
     Ind,
+    Nop,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -92,4 +93,27 @@ pub enum OpeKind {
     Php, // flags: none
     Plp, // flags: all
     Nop, // flags: none
+
+    Dop,
+    Kil,
+    Slo,
+    Aac,
+    Atx,
+    Top,
+    Rla,
+    Sre,
+    Dcp,
+    Asr,
+    Rra,
+    Arr,
+    Aax,
+    Xaa,
+    Axa,
+    Xas,
+    Sxa,
+    Sya,
+    Lax,
+    Lar,
+    Axs,
+    Isc,
 }
