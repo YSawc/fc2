@@ -18,9 +18,7 @@ use sdl2::Sdl;
 
 pub struct Emulator {
     pub cpu: CPU,
-    pub cpu_cycle: u16,
     pub ppu_cycle: u16,
-    pub ppu_clock_sync: u8,
     pub drawing_line: u16,
     pub sdl: Sdl,
     canvas: Canvas<Window>,
@@ -60,9 +58,7 @@ impl Emulator {
 
         Self {
             cpu,
-            cpu_cycle: 0,
             ppu_cycle: 0,
-            ppu_clock_sync: 0,
             drawing_line: 0,
             sdl: sdl_context,
             canvas,
@@ -70,9 +66,9 @@ impl Emulator {
     }
 
     pub fn reset(&mut self) {
-        let pc = self.cpu.register.pc as u8;
+        let pc = self.cpu.get_pc() as u8;
         self.cpu.push_stack(pc);
-        let p = self.cpu.register.p.to_n();
+        let p = self.cpu.get_p();
         self.cpu.push_stack(p);
         self.cpu.reset();
     }
@@ -146,6 +142,8 @@ impl Emulator {
                 Keycode::Escape => return None,
                 Keycode::A => self.cpu.bus.controller_0_polling_data |= 0b00000001,
                 Keycode::B => self.cpu.bus.controller_0_polling_data |= 0b00000010,
+                Keycode::Space => self.cpu.bus.controller_0_polling_data |= 0b00000100,
+                Keycode::Z => self.cpu.bus.controller_0_polling_data |= 0b00001000,
                 Keycode::Up => self.cpu.bus.controller_0_polling_data |= 0b00010000,
                 Keycode::Down => self.cpu.bus.controller_0_polling_data |= 0b00100000,
                 Keycode::Left => self.cpu.bus.controller_0_polling_data |= 0b01000000,
@@ -198,7 +196,7 @@ impl Emulator {
                 }
             } else if self.drawing_line == 0 {
                 self.cpu.bus.ppu.register.ppu_status.in_vlank = false;
-                self.cpu.register.p.interrupt = false;
+                self.cpu.set_interrupt(false);
             }
         }
         Ok(())

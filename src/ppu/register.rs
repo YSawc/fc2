@@ -100,7 +100,7 @@ impl PpuCtrl {
         self.base_name_table_addr = n & 0b00000011;
     }
 
-    pub fn to_n(&mut self) -> u8 {
+    pub fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.gen_nmi as u8 * 0b10000000;
         n += self.ppu_selector as u8 * 0b01000000;
@@ -163,7 +163,7 @@ impl PpuMask {
         self.gray_scale = (n & 0b00000001) != 0;
     }
 
-    pub fn to_n(&mut self) -> u8 {
+    pub fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.emf_blue as u8 * 0b10000000;
         n += self.emf_green as u8 * 0b01000000;
@@ -207,7 +207,7 @@ impl PpuStatus {
         self.bus = n & 0b00001111;
     }
 
-    pub fn to_n(&mut self) -> u8 {
+    pub fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.in_vlank as u8 * 0b10000000;
         n += self.sprite_zero_hit as u8 * 0b01000000;
@@ -254,7 +254,7 @@ impl Register {
         }
     }
 
-    pub fn addr(&mut self, n: u16) -> u8 {
+    pub fn addr(&self, n: u16) -> u8 {
         match n {
             0x2000 => self.ppu_ctrl.to_n(),
             0x2001 => self.ppu_mask.to_n(),
@@ -267,7 +267,7 @@ impl Register {
         }
     }
 
-    pub fn relative_addr(&mut self, n: u16) -> u16 {
+    pub fn relative_addr(&self, n: u16) -> u16 {
         match n {
             0x2005 => self.ppu_scroll.addr,
             0x2006 => self.ppu_addr.addr,

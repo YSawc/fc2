@@ -387,13 +387,13 @@ impl CPU {
     pub fn interrupt(&mut self, intr: Interrupt) {
         match intr {
             Interrupt::Nmi => {
-                self.register.p.break_mode = false;
-                self.register.p.interrupt = true;
+                self.set_break_mode(false);
+                self.set_interrupt(true);
                 self.push_pc();
-                let p = self.register.p.to_n();
+                let p = self.get_p();
                 self.push_stack(p);
                 let (l, h) = self.bus.cpu_bus.lh_addr(0xFFFA);
-                self.register.pc = combine_high_low(l, h);
+                self.register.set_pc(combine_high_low(l, h));
             }
             Interrupt::Reset => self.reset(),
             Interrupt::Irq => unimplemented!(),
@@ -403,13 +403,16 @@ impl CPU {
 
     // MEMO: use for nestest.nes
     // pub fn reset(&mut self) {
-    //     self.register.pc = 0 + (0xc0 << 8);
+    //     self.register.set_pc(0, 0xc0);
     // }
 
     pub fn reset(&mut self) {
-        self.register.x = self.bus.addr(0xFFFC);
-        self.register.y = self.bus.addr(0xFFFD);
-        self.register.set_pc();
+        let l = self.bus.addr(0xFFFC);
+        let h = self.bus.addr(0xFFFD);
+        self.set_x(l);
+        self.set_y(h);
+        self.register
+            .set_pc(combine_high_low(self.get_x(), self.get_y()));
     }
 
     pub fn ex_plus(&mut self, l: u8, r: u8) -> u8 {
@@ -441,43 +444,47 @@ impl CPU {
     }
 
     pub fn set_break_mode(&mut self, b: bool) {
-        self.register.p.break_mode = b;
+        self.register.mut_access_p().set_break_mode(b);
     }
 
-    pub fn get_break_mode(&mut self) -> bool {
-        self.register.p.break_mode
+    pub fn get_break_mode(&self) -> bool {
+        self.register.access_p().get_break_mode()
     }
 
     pub fn set_interrupt(&mut self, b: bool) {
-        self.register.p.interrupt = b;
+        self.register.mut_access_p().set_interrupt(b);
     }
 
-    pub fn get_interrupt(&mut self) -> bool {
-        self.register.p.interrupt
+    pub fn set_decimal(&mut self, b: bool) {
+        self.register.mut_access_p().set_decimal(b);
+    }
+
+    pub fn get_interrupt(&self) -> bool {
+        self.register.access_p().get_interrupt()
     }
 
     pub fn set_negative(&mut self, b: bool) {
-        self.register.p.negative = b;
+        self.register.mut_access_p().set_negative(b);
     }
 
-    pub fn get_negative(&mut self) -> bool {
-        self.register.p.negative
+    pub fn get_negative(&self) -> bool {
+        self.register.access_p().get_negative()
     }
 
     pub fn set_overflow(&mut self, b: bool) {
-        self.register.p.overflow = b;
+        self.register.mut_access_p().set_overflow(b);
     }
 
-    pub fn get_overflow(&mut self) -> bool {
-        self.register.p.overflow
+    pub fn get_overflow(&self) -> bool {
+        self.register.access_p().get_overflow()
     }
 
     pub fn set_zero(&mut self, b: bool) {
-        self.register.p.zero = b;
+        self.register.mut_access_p().set_zero(b);
     }
 
-    pub fn get_zero(&mut self) -> bool {
-        self.register.p.zero
+    pub fn get_zero(&self) -> bool {
+        self.register.access_p().get_zero()
     }
 
     pub fn set_nz(&mut self, n: u8) {
@@ -486,33 +493,75 @@ impl CPU {
     }
 
     pub fn set_carry(&mut self, b: bool) {
-        self.register.p.carry = b;
+        self.register.mut_access_p().set_carry(b)
     }
 
-    pub fn get_carry(&mut self) -> bool {
-        self.register.p.carry
-    }
-
-    pub fn set_x(&mut self, n: u8) {
-        self.register.x = n;
-    }
-
-    pub fn set_y(&mut self, n: u8) {
-        self.register.y = n;
+    pub fn get_carry(&self) -> bool {
+        self.register.access_p().get_carry()
     }
 
     pub fn set_a(&mut self, n: u8) {
-        self.register.a = n;
+        self.register.set_a(n);
     }
 
-    pub fn fetch_code(&mut self) -> u8 {
-        let pc = self.register.pc;
-        self.bus.addr(pc)
+    pub fn get_a(&self) -> u8 {
+        self.register.get_a()
+    }
+
+    pub fn set_x(&mut self, n: u8) {
+        self.register.set_x(n);
+    }
+
+    pub fn get_x(&self) -> u8 {
+        self.register.get_x()
+    }
+
+    pub fn set_y(&mut self, n: u8) {
+        self.register.set_y(n);
+    }
+
+    pub fn get_y(&self) -> u8 {
+        self.register.get_y()
+    }
+
+    pub fn set_s(&mut self, n: u8) {
+        self.register.set_s(n);
+    }
+
+    pub fn get_s(&self) -> u8 {
+        self.register.get_s()
+    }
+
+    pub fn set_p(&mut self, n: u8) {
+        self.register.set_p(n);
+    }
+
+    pub fn get_p(&self) -> u8 {
+        self.register.get_p()
+    }
+
+    pub fn mut_access_p(&mut self, b: bool) {
+        self.register.mut_access_p().set_break_mode(b);
+    }
+
+    pub fn set_pc(&mut self, n: u16) {
+        self.register.set_pc(n);
+    }
+
+    pub fn get_pc(&self) -> u16 {
+        self.register.get_pc()
+    }
+
+    pub fn inc_pc(&mut self, n: u16) {
+        self.register.inc_pc(n);
+    }
+
+    pub fn dec_pc(&mut self, n: u16) {
+        self.register.dec_pc(n);
     }
 
     pub fn fetch_register(&mut self) -> u8 {
-        let pc = self.register.pc;
-        self.bus.addr(pc)
+        self.bus.addr(self.get_pc())
     }
 
     pub fn fetch_lh_register(&mut self) -> (u8, u8) {
@@ -522,34 +571,35 @@ impl CPU {
     }
 
     pub fn fetch_next_register(&mut self) -> u8 {
-        let pc = self.register.pc.wrapping_add(1);
+        let pc = self.get_pc().wrapping_add(1);
         self.bus.addr(pc)
     }
 
     pub fn fetch_next_next_register(&mut self) -> u8 {
-        let pc = self.register.pc.wrapping_add(2);
+        let pc = self.get_pc().wrapping_add(2);
         self.bus.addr(pc)
     }
 
     pub fn undef(&mut self) {
-        self.register.pc += self.register.pc.wrapping_add(1);
+        let pc = self.get_pc();
+        self.inc_pc(pc.wrapping_add(1))
     }
 
     pub fn nop(&mut self) {}
 
     pub fn push_stack(&mut self, n: u8) {
-        let l = self.register.s as u16;
-        let s = self.register.s.wrapping_sub(1);
-        self.register.s = s;
+        let l = self.get_s() as u16;
+        let s = self.get_s().wrapping_sub(1);
+        self.set_s(s);
         let r = l.wrapping_add(1 << 8);
         self.bus_set(r, n);
     }
 
     pub fn pull_stack(&mut self) -> u8 {
-        let l = self.register.s.wrapping_add(1);
-        self.register.s = l;
+        let l = self.get_s().wrapping_add(1);
+        self.set_s(l);
         let h = 0x100;
-        let r = l.wrapping_add(h);
+        let r = (l as u16).wrapping_add(h);
         self.bus.addr(r)
     }
 
@@ -580,11 +630,11 @@ impl CPU {
     }
 
     pub fn ex_addr_mode(&mut self, addr_mode: &AddrMode) -> u16 {
-        self.register.pc += 1;
+        self.inc_pc(1);
         let r = match addr_mode {
             AddrMode::Impl => 0,
             AddrMode::Acc => {
-                let l = self.register.a as u16;
+                let l = self.get_a() as u16;
                 l as u16
             }
             AddrMode::Imm => {
@@ -597,12 +647,12 @@ impl CPU {
             }
             AddrMode::ZpX => {
                 let l = self.fetch_register();
-                let l = l.wrapping_add(self.register.x);
+                let l = l.wrapping_add(self.get_x());
                 l as u16
             }
             AddrMode::ZpY => {
                 let l = self.fetch_register();
-                let l = l.wrapping_add(self.register.y);
+                let l = l.wrapping_add(self.get_y());
                 l as u16
             }
             AddrMode::Abs => {
@@ -611,26 +661,26 @@ impl CPU {
             }
             AddrMode::AbsX => {
                 let (l, h) = self.fetch_lh_register();
-                let x = self.register.x as u16;
+                let x = self.get_x() as u16;
                 let m = combine_high_low(l, h);
                 let (m, c) = m.overflowing_add(x);
                 if c {
-                    self.register.p.carry = c;
+                    self.set_carry(c);
                 }
                 m
             }
             AddrMode::AbsY => {
                 let (l, h) = self.fetch_lh_register();
-                let y = self.register.y as u16;
+                let y = self.get_y() as u16;
                 let m = combine_high_low(l, h);
                 let (m, c) = m.overflowing_add(y);
                 if c {
-                    self.register.p.carry = c;
+                    self.set_carry(c);
                 }
                 m
             }
             AddrMode::Rel => {
-                let l = self.register.pc + 1;
+                let l = self.get_pc() + 1;
                 let h = self.fetch_register() as u16;
                 if h < 0x80 {
                     (l + h) as u16
@@ -640,7 +690,7 @@ impl CPU {
             }
             AddrMode::IndX => {
                 let l = self.fetch_register();
-                let r = self.register.x;
+                let r = self.get_x();
                 let t = l.wrapping_add(r);
                 let (l, h) = self.bus.cpu_bus.lh_zeropage_addr(t);
                 combine_high_low(l, h)
@@ -648,7 +698,7 @@ impl CPU {
             AddrMode::IndY => {
                 let t = self.fetch_register();
                 let (l, h) = self.bus.cpu_bus.lh_zeropage_addr(t);
-                let r = self.register.y as u16;
+                let r = self.get_y() as u16;
                 let l = combine_high_low(l as u8, h as u8);
                 let t = l.wrapping_add(r);
                 t
@@ -670,17 +720,15 @@ impl CPU {
             | AddrMode::ZpY
             | AddrMode::Rel
             | AddrMode::IndX
-            | AddrMode::IndY => self.register.pc += 1,
-            AddrMode::Abs | AddrMode::AbsX | AddrMode::AbsY | AddrMode::Ind => {
-                self.register.pc += 2
-            }
+            | AddrMode::IndY => self.inc_pc(1),
+            AddrMode::Abs | AddrMode::AbsX | AddrMode::AbsY | AddrMode::Ind => self.inc_pc(2),
         }
 
         r
     }
 
     pub fn is_branch_enable(&self) -> bool {
-        if self.register.p.interrupt {
+        if self.get_interrupt() {
             false
         } else {
             true
@@ -697,7 +745,7 @@ impl CPU {
     }
 
     pub fn push_pc(&mut self) {
-        let p = self.register.pc;
+        let p = self.get_pc();
         let h = ((p & 0xFF00) >> 8) as u8;
         let l = (p & 0x00FF) as u8;
         self.push_stack(h);
@@ -708,11 +756,11 @@ impl CPU {
         let is_l_plus = (l & 0b10000000) == 0;
         let is_r_plus = (r & 0b10000000) == 0;
 
-        let (n, c) = l.overflowing_add(r + self.register.p.carry as u8);
+        let (n, c) = l.overflowing_add(r + self.get_carry() as u8);
         let is_n_plus = (n & 0b10000000) == 0;
-        self.register.p.carry = c;
+        self.set_carry(c);
         let overflow_flag = (is_n_plus != is_l_plus) && (is_n_plus != is_r_plus);
-        self.register.p.overflow = overflow_flag;
+        self.set_overflow(overflow_flag);
         n
     }
 
@@ -721,11 +769,11 @@ impl CPU {
 
         let (n, c1) = l.overflowing_sub(r);
         let l = n;
-        let (n, c2) = l.overflowing_sub(1 - self.register.p.carry as u8);
+        let (n, c2) = l.overflowing_sub(1 - self.get_carry() as u8);
         let is_n_plus = (n & 0b10000000) == 0;
-        self.register.p.carry = !(c1 | c2);
+        self.set_carry(!(c1 | c2));
         let overflow_flag = is_l_minus && is_n_plus;
-        self.register.p.overflow = overflow_flag;
+        self.set_overflow(overflow_flag);
         n
     }
 
@@ -733,30 +781,36 @@ impl CPU {
         match opekind {
             OpeKind::Adc => {
                 let m = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u16;
-                let n = self.sign_plus(self.register.a, m as u8);
-                self.register.a = n;
-                self.set_nz(self.register.a);
+                let n = self.sign_plus(self.get_a(), m as u8);
+                self.set_a(n);
+                self.set_nz(self.get_a());
             }
             OpeKind::Sbc => {
                 let m = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u16;
-                let n = self.sign_minus(self.register.a, m as u8);
-                self.register.a = n;
-                self.set_nz(self.register.a);
+                let n = self.sign_minus(self.get_a(), m as u8);
+                self.set_a(n);
+                self.set_nz(self.get_a());
             }
             OpeKind::And => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.register.a &= r;
-                self.set_nz(self.register.a);
+                let mut a = self.get_a();
+                a &= r;
+                self.set_a(a);
+                self.set_nz(a);
             }
             OpeKind::Ora => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.register.a |= r;
-                self.set_nz(self.register.a);
+                let mut a = self.get_a();
+                a |= r;
+                self.set_a(a);
+                self.set_nz(a);
             }
             OpeKind::Eor => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.register.a ^= r;
-                self.set_nz(self.register.a);
+                let mut a = self.get_a();
+                a ^= r;
+                self.set_a(a);
+                self.set_nz(a);
             }
             OpeKind::Asl => match addr_mode {
                 AddrMode::Acc => {
@@ -764,7 +818,7 @@ impl CPU {
                     self.set_carry((a & 0b10000000) != 0);
                     a <<= 1;
                     self.set_nz(a);
-                    self.register.a = a;
+                    self.set_a(a);
                 }
                 _ => {
                     let mut v = self.bus.addr(r);
@@ -780,7 +834,7 @@ impl CPU {
                     self.set_carry((a & 0b00000001) != 0);
                     a >>= 1;
                     self.set_nz(a);
-                    self.register.a = a;
+                    self.set_a(a);
                 }
                 _ => {
                     let mut v = self.bus.addr(r);
@@ -793,16 +847,16 @@ impl CPU {
             OpeKind::Rol => match addr_mode {
                 AddrMode::Acc => {
                     let mut a = r as u8;
-                    let c = self.register.p.carry;
+                    let c = self.get_carry();
                     self.set_carry((a & 0b10000000) != 0);
                     a <<= 1;
                     a |= c as u8;
                     self.set_nz(a);
-                    self.register.a = a;
+                    self.set_a(a);
                 }
                 _ => {
                     let mut m = self.bus.addr(r);
-                    let c = self.register.p.carry;
+                    let c = self.get_carry();
                     self.set_carry((m & 0b10000000) != 0);
                     m <<= 1;
                     m |= c as u8;
@@ -814,16 +868,16 @@ impl CPU {
                 match addr_mode {
                     AddrMode::Acc => {
                         let mut a = r as u8;
-                        let c = self.register.p.carry;
+                        let c = self.get_carry();
                         self.set_carry((a & 0b00000001) != 0);
                         a >>= 0x1;
                         a |= (c as u8) << 7;
                         self.set_nz(a);
-                        self.register.a = a;
+                        self.set_a(a);
                     }
                     _ => {
                         let mut v = self.bus.addr(r);
-                        let c = self.register.p.carry;
+                        let c = self.get_carry();
                         self.set_carry((v & 0b00000001) != 0);
                         v >>= 0x1;
                         v |= (c as u8) << 7;
@@ -834,68 +888,70 @@ impl CPU {
             }
             OpeKind::Bcc => {
                 if !self.get_carry() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Bcs => {
                 if self.get_carry() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Beq => {
                 if self.get_zero() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Bne => {
                 if !self.get_zero() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Bvc => {
                 if !self.get_overflow() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Bvs => {
                 if self.get_overflow() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Bpl => {
                 if !self.get_negative() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Bmi => {
                 if self.get_negative() {
-                    self.register.pc = r;
+                    self.set_pc(r);
                 }
             }
             OpeKind::Bit => {
                 let v = self.bus.addr(r);
-                self.set_zero((v & self.register.a) == 0);
-                self.register.p.negative = (v & 0b10000000) != 0;
-                self.register.p.overflow = (v & 0b01000000) != 0;
+                self.set_zero((v & self.get_a()) == 0);
+                self.set_negative((v & 0b10000000) != 0);
+                self.set_overflow((v & 0b01000000) != 0);
             }
             OpeKind::Cmp => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode);
-                let (m, f) = self.register.a.overflowing_sub(r as u8);
+                let (m, f) = self.get_a().overflowing_sub(r as u8);
                 self.set_nz(m as u8);
                 self.set_carry(!f);
             }
             OpeKind::Cpx => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.set_carry(self.register.x >= r);
-                self.set_zero(self.register.x == r);
-                let n = self.register.x.wrapping_sub(r);
+                let x = self.get_x();
+                self.set_carry(x >= r);
+                self.set_zero(x == r);
+                let n = self.get_x().wrapping_sub(r);
                 self.set_negative((n & 0b10000000) != 0);
             }
             OpeKind::Cpy => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.set_carry(self.register.y >= r);
-                self.set_zero(self.register.y == r);
-                let n = self.register.y.wrapping_sub(r);
+                let y = self.get_y();
+                self.set_carry(y >= r);
+                self.set_zero(y == r);
+                let n = self.get_y().wrapping_sub(r);
                 self.set_negative((n & 0b10000000) != 0);
             }
             OpeKind::Inc => {
@@ -911,135 +967,134 @@ impl CPU {
                 self.set_nz(n);
             }
             OpeKind::Inx => {
-                let x = self.ex_i8_plus(self.register.x, 1);
+                let x = self.ex_i8_plus(self.get_x(), 1);
                 self.set_x(x);
                 self.set_nz(x);
             }
             OpeKind::Dex => {
-                let x = self.register.x as i16 - 1;
+                let x = self.get_x() as i16 - 1;
                 self.set_x(x as u8);
                 self.set_nz(x as u8);
             }
             OpeKind::Iny => {
-                let y = self.ex_i8_plus(self.register.y, 1);
+                let y = self.ex_i8_plus(self.get_y(), 1);
                 self.set_y(y as u8);
                 self.set_nz(y as u8);
             }
             OpeKind::Dey => {
-                let y = self.register.y as i16 - 1;
+                let y = self.get_y() as i16 - 1;
                 self.set_y(y as u8);
                 self.set_nz(y as u8);
             }
-            OpeKind::Clc => self.register.p.carry = false,
-            OpeKind::Sec => self.register.p.carry = true,
-            OpeKind::Cli => self.register.p.interrupt = false,
-            OpeKind::Sei => self.register.p.interrupt = true,
-            OpeKind::Cld => self.register.p.decimal = false,
-            OpeKind::Sed => self.register.p.decimal = true,
-            OpeKind::Clv => self.register.p.overflow = false,
+            OpeKind::Clc => self.set_carry(false),
+            OpeKind::Sec => self.set_carry(true),
+            OpeKind::Cli => self.set_interrupt(false),
+            OpeKind::Sei => self.set_interrupt(true),
+            OpeKind::Cld => self.set_decimal(false),
+            OpeKind::Sed => self.set_decimal(true),
+            OpeKind::Clv => self.set_overflow(false),
             OpeKind::Lda => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.register.a = r;
-                self.set_nz(self.register.a);
+                self.set_a(r);
+                self.set_nz(self.get_a());
             }
             OpeKind::Ldx => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.register.x = r;
-                self.set_nz(self.register.x);
+                self.set_x(r);
+                self.set_nz(self.get_x());
             }
             OpeKind::Ldy => {
                 let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
-                self.register.y = r;
-                self.set_nz(self.register.y);
+                self.set_y(r);
+                self.set_nz(self.get_y());
             }
             OpeKind::Sta => {
-                self.bus_set(r, self.register.a);
+                self.bus_set(r, self.get_a());
             }
             OpeKind::Stx => {
-                self.bus_set(r, self.register.x);
+                self.bus_set(r, self.get_x());
             }
             OpeKind::Sty => {
-                self.bus_set(r, self.register.y);
+                self.bus_set(r, self.get_y());
             }
             OpeKind::Tax => {
-                self.register.x = self.register.a;
-                self.set_nz(self.register.x);
+                self.set_x(self.get_a());
+                self.set_nz(self.get_x());
             }
             OpeKind::Txa => {
-                self.register.a = self.register.x;
-                self.set_nz(self.register.a);
+                self.set_a(self.get_x());
+                self.set_nz(self.get_a());
             }
             OpeKind::Tsx => {
-                let s = self.register.s as u8;
-                self.register.x = s;
+                let s = self.get_s() as u8;
+                self.set_x(s);
                 self.set_nz(s);
             }
             OpeKind::Tay => {
-                self.register.y = self.register.a;
-                self.set_nz(self.register.y);
+                self.set_y(self.get_a());
+                self.set_nz(self.get_y());
             }
             OpeKind::Tya => {
-                self.register.a = self.register.y;
-                self.set_nz(self.register.a);
+                self.set_a(self.get_y());
+                self.set_nz(self.get_a());
             }
             OpeKind::Txs => {
-                // self.register.set_s(self.register.x);
-                self.register.set_s(self.register.x);
+                self.set_s(self.get_x());
             }
             OpeKind::Pha => {
-                self.push_stack(self.register.a);
+                self.push_stack(self.get_a());
             }
             OpeKind::Pla => {
-                self.register.a = self.pull_stack();
-                self.set_nz(self.register.a);
+                let m = self.pull_stack();
+                self.set_a(m);
+                self.set_nz(self.get_a());
             }
             OpeKind::Php => {
-                let mut n = self.register.p.to_n();
+                let mut n = self.get_p();
                 n |= 0b00010000;
                 self.push_stack(n);
             }
             OpeKind::Plp => {
                 let mut n = self.pull_stack();
                 n &= 0b11101111;
-                self.register.p.set(n);
+                self.set_p(n);
             }
             OpeKind::Jmp => {
-                self.register.pc = r;
+                self.set_pc(r);
             }
             OpeKind::Jsr => {
-                let p = self.register.pc - 1;
+                let p = self.get_pc() - 1;
                 let h = ((p & 0xFF00) >> 8) as u8;
                 let l = (p & 0x00FF) as u8;
                 self.push_stack(h);
                 self.push_stack(l);
-                self.register.pc = r;
+                self.set_pc(r);
             }
             OpeKind::Rts => {
                 let l = self.pull_stack();
                 let h = self.pull_stack();
                 let t = combine_high_low(l, h);
-                self.register.pc = t;
-                self.register.pc = self.register.pc.wrapping_add(1);
+                self.set_pc(t);
+                self.set_pc(self.get_pc().wrapping_add(1));
             }
             OpeKind::Brk => {
                 if !self.get_interrupt() {
-                    self.register.pc -= 1;
+                    self.dec_pc(1);
                     self.push_pc();
-                    let mut n = self.register.p.to_n();
-                    n |= 0b00010000;
+                    let n = self.get_p();
                     self.push_stack(n);
                     self.set_break_mode(true);
                     self.set_interrupt(true);
                     let (h, l) = self.bus.cpu_bus.hl_addr(0xFFFE);
-                    self.register.pc = combine_high_low(l, h);
+                    self.set_pc(combine_high_low(l, h));
                 }
             }
             OpeKind::Rti => {
                 let p = self.pull_stack();
                 let l = self.pull_stack();
                 let h = self.pull_stack();
-                self.register.pc = combine_high_low(l, h);
-                self.register.p.set(p);
+                self.set_pc(combine_high_low(l, h));
+                self.set_p(p);
             }
             OpeKind::Nop => {
                 self.nop();
@@ -1075,7 +1130,7 @@ impl CPU {
     }
 
     pub fn read_ope(&mut self) -> Option<&Operator> {
-        let c = self.fetch_code();
+        let c = self.fetch_register();
         // print!("\n{:0x?} ", self.register.pc);
         // print!(
         //     "{:>02x} {:>02x} {:>02x} ",
@@ -1173,9 +1228,9 @@ mod test {
         }
 
         fn fetch_next_lh_register(&mut self) -> (u8, u8) {
-            self.register.pc += 1;
+            self.inc_pc(1);
             let (l, h) = self.fetch_lh_register();
-            self.register.pc -= 1;
+            self.dec_pc(1);
             (l, h)
         }
     }
@@ -1262,8 +1317,8 @@ mod test {
         cpu.insert_random_num_into_b1_b2();
 
         let (l, h) = cpu.fetch_next_lh_register();
-        cpu.register.x = rand_u8();
-        let x = cpu.register.x as u16;
+        cpu.set_x(rand_u8());
+        let x = cpu.get_x() as u16;
         let r = combine_high_low(l, h) + x;
 
         let mut reg_addr = u16::MAX;
@@ -1278,8 +1333,8 @@ mod test {
         cpu.insert_random_num_into_b1_b2();
 
         let (l, h) = cpu.fetch_next_lh_register();
-        cpu.register.y = rand_u8();
-        let y = cpu.register.y as u16;
+        cpu.set_y(rand_u8());
+        let y = cpu.get_y() as u16;
         let r = combine_high_low(l, h) + y;
 
         let mut reg_addr = u16::MAX;
@@ -1306,7 +1361,7 @@ mod test {
         let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Rel);
         cpu.insert_random_num_into_b1_b2();
 
-        let l = cpu.register.pc + 2;
+        let l = cpu.get_pc() + 2;
         let h = cpu.fetch_next_register() as u16;
         let r = if h < 0x80 {
             (l + h) as u16
@@ -1324,10 +1379,10 @@ mod test {
     fn ind_x_specify_indexed_indirect_address() {
         let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::IndX);
         cpu.insert_random_num_into_b1_b2();
-        cpu.register.x = rand_u8();
+        cpu.set_x(rand_u8());
 
         let mut l = cpu.fetch_next_register();
-        let h = cpu.register.x;
+        let h = cpu.get_x();
         l = l.wrapping_add(h);
         cpu.bus_set(h as u16, rand_u8());
         cpu.bus_set((h + 1) as u16, rand_u8());
@@ -1345,14 +1400,14 @@ mod test {
     fn ind_y_specify_indexed_indirect_address() {
         let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::IndY);
         cpu.insert_random_num_into_b1_b2();
-        cpu.register.y = rand_u8();
+        cpu.set_y(rand_u8());
 
         let t = cpu.fetch_next_register() as u16;
         cpu.bus_set(t, rand_u8());
         cpu.bus_set(t + 1, rand_u8());
 
         let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
-        let y = cpu.register.y as u16;
+        let y = cpu.get_y() as u16;
         let r = combine_high_low(l, h) + y;
 
         let mut reg_addr = u16::MAX;
