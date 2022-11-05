@@ -41,9 +41,9 @@ impl Mapper for Bus {
     fn addr(&mut self, n: u16) -> u8 {
         match n {
             0x0000..=0x1FFF | 0x2008..=0x4015 | 0x4018..=0xFFFF => self.cpu_bus.addr(n),
-            0x2000..=0x2004 | 0x2007 => self.ppu.register.clone().addr(n),
+            0x2000..=0x2004 | 0x2007 => self.ppu.register.addr(n),
             0x2005..=0x2006 => {
-                let r = self.ppu.register.clone().relative_addr(n);
+                let r = self.ppu.register.relative_addr(n);
                 self.ppu.map.addr(r)
             }
             0x4016 => {
@@ -74,6 +74,8 @@ impl Mapper for Bus {
             0x4016 => match r {
                 1 => {
                     self.controller_0_polled_data = self.controller_0_polling_data;
+                }
+                0 => {
                     self.controller_0_polling_data = 0;
                 }
                 _ => (),

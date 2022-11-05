@@ -610,12 +610,11 @@ impl CPU {
         }
         let mut sprite_infos = vec![];
 
-        let r = self.bus.addr(0x4014) as u16;
-        for n in 0..0xff {
-            let data = self.bus.addr((r << 8) as u16 | n as u16);
+        let r = self.bus.addr(0x4014);
+        for l in 0..0xff {
+            let data = self.bus.addr(combine_high_low(l, r));
             sprite_infos.push(data);
         }
-        // print!("set_oam(sprite_infos: {:0x?} r: {:0x?}), ", sprite_infos, r);
         self.bus.ppu.primary_oam.set_sprite_infos(sprite_infos);
     }
 
@@ -1131,14 +1130,13 @@ impl CPU {
 
     pub fn read_ope(&mut self) -> Option<&Operator> {
         let c = self.fetch_register();
-        // print!("\n{:0x?} ", self.register.pc);
+        // print!("\n{:0x?} ", self.get_pc());
         // print!(
         //     "{:>02x} {:>02x} {:>02x} ",
         //     c,
         //     self.fetch_next_register(),
         //     self.fetch_next_next_register(),
         // );
-        // // print!("{:?}  ", self.operators.get_mut(&c).unwrap().ope_kind);
         // print!(
         //     "{} {}  ",
         //     format!("{:?}", self.operators.get_mut(&c).unwrap().ope_kind).to_uppercase(),
@@ -1146,11 +1144,11 @@ impl CPU {
         // );
         // print!(
         //     "A:{:>02x} X:{:>02x} Y:{:>02x} P:{:>02x} S:{:>02x}",
-        //     self.register.a,
-        //     self.register.x,
-        //     self.register.y,
-        //     self.register.p.to_n(),
-        //     self.register.s,
+        //     self.get_a(),
+        //     self.get_x(),
+        //     self.get_y(),
+        //     self.get_p(),
+        //     self.get_s(),
         // );
 
         match self.operators.get_mut(&c) {
@@ -1215,8 +1213,8 @@ mod test {
         fn set_next_reg_addr(&mut self, reg_addr: &mut u16) {
             match self.read_ope() {
                 Some(Operator { addr_mode, .. }) => {
-                    let addr_mode = addr_mode.clone();
-                    *reg_addr = self.ex_addr_mode(&addr_mode);
+                    let addr_mode = &addr_mode.clone();
+                    *reg_addr = self.ex_addr_mode(addr_mode);
                 }
                 None => (),
             };

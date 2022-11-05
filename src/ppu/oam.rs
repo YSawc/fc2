@@ -65,7 +65,7 @@ impl SpriteInfo {
     }
 
     pub fn in_drawing_range(&self, y: u8) -> bool {
-        self.pos_y <= y && self.pos_y + 7 >= y
+        (self.pos_y <= y) && (self.pos_y + 7 >= y)
     }
 }
 
@@ -90,8 +90,7 @@ impl TileIndex {
     }
 
     pub fn set(&mut self, n: u8) {
-        self.tile_number = n & 0b11111110;
-        self.bank_of_tile = (n & 0b00000001) != 0;
+        self.tile_number = n;
     }
 
     pub fn to_name_table_addr(&self) -> u16 {

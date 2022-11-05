@@ -237,7 +237,11 @@ impl Emulator {
         let ppu_map = &mut self.cpu.bus.ppu.map;
         let pallets = ppu_map.addr(attr_idx);
         let pallete_idx = ppu_map.addr(0x3F00 + (pallets & (0x1 << attr_arr_idx)) as u16);
-        let texture = &textures[pallete_idx as usize];
+        let texture = if pallete_idx as usize <= textures.len() {
+            &textures[pallete_idx as usize]
+        } else {
+            &textures[(pallete_idx as usize) - &textures.len()]
+        };
 
         self.canvas.copy(
             texture,
@@ -266,7 +270,11 @@ impl Emulator {
             let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
             let idx = high_idx << 1 | row_idx;
             let sprite_color_idx = ppu_map.addr(0x3F00 + idx);
-            let square_texture = &textures[sprite_color_idx as usize];
+            let square_texture = if (sprite_color_idx as usize) <= textures.len() {
+                &textures[sprite_color_idx as usize]
+            } else {
+                &textures[(sprite_color_idx as usize) - textures.len()]
+            };
 
             self.canvas.copy(
                 square_texture,
@@ -334,7 +342,11 @@ impl Emulator {
                         let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
                         let idx = high_idx << 1 | row_idx;
                         let sprite_color_idx = ppu_map.addr(0x3F00 + idx);
-                        let square_texture = &textures[sprite_color_idx as usize];
+                        let square_texture = if sprite_color_idx as usize <= textures.len() {
+                            &textures[sprite_color_idx as usize]
+                        } else {
+                            &textures[(sprite_color_idx as usize) - textures.len()]
+                        };
                         self.canvas.copy(
                             square_texture,
                             None,
