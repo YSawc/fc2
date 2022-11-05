@@ -1050,12 +1050,12 @@ impl CPU {
             }
             OpeKind::Php => {
                 let mut n = self.get_p();
-                n |= 0b00010000;
+                n |= 0b00100000;
                 self.push_stack(n);
             }
             OpeKind::Plp => {
                 let mut n = self.pull_stack();
-                n &= 0b11101111;
+                n &= 0b11011111;
                 self.set_p(n);
             }
             OpeKind::Jmp => {

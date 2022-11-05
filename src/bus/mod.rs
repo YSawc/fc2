@@ -71,7 +71,7 @@ impl Mapper for Bus {
                 self.ppu.register.ppu_buffer +=
                     self.ppu.register.ppu_ctrl.base_name_table_addr as u16;
             }
-            0x4016 => match r {
+            0x4016 => match r % 2 {
                 1 => {
                     self.controller_0_polled_data = self.controller_0_polling_data;
                 }
