@@ -25,21 +25,21 @@ impl Default for WriteTwiceRegister {
 }
 
 impl WriteTwiceRegister {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             write_flag: false,
             addr: 0,
         }
     }
 
-    pub fn toggle_flag(&mut self) {
+    fn toggle_flag(&mut self) {
         match self.write_flag {
             true => self.write_flag = false,
             false => self.write_flag = true,
         }
     }
 
-    pub fn set(&mut self, r: u8) {
+    fn set(&mut self, r: u8) {
         match self.write_flag {
             true => {
                 self.addr += r as u16;
@@ -78,7 +78,7 @@ impl Default for PpuCtrl {
 }
 
 impl PpuCtrl {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             gen_nmi: false,
             ppu_selector: false,
@@ -90,7 +90,7 @@ impl PpuCtrl {
         }
     }
 
-    pub fn set(&mut self, n: u8) {
+    fn set(&mut self, n: u8) {
         self.gen_nmi = (n & 0b10000000) != 0;
         self.ppu_selector = (n & 0b01000000) != 0;
         self.sprite_size = (n & 0b00100000) != 0;
@@ -100,7 +100,7 @@ impl PpuCtrl {
         self.base_name_table_addr = n & 0b00000011;
     }
 
-    pub fn to_n(&self) -> u8 {
+    fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.gen_nmi as u8 * 0b10000000;
         n += self.ppu_selector as u8 * 0b01000000;
@@ -139,7 +139,7 @@ impl Default for PpuMask {
 }
 
 impl PpuMask {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             emf_blue: false,
             emf_green: false,
@@ -152,7 +152,7 @@ impl PpuMask {
         }
     }
 
-    pub fn set(&mut self, n: u8) {
+    fn set(&mut self, n: u8) {
         self.emf_blue = (n & 0b10000000) != 0;
         self.emf_green = (n & 0b01000000) != 0;
         self.emf_red = (n & 0b00100000) != 0;
@@ -163,7 +163,7 @@ impl PpuMask {
         self.gray_scale = (n & 0b00000001) != 0;
     }
 
-    pub fn to_n(&self) -> u8 {
+    fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.emf_blue as u8 * 0b10000000;
         n += self.emf_green as u8 * 0b01000000;
@@ -192,7 +192,7 @@ impl Default for PpuStatus {
 }
 
 impl PpuStatus {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             in_vlank: false,
             sprite_zero_hit: false,
@@ -200,14 +200,14 @@ impl PpuStatus {
             bus: 0,
         }
     }
-    pub fn set(&mut self, n: u8) {
+    fn set(&mut self, n: u8) {
         self.in_vlank = (n & 0b10000000) != 0;
         self.sprite_zero_hit = (n & 0b01000000) != 0;
         self.sprite_evoluation = (n & 0b00100000) != 0;
         self.bus = n & 0b00001111;
     }
 
-    pub fn to_n(&self) -> u8 {
+    fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.in_vlank as u8 * 0b10000000;
         n += self.sprite_zero_hit as u8 * 0b01000000;
@@ -224,7 +224,7 @@ impl Default for Register {
 }
 
 impl Register {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             ppu_ctrl: PpuCtrl::default(),
             ppu_mask: PpuMask::default(),

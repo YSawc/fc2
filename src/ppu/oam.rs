@@ -12,7 +12,7 @@ impl Default for PrimaryOAM {
 }
 
 impl PrimaryOAM {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let sprite_info = SpriteInfo::default();
         let sprite_infos = vec![sprite_info; 64];
         Self { sprite_infos }
@@ -55,7 +55,7 @@ impl Default for SpriteInfo {
 }
 
 impl SpriteInfo {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             pos_y: 0,
             tile_index: TileIndex::default(),
@@ -89,16 +89,8 @@ impl TileIndex {
         }
     }
 
-    pub fn set(&mut self, n: u8) {
+    fn set(&mut self, n: u8) {
         self.tile_number = n;
-    }
-
-    pub fn to_name_table_addr(&self) -> u16 {
-        let name_table_addr = match self.bank_of_tile {
-            true => 0x1000,
-            false => 0x0,
-        };
-        (name_table_addr | self.tile_number as u16) as u16
     }
 }
 
@@ -128,7 +120,7 @@ impl Attr {
         }
     }
 
-    pub fn set(&mut self, n: u8) {
+    fn set(&mut self, n: u8) {
         self.flip_sprite_vertically = (n & 0b10000000) != 0;
         self.flip_sprite_horizontally = (n & 0b01000000) != 0;
         self.priority = (n & 0b00100000) != 0;
@@ -149,7 +141,7 @@ impl Default for SecondaryOAM {
 }
 
 impl SecondaryOAM {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let sprite_info = SpriteInfo::default();
         let sprite_infos = vec![sprite_info; 8];
         Self { sprite_infos }

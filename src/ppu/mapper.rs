@@ -25,7 +25,7 @@ impl Default for Map {
 }
 
 impl Map {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             pattern_table_00: [0; 0x1000],
             pattern_table_01: [0; 0x1000],

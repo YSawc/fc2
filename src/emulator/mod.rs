@@ -4,7 +4,6 @@ use crate::bus::Mapper;
 use crate::cpu::*;
 use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SPRITE_SIZE, SQUARE_SIZE};
 use crate::emulator::texture::{dummy_texture, texture_combine_builtin_colors};
-use crate::ppu::mapper::Map;
 use crate::ppu::oam::SpriteInfo;
 use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VBLANK_LINE, VERTICAL_PIXEL};
 use rustc_hash::FxHashSet;
@@ -31,7 +30,7 @@ impl Default for Emulator {
 }
 
 impl Emulator {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let cpu = CPU::default();
 
         let sdl_context = sdl2::init().unwrap();
@@ -73,7 +72,7 @@ impl Emulator {
         self.cpu.reset();
     }
 
-    pub fn inc_ppu_cycle(&mut self) {
+    fn inc_ppu_cycle(&mut self) {
         self.ppu_cycle += (self.cpu.cycle * 3) as u16;
         self.cpu.clear_cycle();
     }
@@ -171,7 +170,7 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
+    fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
         self.cpu.ex_ope();
         self.inc_ppu_cycle();
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
@@ -202,36 +201,23 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn in_switching_secondary_oam(&mut self) -> bool {
-        self.drawing_line % 8 != 0
-    }
-
-    pub fn clear_secondary_oam(&mut self) {
+    fn clear_secondary_oam(&mut self) {
         self.cpu.bus.ppu.secondary_oam.clear_sprite_infos();
     }
 
-    pub fn set_secondary_oam(&mut self) {
+    fn set_secondary_oam(&mut self) {
         self.cpu
             .bus
             .ppu
             .set_secondary_oam_in_line(self.drawing_line as u8);
     }
 
-    pub fn prepare_secondary_oam(&mut self) {
+    fn prepare_secondary_oam(&mut self) {
         self.clear_secondary_oam();
         self.set_secondary_oam();
     }
 
-    pub fn ppu_map(&mut self) -> &Map {
-        &mut self.cpu.bus.ppu.map
-    }
-
-    pub fn draw_backgraund_line(
-        &mut self,
-        textures: &[Texture],
-        x: u16,
-        y: u16,
-    ) -> Result<(), String> {
+    fn draw_backgraund_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
         let attr_idx = (0x23C0 + (x / 4) + (y / 32) * 8) as u16;
         let attr_arr_idx = ((x / 2) % 2) | (((y / 16) % 2) << 1);
         let ppu_map = &mut self.cpu.bus.ppu.map;
@@ -257,7 +243,7 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn draw_sprite_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
+    fn draw_sprite_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
         let i1 = y / 8;
         let i2 = y % 8;
         let ppu_map = &mut self.cpu.bus.ppu.map;
@@ -291,7 +277,7 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
+    fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH {
             self.draw_backgraund_line(textures, n as u16, self.drawing_line)?;
             self.draw_sprite_line(textures, n as u16, self.drawing_line)?;
@@ -299,7 +285,7 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn is_just_in_vblank_line(&self) -> bool {
+    fn is_just_in_vblank_line(&self) -> bool {
         self.drawing_line == VBLANK_LINE
     }
 
@@ -312,10 +298,7 @@ impl Emulator {
         }
     }
 
-    pub fn draw_sprites_refed_secondary_oams(
-        &mut self,
-        textures: &[Texture],
-    ) -> Result<(), String> {
+    fn draw_sprites_refed_secondary_oams(&mut self, textures: &[Texture]) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH {
             match self
                 .cpu

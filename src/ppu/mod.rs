@@ -21,7 +21,7 @@ impl Default for PPU {
 }
 
 impl PPU {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             map: Map::default(),
             register: Register::default(),

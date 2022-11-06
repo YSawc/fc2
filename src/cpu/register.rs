@@ -110,7 +110,7 @@ impl Default for P {
 }
 
 impl P {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             carry: false,
             zero: false,
@@ -123,7 +123,7 @@ impl P {
         }
     }
 
-    pub fn set(&mut self, n: u8) {
+    fn set(&mut self, n: u8) {
         self.set_carry((n & 0b00000001) != 0);
         self.set_zero((n & 0b00000010) != 0);
         self.set_interrupt((n & 0b00000100) != 0);
@@ -134,11 +134,11 @@ impl P {
         self.set_negative((n & 0b10000000) != 0);
     }
 
-    pub fn get(&self) -> u8 {
+    fn get(&self) -> u8 {
         self.to_n()
     }
 
-    pub fn to_n(&self) -> u8 {
+    fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.get_carry() as u8 * 0b00000001;
         n += self.get_zero() as u8 * 0b00000010;

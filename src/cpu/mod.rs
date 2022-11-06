@@ -26,7 +26,7 @@ impl Default for CPU {
 }
 
 impl CPU {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let register = Register::default();
         let operators = FxHashMap::default();
         let bus = Bus::default();
@@ -425,17 +425,7 @@ impl CPU {
         }
     }
 
-    pub fn ex_minus(&mut self, l: u8, r: u8) -> u8 {
-        if l > r {
-            self.set_negative(false);
-            l - r
-        } else {
-            self.set_negative(true);
-            r - l
-        }
-    }
-
-    pub fn ex_i8_plus(&mut self, l: u8, r: u8) -> u8 {
+    fn ex_i8_plus(&mut self, l: u8, r: u8) -> u8 {
         if l < 0x80 {
             l + r
         } else {
@@ -564,28 +554,23 @@ impl CPU {
         self.bus.addr(self.get_pc())
     }
 
-    pub fn fetch_lh_register(&mut self) -> (u8, u8) {
+    fn fetch_lh_register(&mut self) -> (u8, u8) {
         let l = self.fetch_register();
         let h = self.fetch_next_register();
         (l, h)
     }
 
-    pub fn fetch_next_register(&mut self) -> u8 {
+    fn fetch_next_register(&mut self) -> u8 {
         let pc = self.get_pc().wrapping_add(1);
         self.bus.addr(pc)
     }
 
-    pub fn fetch_next_next_register(&mut self) -> u8 {
-        let pc = self.get_pc().wrapping_add(2);
-        self.bus.addr(pc)
-    }
-
-    pub fn undef(&mut self) {
+    fn undef(&mut self) {
         let pc = self.get_pc();
         self.inc_pc(pc.wrapping_add(1))
     }
 
-    pub fn nop(&mut self) {}
+    fn nop(&mut self) {}
 
     pub fn push_stack(&mut self, n: u8) {
         let l = self.get_s() as u16;
@@ -595,7 +580,7 @@ impl CPU {
         self.bus_set(r, n);
     }
 
-    pub fn pull_stack(&mut self) -> u8 {
+    fn pull_stack(&mut self) -> u8 {
         let l = self.get_s().wrapping_add(1);
         self.set_s(l);
         let h = 0x100;
@@ -628,7 +613,7 @@ impl CPU {
         }
     }
 
-    pub fn ex_addr_mode(&mut self, addr_mode: &AddrMode) -> u16 {
+    fn ex_addr_mode(&mut self, addr_mode: &AddrMode) -> u16 {
         self.inc_pc(1);
         let r = match addr_mode {
             AddrMode::Impl => 0,
@@ -726,7 +711,7 @@ impl CPU {
         r
     }
 
-    pub fn is_branch_enable(&self) -> bool {
+    fn is_branch_enable(&self) -> bool {
         if self.get_interrupt() {
             false
         } else {
@@ -734,7 +719,7 @@ impl CPU {
         }
     }
 
-    pub fn get_addr_for_mixed_imm_mode(&mut self, r: u16, addr_mode: AddrMode) -> u16 {
+    fn get_addr_for_mixed_imm_mode(&mut self, r: u16, addr_mode: AddrMode) -> u16 {
         let imm = matches!(addr_mode, AddrMode::Imm);
         if imm {
             r
@@ -743,7 +728,7 @@ impl CPU {
         }
     }
 
-    pub fn push_pc(&mut self) {
+    fn push_pc(&mut self) {
         let p = self.get_pc();
         let h = ((p & 0xFF00) >> 8) as u8;
         let l = (p & 0x00FF) as u8;
@@ -751,19 +736,21 @@ impl CPU {
         self.push_stack(l);
     }
 
-    pub fn sign_plus(&mut self, l: u8, r: u8) -> u8 {
+    fn sign_plus(&mut self, l: u8, r: u8) -> u8 {
         let is_l_plus = (l & 0b10000000) == 0;
         let is_r_plus = (r & 0b10000000) == 0;
 
-        let (n, c) = l.overflowing_add(r + self.get_carry() as u8);
+        let (n, c1) = l.overflowing_add(r);
+        let (n, c2) = n.overflowing_add(self.get_carry() as u8);
+
         let is_n_plus = (n & 0b10000000) == 0;
-        self.set_carry(c);
+        self.set_carry(c1 || c2);
         let overflow_flag = (is_n_plus != is_l_plus) && (is_n_plus != is_r_plus);
         self.set_overflow(overflow_flag);
         n
     }
 
-    pub fn sign_minus(&mut self, l: u8, r: u8) -> u8 {
+    fn sign_minus(&mut self, l: u8, r: u8) -> u8 {
         let is_l_minus = (l & 0b10000000) != 0;
 
         let (n, c1) = l.overflowing_sub(r);
@@ -776,7 +763,7 @@ impl CPU {
         n
     }
 
-    pub fn run_ope(&mut self, r: u16, opekind: OpeKind, addr_mode: AddrMode) {
+    fn run_ope(&mut self, r: u16, opekind: OpeKind, addr_mode: AddrMode) {
         match opekind {
             OpeKind::Adc => {
                 let m = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u16;
@@ -1077,7 +1064,7 @@ impl CPU {
                 self.set_pc(self.get_pc().wrapping_add(1));
             }
             OpeKind::Brk => {
-                if !self.get_interrupt() {
+                if self.is_branch_enable() {
                     self.dec_pc(1);
                     self.push_pc();
                     let n = self.get_p();
@@ -1128,7 +1115,7 @@ impl CPU {
         self.cycle = 0;
     }
 
-    pub fn read_ope(&mut self) -> Option<&Operator> {
+    fn read_ope(&mut self) -> Option<&Operator> {
         let c = self.fetch_register();
         // print!("\n{:0x?} ", self.get_pc());
         // print!(

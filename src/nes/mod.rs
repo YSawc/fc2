@@ -32,7 +32,7 @@ pub struct Info {
 }
 
 impl Info {
-    pub fn new(buffer: &[u8]) -> Self {
+    fn new(buffer: &[u8]) -> Self {
         use std::str;
         if str::from_utf8(&buffer[0..3]) != Ok("NES") {
             panic!("File format is not nes!");
@@ -98,7 +98,7 @@ pub struct Flags6 {
 }
 
 impl Flags6 {
-    pub fn parse_buf(num: &u8) -> Self {
+    fn parse_buf(num: &u8) -> Self {
         let s = format!("{:08b}", num);
         let v: Vec<char> = s.chars().collect();
         let mirroring = char_to_bool(&v[0]);
@@ -126,7 +126,7 @@ pub struct Flags7 {
 }
 
 impl Flags7 {
-    pub fn parse_buf(num: &u8) -> Self {
+    fn parse_buf(num: &u8) -> Self {
         let s = format!("{:08b}", num);
         let v: Vec<char> = s.chars().collect();
         let vs_unisystem = char_to_bool(&v[0]);
@@ -149,7 +149,7 @@ pub struct Flags8 {
 }
 
 impl Flags8 {
-    pub fn parse_buf(num: &u8) -> Self {
+    fn parse_buf(num: &u8) -> Self {
         let s = format!("{:08b}", num);
         let v: Vec<char> = s.chars().collect();
         let prg_ram_size = chars_to_u32(&v[0..=7].to_vec());
@@ -165,7 +165,7 @@ pub struct Flags9 {
 }
 
 impl Flags9 {
-    pub fn parse_buf(num: &u8) -> Self {
+    fn parse_buf(num: &u8) -> Self {
         let s = format!("{:08b}", num);
         let v: Vec<char> = s.chars().collect();
         let tv_system = char_to_bool(&v[0]);
@@ -186,7 +186,7 @@ pub struct Flags10 {
 }
 
 impl Flags10 {
-    pub fn parse_buf(num: &u8) -> Self {
+    fn parse_buf(num: &u8) -> Self {
         let s = format!("{:08b}", num);
         let v: Vec<char> = s.chars().collect();
         let tv_system = chars_to_u32(&v[0..=1].to_vec());
@@ -212,32 +212,5 @@ impl Nes {
         f.read_to_end(&mut buffer).unwrap();
         let header = Header::new(&buffer);
         Self { header }
-    }
-
-    pub fn read_sprites(&self) -> Sprites {
-        let mut sprites = Vec::new();
-        for n in 0..self.header.info.sprites_num {
-            let mut sprite = vec![vec![0; 8]; 8];
-            for i in 0..16 {
-                let val_str = self.header.info.chr_rom[(n * 16 + i) as usize];
-                let h = i / 8;
-                sprite[(i % 8) as usize] = sprite[(i % 8) as usize]
-                    .clone()
-                    .into_iter()
-                    .enumerate()
-                    .map(|(idx, x)| {
-                        let n = format!("{:08b}", val_str)
-                            .chars()
-                            .nth(idx)
-                            .unwrap()
-                            .to_digit(2)
-                            .unwrap();
-                        x + (n << (0x1 * h))
-                    })
-                    .collect::<Vec<_>>();
-            }
-            sprites.push(sprite);
-        }
-        sprites
     }
 }
