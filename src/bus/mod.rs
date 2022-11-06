@@ -25,7 +25,7 @@ impl Default for Bus {
 }
 
 impl Bus {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             cpu_bus: CpuMap::default(),
             ppu: PPU::default(),
