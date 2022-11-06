@@ -7,15 +7,18 @@ Toy nes emulator implemented with pure rust.
 cargo run roms/hello-world.nes
 ```
 
-- If wanna show sprites.
+- If wanna show sprites, use option of `show_sprites`
 
 ``` rust
 cargo run show_sprites roms/hello-world.nes
 ```
 
+Another roms locate roms directory.
+
 ## Tests
 
+I use nestest for cpu tests.
 ``` rust
-cargo test
+cargo run roms/nestest.nes
 ```
 
