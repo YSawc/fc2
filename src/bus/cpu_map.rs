@@ -164,7 +164,7 @@ impl Mapper for CpuMap {
             0x2000..=0x2007 => unreachable!(),
             0x2008..=0x3FFF => self.ppu_register_mirror[(n - 0x2008) as usize],
             0x4000..=0x4017 => self.rp2a03.addr(n),
-            0x4018..=0x401F => self.func_apu_io[(n - 0x4017) as usize],
+            0x4018..=0x401F => self.func_apu_io[(n - 0x4018) as usize],
             0x4020..=0x5FFF => self.erom[(n - 0x4020) as usize],
             0x6000..=0x7FFF => self.eram[(n - 0x6000) as usize],
             0x8000..=0xBFFF => self.prg_rom1[(n - 0x8000) as usize],
