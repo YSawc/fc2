@@ -1,5 +1,9 @@
 Toy nes emulator implemented with pure rust.
 
+## dependencies
+
+- SDL2
+
 ## Samples
 
 - Show hello world!

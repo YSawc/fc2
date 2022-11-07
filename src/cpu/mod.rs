@@ -79,12 +79,12 @@ impl CPU {
         ope_reserved! {
             0x00 => (OpeKind::Brk, AddrMode::Impl),
             0x01 => (OpeKind::Ora, AddrMode::IndX),
-            0x02 => (OpeKind::Kil, AddrMode::Nop),
-            0x03 => (OpeKind::Slo, AddrMode::ZpX),
+            0x02 => (OpeKind::Kil, AddrMode::Impl),
+            0x03 => (OpeKind::Slo, AddrMode::IndX),
             0x04 => (OpeKind::Dop, AddrMode::Zp),
             0x05 => (OpeKind::Ora, AddrMode::Zp),
             0x06 => (OpeKind::Asl, AddrMode::Zp),
-            0x07 => (OpeKind::Slo, AddrMode::ZpX),
+            0x07 => (OpeKind::Slo, AddrMode::Zp),
             0x08 => (OpeKind::Php, AddrMode::Impl),
             0x09 => (OpeKind::Ora, AddrMode::Imm),
             0x0A => (OpeKind::Asl, AddrMode::Acc),
@@ -96,8 +96,8 @@ impl CPU {
 
             0x10 => (OpeKind::Bpl, AddrMode::Rel),
             0x11 => (OpeKind::Ora, AddrMode::IndY),
-            0x12 => (OpeKind::Kil, AddrMode::Nop),
-            0x13 => (OpeKind::Slo, AddrMode::ZpY),
+            0x12 => (OpeKind::Kil, AddrMode::Impl),
+            0x13 => (OpeKind::Slo, AddrMode::IndY),
             0x14 => (OpeKind::Dop, AddrMode::ZpX),
             0x15 => (OpeKind::Ora, AddrMode::ZpX),
             0x16 => (OpeKind::Asl, AddrMode::ZpX),
@@ -113,12 +113,12 @@ impl CPU {
 
             0x20 => (OpeKind::Jsr, AddrMode::Abs),
             0x21 => (OpeKind::And, AddrMode::IndX),
-            0x22 => (OpeKind::Kil, AddrMode::Nop),
-            0x23 => (OpeKind::Rla, AddrMode::ZpX),
+            0x22 => (OpeKind::Kil, AddrMode::Impl),
+            0x23 => (OpeKind::Rla, AddrMode::IndX),
             0x24 => (OpeKind::Bit, AddrMode::Zp),
             0x25 => (OpeKind::And, AddrMode::Zp),
             0x26 => (OpeKind::Rol, AddrMode::Zp),
-            0x27 => (OpeKind::Nop, AddrMode::Nop),
+            0x27 => (OpeKind::Rla, AddrMode::Zp),
             0x28 => (OpeKind::Plp, AddrMode::Impl),
             0x29 => (OpeKind::And, AddrMode::Imm),
             0x2A => (OpeKind::Rol, AddrMode::Acc),
@@ -130,12 +130,12 @@ impl CPU {
 
             0x30 => (OpeKind::Bmi, AddrMode::Rel),
             0x31 => (OpeKind::And, AddrMode::IndY),
-            0x32 => (OpeKind::Kil, AddrMode::Nop),
-            0x33 => (OpeKind::Rla, AddrMode::Nop),
+            0x32 => (OpeKind::Kil, AddrMode::Impl),
+            0x33 => (OpeKind::Rla, AddrMode::IndY),
             0x34 => (OpeKind::Dop, AddrMode::ZpX),
             0x35 => (OpeKind::And, AddrMode::ZpX),
             0x36 => (OpeKind::Rol, AddrMode::ZpX),
-            0x37 => (OpeKind::Nop, AddrMode::Nop),
+            0x37 => (OpeKind::Rla, AddrMode::ZpX),
             0x38 => (OpeKind::Sec, AddrMode::Impl),
             0x39 => (OpeKind::And, AddrMode::AbsY),
             0x3A => (OpeKind::Nop, AddrMode::Nop),
@@ -147,12 +147,12 @@ impl CPU {
 
             0x40 => (OpeKind::Rti, AddrMode::Impl),
             0x41 => (OpeKind::Eor, AddrMode::IndX),
-            0x42 => (OpeKind::Kil, AddrMode::Nop),
-            0x43 => (OpeKind::Sre, AddrMode::ZpY),
-            0x44 => (OpeKind::Dcp, AddrMode::Zp),
+            0x42 => (OpeKind::Kil, AddrMode::Impl),
+            0x43 => (OpeKind::Sre, AddrMode::IndX),
+            0x44 => (OpeKind::Dop, AddrMode::Zp),
             0x45 => (OpeKind::Eor, AddrMode::Zp),
             0x46 => (OpeKind::Lsr, AddrMode::Zp),
-            0x47 => (OpeKind::Nop, AddrMode::Nop),
+            0x47 => (OpeKind::Sre, AddrMode::Zp),
             0x48 => (OpeKind::Pha, AddrMode::Impl),
             0x49 => (OpeKind::Eor, AddrMode::Imm),
             0x4A => (OpeKind::Lsr, AddrMode::Acc),
@@ -164,29 +164,29 @@ impl CPU {
 
             0x50 => (OpeKind::Bvc, AddrMode::Rel),
             0x51 => (OpeKind::Eor, AddrMode::IndY),
-            0x52 => (OpeKind::Kil, AddrMode::Nop),
-            0x53 => (OpeKind::Sre, AddrMode::ZpY),
+            0x52 => (OpeKind::Kil, AddrMode::Impl),
+            0x53 => (OpeKind::Sre, AddrMode::IndY),
             0x54 => (OpeKind::Dop, AddrMode::ZpX),
             0x55 => (OpeKind::Eor, AddrMode::ZpX),
             0x56 => (OpeKind::Lsr, AddrMode::ZpX),
-            0x57 => (OpeKind::Nop, AddrMode::Nop),
+            0x57 => (OpeKind::Sre, AddrMode::ZpX),
             0x58 => (OpeKind::Cli, AddrMode::Impl),
             0x59 => (OpeKind::Eor, AddrMode::AbsY),
             0x5A => (OpeKind::Nop, AddrMode::Nop),
             0x5B => (OpeKind::Sre, AddrMode::AbsY),
-            0x5C => (OpeKind::Nop, AddrMode::AbsX),
+            0x5C => (OpeKind::Top, AddrMode::AbsX),
             0x5D => (OpeKind::Eor, AddrMode::AbsX),
             0x5E => (OpeKind::Lsr, AddrMode::AbsX),
             0x5F => (OpeKind::Sre, AddrMode::AbsX),
 
             0x60 => (OpeKind::Rts, AddrMode::Impl),
             0x61 => (OpeKind::Adc, AddrMode::IndX),
-            0x62 => (OpeKind::Kil, AddrMode::Nop),
-            0x63 => (OpeKind::Rra, AddrMode::ZpX),
+            0x62 => (OpeKind::Kil, AddrMode::Impl),
+            0x63 => (OpeKind::Rra, AddrMode::IndX),
             0x64 => (OpeKind::Dop, AddrMode::Zp),
             0x65 => (OpeKind::Adc, AddrMode::Zp),
             0x66 => (OpeKind::Ror, AddrMode::Zp),
-            0x67 => (OpeKind::Nop, AddrMode::Nop),
+            0x67 => (OpeKind::Rra, AddrMode::Zp),
             0x68 => (OpeKind::Pla, AddrMode::Impl),
             0x69 => (OpeKind::Adc, AddrMode::Imm),
             0x6A => (OpeKind::Ror, AddrMode::Acc),
@@ -198,12 +198,12 @@ impl CPU {
 
             0x70 => (OpeKind::Bvs, AddrMode::Rel),
             0x71 => (OpeKind::Adc, AddrMode::IndY),
-            0x72 => (OpeKind::Kil, AddrMode::Nop),
-            0x73 => (OpeKind::Rra, AddrMode::ZpX),
+            0x72 => (OpeKind::Kil, AddrMode::Impl),
+            0x73 => (OpeKind::Rra, AddrMode::IndY),
             0x74 => (OpeKind::Dop, AddrMode::ZpX),
             0x75 => (OpeKind::Adc, AddrMode::ZpX),
             0x76 => (OpeKind::Ror, AddrMode::ZpX),
-            0x77 => (OpeKind::Nop, AddrMode::Nop),
+            0x77 => (OpeKind::Rra, AddrMode::ZpX),
             0x78 => (OpeKind::Sei, AddrMode::Impl),
             0x79 => (OpeKind::Adc, AddrMode::AbsY),
             0x7A => (OpeKind::Nop, AddrMode::Nop),
@@ -216,11 +216,11 @@ impl CPU {
             0x80 => (OpeKind::Dop, AddrMode::Imm),
             0x81 => (OpeKind::Sta, AddrMode::IndX),
             0x82 => (OpeKind::Dop, AddrMode::Imm),
-            0x83 => (OpeKind::Aax, AddrMode::ZpX),
+            0x83 => (OpeKind::Sax, AddrMode::IndX),
             0x84 => (OpeKind::Sty, AddrMode::Zp),
             0x85 => (OpeKind::Sta, AddrMode::Zp),
             0x86 => (OpeKind::Stx, AddrMode::Zp),
-            0x87 => (OpeKind::Nop, AddrMode::Nop),
+            0x87 => (OpeKind::Sax, AddrMode::Zp),
             0x88 => (OpeKind::Dey, AddrMode::Impl),
             0x89 => (OpeKind::Dop, AddrMode::Imm),
             0x8A => (OpeKind::Txa, AddrMode::Impl),
@@ -228,16 +228,16 @@ impl CPU {
             0x8C => (OpeKind::Sty, AddrMode::Abs),
             0x8D => (OpeKind::Sta, AddrMode::Abs),
             0x8E => (OpeKind::Stx, AddrMode::Abs),
-            0x8F => (OpeKind::Aax, AddrMode::Abs),
+            0x8F => (OpeKind::Sax, AddrMode::Abs),
 
             0x90 => (OpeKind::Bcc, AddrMode::Rel),
             0x91 => (OpeKind::Sta, AddrMode::IndY),
-            0x92 => (OpeKind::Kil, AddrMode::Nop),
+            0x92 => (OpeKind::Kil, AddrMode::Impl),
             0x93 => (OpeKind::Axa, AddrMode::ZpY),
             0x94 => (OpeKind::Sty, AddrMode::ZpX),
             0x95 => (OpeKind::Sta, AddrMode::ZpX),
             0x96 => (OpeKind::Stx, AddrMode::ZpY),
-            0x97 => (OpeKind::Nop, AddrMode::Nop),
+            0x97 => (OpeKind::Sax, AddrMode::ZpY),
             0x98 => (OpeKind::Tya, AddrMode::Impl),
             0x99 => (OpeKind::Sta, AddrMode::AbsY),
             0x9A => (OpeKind::Txs, AddrMode::Impl),
@@ -250,15 +250,15 @@ impl CPU {
             0xA0 => (OpeKind::Ldy, AddrMode::Imm),
             0xA1 => (OpeKind::Lda, AddrMode::IndX),
             0xA2 => (OpeKind::Ldx, AddrMode::Imm),
-            0xA3 => (OpeKind::Lax, AddrMode::ZpX),
+            0xA3 => (OpeKind::Lax, AddrMode::IndX),
             0xA4 => (OpeKind::Ldy, AddrMode::Zp),
             0xA5 => (OpeKind::Lda, AddrMode::Zp),
             0xA6 => (OpeKind::Ldx, AddrMode::Zp),
-            0xA7 => (OpeKind::Nop, AddrMode::Nop),
+            0xA7 => (OpeKind::Lax, AddrMode::Zp),
             0xA8 => (OpeKind::Tay, AddrMode::Impl),
             0xA9 => (OpeKind::Lda, AddrMode::Imm),
             0xAA => (OpeKind::Tax, AddrMode::Impl),
-            0xAB => (OpeKind::Atx, AddrMode::Imm),
+            0xAB => (OpeKind::Lxa, AddrMode::Imm),
             0xAC => (OpeKind::Ldy, AddrMode::Abs),
             0xAD => (OpeKind::Lda, AddrMode::Abs),
             0xAE => (OpeKind::Ldx, AddrMode::Abs),
@@ -266,16 +266,16 @@ impl CPU {
 
             0xB0 => (OpeKind::Bcs, AddrMode::Rel),
             0xB1 => (OpeKind::Lda, AddrMode::IndY),
-            0xB2 => (OpeKind::Kil, AddrMode::Nop),
-            0xB3 => (OpeKind::Lax, AddrMode::ZpY),
+            0xB2 => (OpeKind::Kil, AddrMode::Impl),
+            0xB3 => (OpeKind::Lax, AddrMode::IndY),
             0xB4 => (OpeKind::Ldy, AddrMode::ZpX),
             0xB5 => (OpeKind::Lda, AddrMode::ZpX),
             0xB6 => (OpeKind::Ldx, AddrMode::ZpY),
-            0xB7 => (OpeKind::Nop, AddrMode::Nop),
+            0xB7 => (OpeKind::Lax, AddrMode::ZpY),
             0xB8 => (OpeKind::Clv, AddrMode::Impl),
             0xB9 => (OpeKind::Lda, AddrMode::AbsY),
             0xBA => (OpeKind::Tsx, AddrMode::Impl),
-            0xBB => (OpeKind::Lar, AddrMode::AbsY),
+            0xBB => (OpeKind::Las, AddrMode::AbsY),
             0xBC => (OpeKind::Ldy, AddrMode::AbsX),
             0xBD => (OpeKind::Lda, AddrMode::AbsX),
             0xBE => (OpeKind::Ldx, AddrMode::AbsY),
@@ -284,11 +284,11 @@ impl CPU {
             0xC0 => (OpeKind::Cpy, AddrMode::Imm),
             0xC1 => (OpeKind::Cmp, AddrMode::IndX),
             0xC2 => (OpeKind::Dop, AddrMode::Imm),
-            0xC3 => (OpeKind::Nop, AddrMode::Nop),
+            0xC3 => (OpeKind::Dcp, AddrMode::IndX),
             0xC4 => (OpeKind::Cpy, AddrMode::Zp),
             0xC5 => (OpeKind::Cmp, AddrMode::Zp),
             0xC6 => (OpeKind::Dec, AddrMode::Zp),
-            0xC7 => (OpeKind::Nop, AddrMode::Nop),
+            0xC7 => (OpeKind::Dcp, AddrMode::Zp),
             0xC8 => (OpeKind::Iny, AddrMode::Impl),
             0xC9 => (OpeKind::Cmp, AddrMode::Imm),
             0xCA => (OpeKind::Dex, AddrMode::Impl),
@@ -300,12 +300,12 @@ impl CPU {
 
             0xD0 => (OpeKind::Bne, AddrMode::Rel),
             0xD1 => (OpeKind::Cmp, AddrMode::IndY),
-            0xD2 => (OpeKind::Kil, AddrMode::Nop),
-            0xD3 => (OpeKind::Dcp, AddrMode::ZpY),
+            0xD2 => (OpeKind::Kil, AddrMode::Impl),
+            0xD3 => (OpeKind::Dcp, AddrMode::IndY),
             0xD4 => (OpeKind::Dop, AddrMode::ZpX),
             0xD5 => (OpeKind::Cmp, AddrMode::ZpX),
             0xD6 => (OpeKind::Dec, AddrMode::ZpX),
-            0xD7 => (OpeKind::Nop, AddrMode::Nop),
+            0xD7 => (OpeKind::Dcp, AddrMode::ZpX),
             0xD8 => (OpeKind::Cld, AddrMode::Impl),
             0xD9 => (OpeKind::Cmp, AddrMode::AbsY),
             0xDA => (OpeKind::Nop, AddrMode::Nop),
@@ -318,11 +318,11 @@ impl CPU {
             0xE0 => (OpeKind::Cpx, AddrMode::Imm),
             0xE1 => (OpeKind::Sbc, AddrMode::IndX),
             0xE2 => (OpeKind::Dop, AddrMode::Imm),
-            0xE3 => (OpeKind::Isc, AddrMode::ZpX),
+            0xE3 => (OpeKind::Isb, AddrMode::IndX),
             0xE4 => (OpeKind::Cpx, AddrMode::Zp),
             0xE5 => (OpeKind::Sbc, AddrMode::Zp),
             0xE6 => (OpeKind::Inc, AddrMode::Zp),
-            0xE7 => (OpeKind::Nop, AddrMode::Nop),
+            0xE7 => (OpeKind::Isb, AddrMode::Zp),
             0xE8 => (OpeKind::Inx, AddrMode::Impl),
             0xE9 => (OpeKind::Sbc, AddrMode::Imm),
             0xEA => (OpeKind::Nop, AddrMode::Impl),
@@ -330,24 +330,24 @@ impl CPU {
             0xEC => (OpeKind::Cpx, AddrMode::Abs),
             0xED => (OpeKind::Sbc, AddrMode::Abs),
             0xEE => (OpeKind::Inc, AddrMode::Abs),
-            0xEF => (OpeKind::Isc, AddrMode::Abs),
+            0xEF => (OpeKind::Isb, AddrMode::Abs),
 
             0xF0 => (OpeKind::Beq, AddrMode::Rel),
             0xF1 => (OpeKind::Sbc, AddrMode::IndY),
-            0xF2 => (OpeKind::Kil, AddrMode::Nop),
-            0xF3 => (OpeKind::Isc, AddrMode::ZpY),
+            0xF2 => (OpeKind::Kil, AddrMode::Impl),
+            0xF3 => (OpeKind::Isb, AddrMode::IndY),
             0xF4 => (OpeKind::Dop, AddrMode::ZpX),
             0xF5 => (OpeKind::Sbc, AddrMode::ZpX),
             0xF6 => (OpeKind::Inc, AddrMode::ZpX),
-            0xF7 => (OpeKind::Nop, AddrMode::Nop),
+            0xF7 => (OpeKind::Isb, AddrMode::ZpX),
             0xF8 => (OpeKind::Sed, AddrMode::Impl),
             0xF9 => (OpeKind::Sbc, AddrMode::AbsY),
             0xFA => (OpeKind::Nop, AddrMode::Nop),
-            0xFB => (OpeKind::Isc, AddrMode::AbsY),
+            0xFB => (OpeKind::Isb, AddrMode::AbsY),
             0xFC => (OpeKind::Top, AddrMode::AbsX),
             0xFD => (OpeKind::Sbc, AddrMode::AbsX),
             0xFE => (OpeKind::Inc, AddrMode::AbsX),
-            0xFF => (OpeKind::Isc, AddrMode::AbsX)
+            0xFF => (OpeKind::Isb, AddrMode::AbsX)
         };
         self.operators = operators;
     }
@@ -400,11 +400,6 @@ impl CPU {
             Interrupt::Brk => unimplemented!(),
         }
     }
-
-    // MEMO: use for nestest.nes
-    // pub fn reset(&mut self) {
-    //     self.register.set_pc(0, 0xc0);
-    // }
 
     pub fn reset(&mut self) {
         let l = self.bus.addr(0xFFFC);
@@ -562,6 +557,12 @@ impl CPU {
 
     fn fetch_next_register(&mut self) -> u8 {
         let pc = self.get_pc().wrapping_add(1);
+        self.bus.addr(pc)
+    }
+
+    #[allow(dead_code)]
+    fn fetch_next_next_register(&mut self) -> u8 {
+        let pc = self.get_pc().wrapping_add(2);
         self.bus.addr(pc)
     }
 
@@ -745,7 +746,7 @@ impl CPU {
         }
     }
 
-    fn get_addr_for_mixed_imm_mode(&mut self, r: u16, addr_mode: AddrMode) -> u16 {
+    fn get_addr_for_mixed_imm_mode(&mut self, r: u16, addr_mode: &AddrMode) -> u16 {
         let imm = matches!(addr_mode, AddrMode::Imm);
         if imm {
             r
@@ -789,21 +790,21 @@ impl CPU {
         n
     }
 
-    fn adc(&mut self, r: u16, addr_mode: AddrMode) {
+    fn adc(&mut self, r: u16, addr_mode: &AddrMode) {
         let m = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u16;
         let n = self.sign_plus(self.get_a(), m as u8);
         self.set_a(n);
         self.set_nz(self.get_a());
     }
 
-    fn sbc(&mut self, r: u16, addr_mode: AddrMode) {
+    fn sbc(&mut self, r: u16, addr_mode: &AddrMode) {
         let m = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u16;
         let n = self.sign_minus(self.get_a(), m as u8);
         self.set_a(n);
         self.set_nz(self.get_a());
     }
 
-    fn and(&mut self, r: u16, addr_mode: AddrMode) {
+    fn and(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
         let mut a = self.get_a();
         a &= r;
@@ -811,7 +812,7 @@ impl CPU {
         self.set_nz(a);
     }
 
-    fn ora(&mut self, r: u16, addr_mode: AddrMode) {
+    fn ora(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
         let mut a = self.get_a();
         a |= r;
@@ -819,7 +820,7 @@ impl CPU {
         self.set_nz(a);
     }
 
-    fn eor(&mut self, r: u16, addr_mode: AddrMode) {
+    fn eor(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
         let mut a = self.get_a();
         a ^= r;
@@ -827,7 +828,7 @@ impl CPU {
         self.set_nz(a);
     }
 
-    fn asl(&mut self, r: u16, addr_mode: AddrMode) {
+    fn asl(&mut self, r: u16, addr_mode: &AddrMode) {
         match addr_mode {
             AddrMode::Acc => {
                 let mut a = r as u8;
@@ -846,7 +847,7 @@ impl CPU {
         }
     }
 
-    fn lsr(&mut self, r: u16, addr_mode: AddrMode) {
+    fn lsr(&mut self, r: u16, addr_mode: &AddrMode) {
         match addr_mode {
             AddrMode::Acc => {
                 let mut a = r as u8;
@@ -865,7 +866,7 @@ impl CPU {
         }
     }
 
-    fn rol(&mut self, r: u16, addr_mode: AddrMode) {
+    fn rol(&mut self, r: u16, addr_mode: &AddrMode) {
         match addr_mode {
             AddrMode::Acc => {
                 let mut a = r as u8;
@@ -888,7 +889,7 @@ impl CPU {
         }
     }
 
-    fn ror(&mut self, r: u16, addr_mode: AddrMode) {
+    fn ror(&mut self, r: u16, addr_mode: &AddrMode) {
         match addr_mode {
             AddrMode::Acc => {
                 let mut a = r as u8;
@@ -966,14 +967,14 @@ impl CPU {
         self.set_overflow((v & 0b01000000) != 0);
     }
 
-    fn cmp(&mut self, r: u16, addr_mode: AddrMode) {
+    fn cmp(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode);
         let (m, f) = self.get_a().overflowing_sub(r as u8);
         self.set_nz(m as u8);
         self.set_carry(!f);
     }
 
-    fn cpx(&mut self, r: u16, addr_mode: AddrMode) {
+    fn cpx(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
         let x = self.get_x();
         self.set_carry(x >= r);
@@ -981,7 +982,7 @@ impl CPU {
         let n = self.get_x().wrapping_sub(r);
         self.set_negative((n & 0b10000000) != 0);
     }
-    fn cpy(&mut self, r: u16, addr_mode: AddrMode) {
+    fn cpy(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
         let y = self.get_y();
         self.set_carry(y >= r);
@@ -1042,18 +1043,18 @@ impl CPU {
     fn clv(&mut self) {
         self.set_overflow(false)
     }
-    fn lda(&mut self, r: u16, addr_mode: AddrMode) {
+    fn lda(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
         self.set_a(r);
         self.set_nz(self.get_a());
     }
-    fn ldx(&mut self, r: u16, addr_mode: AddrMode) {
+    fn ldx(&mut self, r: u16, addr_mode: &AddrMode) {
         let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
         self.set_x(r);
         self.set_nz(self.get_x());
     }
-    fn ldy(&mut self, r: u16, addr_mode: AddrMode) {
-        let r = self.get_addr_for_mixed_imm_mode(r, addr_mode) as u8;
+    fn ldy(&mut self, r: u16, addr_mode: &AddrMode) {
+        let r = self.get_addr_for_mixed_imm_mode(r, &addr_mode) as u8;
         self.set_y(r);
         self.set_nz(self.get_y());
     }
@@ -1146,17 +1147,64 @@ impl CPU {
         self.set_p(p);
     }
 
+    fn lax(&mut self, r: u16, addr_mode: &AddrMode) {
+        self.lda(r, addr_mode);
+        self.ldx(r, addr_mode);
+    }
+
+    fn lxa(&mut self, _r: u16, _addr_mode: &AddrMode) {
+        unimplemented!()
+    }
+
+    fn sax(&mut self, r: u16) {
+        self.bus_set(r, self.get_a() & self.get_x());
+    }
+
+    fn dcp(&mut self, r: u16, addr_mode: &AddrMode) {
+        self.dec(r);
+        self.cmp(r, addr_mode);
+    }
+
+    fn isb(&mut self, r: u16, addr_mode: &AddrMode) {
+        self.inc(r);
+        self.sbc(r, addr_mode);
+    }
+
+    fn slo(&mut self, r: u16, addr_mode: &AddrMode) {
+        self.asl(r, addr_mode);
+        self.ora(r, addr_mode);
+    }
+
+    fn rla(&mut self, r: u16, addr_mode: &AddrMode) {
+        self.rol(r, addr_mode);
+        self.and(r, addr_mode);
+    }
+
+    fn sre(&mut self, r: u16, addr_mode: &AddrMode) {
+        self.lsr(r, addr_mode);
+        self.eor(r, addr_mode);
+    }
+
+    fn rra(&mut self, r: u16, addr_mode: &AddrMode) {
+        self.ror(r, addr_mode);
+        self.adc(r, addr_mode);
+    }
+
+    fn kil(&self) {
+        panic!()
+    }
+
     fn run_ope(&mut self, r: u16, opekind: OpeKind, addr_mode: AddrMode) {
         match opekind {
-            OpeKind::Adc => self.adc(r, addr_mode),
-            OpeKind::Sbc => self.sbc(r, addr_mode),
-            OpeKind::And => self.and(r, addr_mode),
-            OpeKind::Ora => self.ora(r, addr_mode),
-            OpeKind::Eor => self.eor(r, addr_mode),
-            OpeKind::Asl => self.asl(r, addr_mode),
-            OpeKind::Lsr => self.lsr(r, addr_mode),
-            OpeKind::Rol => self.rol(r, addr_mode),
-            OpeKind::Ror => self.ror(r, addr_mode),
+            OpeKind::Adc => self.adc(r, &addr_mode),
+            OpeKind::Sbc => self.sbc(r, &addr_mode),
+            OpeKind::And => self.and(r, &addr_mode),
+            OpeKind::Ora => self.ora(r, &addr_mode),
+            OpeKind::Eor => self.eor(r, &addr_mode),
+            OpeKind::Asl => self.asl(r, &addr_mode),
+            OpeKind::Lsr => self.lsr(r, &addr_mode),
+            OpeKind::Rol => self.rol(r, &addr_mode),
+            OpeKind::Ror => self.ror(r, &addr_mode),
             OpeKind::Bcc => self.bcc(r),
             OpeKind::Bcs => self.bcs(r),
             OpeKind::Beq => self.beq(r),
@@ -1166,9 +1214,9 @@ impl CPU {
             OpeKind::Bpl => self.bpl(r),
             OpeKind::Bmi => self.bmi(r),
             OpeKind::Bit => self.bit(r),
-            OpeKind::Cmp => self.cmp(r, addr_mode),
-            OpeKind::Cpx => self.cpx(r, addr_mode),
-            OpeKind::Cpy => self.cpy(r, addr_mode),
+            OpeKind::Cmp => self.cmp(r, &addr_mode),
+            OpeKind::Cpx => self.cpx(r, &addr_mode),
+            OpeKind::Cpy => self.cpy(r, &addr_mode),
             OpeKind::Inc => self.inc(r),
             OpeKind::Dec => self.dec(r),
             OpeKind::Inx => self.inx(),
@@ -1182,9 +1230,9 @@ impl CPU {
             OpeKind::Cld => self.cld(),
             OpeKind::Sed => self.sed(),
             OpeKind::Clv => self.clv(),
-            OpeKind::Lda => self.lda(r, addr_mode),
-            OpeKind::Ldx => self.ldx(r, addr_mode),
-            OpeKind::Ldy => self.ldy(r, addr_mode),
+            OpeKind::Lda => self.lda(r, &addr_mode),
+            OpeKind::Ldx => self.ldx(r, &addr_mode),
+            OpeKind::Ldy => self.ldy(r, &addr_mode),
             OpeKind::Sta => self.sta(r),
             OpeKind::Stx => self.stx(r),
             OpeKind::Sty => self.sty(r),
@@ -1203,8 +1251,18 @@ impl CPU {
             OpeKind::Rts => self.rts(),
             OpeKind::Brk => self.brk(),
             OpeKind::Rti => self.rti(),
-            OpeKind::Nop => (),
-            _ => (),
+            OpeKind::Lax => self.lax(r, &addr_mode),
+            OpeKind::Lxa => self.lxa(r, &addr_mode),
+            OpeKind::Sax => self.sax(r),
+            OpeKind::Dcp => self.dcp(r, &addr_mode),
+            OpeKind::Isb => self.isb(r, &addr_mode),
+            OpeKind::Slo => self.slo(r, &addr_mode),
+            OpeKind::Rla => self.rla(r, &addr_mode),
+            OpeKind::Sre => self.sre(r, &addr_mode),
+            OpeKind::Rra => self.rra(r, &addr_mode),
+            OpeKind::Kil => self.kil(),
+            OpeKind::Nop | OpeKind::Dop | OpeKind::Top => (),
+            _ => unimplemented!(),
         }
     }
 
