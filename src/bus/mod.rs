@@ -40,11 +40,10 @@ impl Bus {
 impl Mapper for Bus {
     fn addr(&mut self, n: u16) -> u8 {
         match n {
-            0x0000..=0x1FFF | 0x2008..=0x4015 | 0x4018..=0xFFFF => self.cpu_bus.addr(n),
-            0x2000..=0x2004 | 0x2007 => self.ppu.register.addr(n),
+            0x0000..=0x2004 | 0x2007..=0x4015 | 0x4018..=0xFFFF => self.cpu_bus.addr(n),
             0x2005..=0x2006 => {
-                let r = self.ppu.register.relative_addr(n);
-                self.ppu.map.addr(r)
+                let r = self.cpu_bus.ppu_register.relative_addr(n);
+                self.cpu_bus.addr(r)
             }
             0x4016 => {
                 let n = self.controller_0_polled_data & 0x1;
@@ -61,15 +60,14 @@ impl Mapper for Bus {
 
     fn set(&mut self, n: u16, r: u8) {
         match n {
-            0x0000..=0x1FFF | 0x2008..=0x4015 | 0x4018..=0xFFFF => self.cpu_bus.set(n, r),
-            0x2000..=0x2006 => self.ppu.register.set(n, r),
+            0x0000..=0x2006 | 0x2008..=0x4015 | 0x4018..=0xFFFF => self.cpu_bus.set(n, r),
             0x2007 => {
-                let n = self.ppu.register.ppu_addr.addr();
-                let inc = self.ppu.register.ppu_ctrl.increment_vram_num() as u16;
-                self.ppu.register.ppu_addr.addr += inc;
+                let n = self.cpu_bus.ppu_register.ppu_addr.addr();
+                let inc = self.cpu_bus.ppu_register.ppu_ctrl.increment_vram_num() as u16;
+                self.cpu_bus.ppu_register.ppu_addr.addr += inc;
                 self.ppu.map.set(n, r);
-                self.ppu.register.ppu_buffer +=
-                    self.ppu.register.ppu_ctrl.base_name_table_addr as u16;
+                self.cpu_bus.ppu_register.ppu_buffer +=
+                    self.cpu_bus.ppu_register.ppu_ctrl.base_name_table_addr as u16;
             }
             0x4016 => match r % 2 {
                 1 => {

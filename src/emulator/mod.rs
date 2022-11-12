@@ -142,7 +142,7 @@ impl Emulator {
                 Keycode::A => self.cpu.bus.controller_0_polling_data |= 0b00000001,
                 Keycode::B => self.cpu.bus.controller_0_polling_data |= 0b00000010,
                 Keycode::Space => self.cpu.bus.controller_0_polling_data |= 0b00000100,
-                Keycode::Z => self.cpu.bus.controller_0_polling_data |= 0b00001000,
+                Keycode::Return => self.cpu.bus.controller_0_polling_data |= 0b00001000,
                 Keycode::Up => self.cpu.bus.controller_0_polling_data |= 0b00010000,
                 Keycode::Down => self.cpu.bus.controller_0_polling_data |= 0b00100000,
                 Keycode::Left => self.cpu.bus.controller_0_polling_data |= 0b01000000,
@@ -177,7 +177,7 @@ impl Emulator {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VERTICAL_PIXEL {
                 self.draw_line(textures)?;
-                if self.cpu.bus.ppu.register.ppu_mask.show_sprites {
+                if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
                     self.prepare_secondary_oam();
                     self.draw_sprites_refed_secondary_oams(textures)?;
                 }
@@ -189,12 +189,12 @@ impl Emulator {
                 self.drawing_line += 1;
             }
             if self.is_just_in_vblank_line() {
-                self.cpu.bus.ppu.register.ppu_status.in_vlank = true;
-                if self.cpu.bus.ppu.register.ppu_ctrl.gen_nmi {
+                self.cpu.bus.cpu_bus.ppu_register.ppu_status.in_vlank = true;
+                if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.gen_nmi {
                     self.cpu.interrupt(Interrupt::Nmi);
                 }
             } else if self.drawing_line == 0 {
-                self.cpu.bus.ppu.register.ppu_status.in_vlank = false;
+                self.cpu.bus.cpu_bus.ppu_register.ppu_status.in_vlank = false;
                 self.cpu.set_interrupt(false);
             }
         }
@@ -223,7 +223,7 @@ impl Emulator {
         let ppu_map = &mut self.cpu.bus.ppu.map;
         let pallets = ppu_map.addr(attr_idx);
         let pallete_idx = ppu_map.addr(0x3F00 + (pallets & (0x1 << attr_arr_idx)) as u16);
-        let texture = if pallete_idx as usize <= textures.len() {
+        let texture = if (pallete_idx as usize) < textures.len() {
             &textures[pallete_idx as usize]
         } else {
             &textures[(pallete_idx as usize) - &textures.len()]
@@ -256,7 +256,7 @@ impl Emulator {
             let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
             let idx = high_idx << 1 | row_idx;
             let sprite_color_idx = ppu_map.addr(0x3F00 + idx);
-            let square_texture = if (sprite_color_idx as usize) <= textures.len() {
+            let square_texture = if (sprite_color_idx as usize) < textures.len() {
                 &textures[sprite_color_idx as usize]
             } else {
                 &textures[(sprite_color_idx as usize) - textures.len()]
@@ -325,7 +325,7 @@ impl Emulator {
                         let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
                         let idx = high_idx << 1 | row_idx;
                         let sprite_color_idx = ppu_map.addr(0x3F00 + idx);
-                        let square_texture = if sprite_color_idx as usize <= textures.len() {
+                        let square_texture = if (sprite_color_idx as usize) < textures.len() {
                             &textures[sprite_color_idx as usize]
                         } else {
                             &textures[(sprite_color_idx as usize) - textures.len()]

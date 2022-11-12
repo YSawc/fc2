@@ -1,15 +1,12 @@
 pub mod mapper;
 pub mod oam;
-pub mod register;
 
 use mapper::*;
 use oam::*;
-use register::*;
 
 #[derive(Debug, Clone)]
 pub struct PPU {
     pub map: Map,
-    pub register: Register,
     pub primary_oam: PrimaryOAM,
     pub secondary_oam: SecondaryOAM,
 }
@@ -24,7 +21,6 @@ impl PPU {
     fn new() -> Self {
         Self {
             map: Map::default(),
-            register: Register::default(),
             primary_oam: PrimaryOAM::default(),
             secondary_oam: SecondaryOAM::default(),
         }
