@@ -216,6 +216,7 @@ impl Emulator {
         let i1 = y / 8;
         let i2 = y % 8;
         let ppu_map = &mut self.cpu.bus.ppu.map;
+        let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
 
         let sprite_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + x);
         let sprite_row = ppu_map.addr((sprite_idx as u16 * 0x10) as u16 + i2);
@@ -224,7 +225,11 @@ impl Emulator {
             let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
             let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
             let idx = high_idx << 1 | row_idx;
-            let sprite_color_idx = ppu_map.background_table[idx as usize];
+            let mut sprite_color_idx = ppu_map.background_table[idx as usize];
+            if ppu_mask.gray_scale {
+                sprite_color_idx &= 0b11110000;
+            }
+
             let square_texture = if (sprite_color_idx as usize) < textures.len() {
                 &textures[sprite_color_idx as usize]
             } else {
@@ -283,6 +288,7 @@ impl Emulator {
                 }) => {
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let ppu_ctrl = &self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl;
+                    let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
                     let base_addr = tile_index.bank_of_tile as u16 * 0x1000
                         + ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
                         + (tile_index.tile_number as u16) * 0x10
@@ -294,7 +300,11 @@ impl Emulator {
                         let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
                         let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
                         let idx = high_idx << 1 | row_idx;
-                        let sprite_color_idx = ppu_map.sprite_pallet[idx as usize];
+                        let mut sprite_color_idx = ppu_map.sprite_pallet[idx as usize];
+                        if ppu_mask.gray_scale {
+                            sprite_color_idx &= 0b11110000;
+                        }
+
                         let square_texture = if (sprite_color_idx as usize) < textures.len() {
                             &textures[sprite_color_idx as usize]
                         } else {

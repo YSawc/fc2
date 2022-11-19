@@ -159,7 +159,7 @@ pub struct PpuMask {
     show_background: bool,
     show_sprites_in_leftmost: bool,
     show_background_in_leftmost: bool,
-    gray_scale: bool,
+    pub gray_scale: bool,
 }
 
 impl Default for PpuMask {
