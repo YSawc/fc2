@@ -587,6 +587,16 @@ impl CPU {
         self.bus.addr(r)
     }
 
+    pub fn push_oam(&mut self) {
+        let r = self.bus.addr(0x2004);
+        self.bus.ppu.oam_buf.push(r);
+        if self.bus.ppu.oam_buf.len() == 4 {
+            let data = &self.bus.ppu.oam_buf;
+            self.bus.ppu.primary_oam.push_sprite_info(data);
+            self.bus.ppu.oam_buf = vec![];
+        }
+    }
+
     fn set_oam(&mut self) {
         self.cycle += 513;
         if self.cycle % 2 != 0 {
@@ -605,9 +615,8 @@ impl CPU {
     fn bus_set(&mut self, n: u16, r: u8) {
         self.bus.set(n, r);
         match n {
-            0x4014 => {
-                self.set_oam();
-            }
+            0x2004 => self.push_oam(),
+            0x4014 => self.set_oam(),
             _ => (),
         }
     }

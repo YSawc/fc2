@@ -9,6 +9,7 @@ pub struct PPU {
     pub map: Map,
     pub primary_oam: PrimaryOAM,
     pub secondary_oam: SecondaryOAM,
+    pub oam_buf: Vec<u8>,
 }
 
 impl Default for PPU {
@@ -23,6 +24,7 @@ impl PPU {
             map: Map::default(),
             primary_oam: PrimaryOAM::default(),
             secondary_oam: SecondaryOAM::default(),
+            oam_buf: vec![],
         }
     }
 
@@ -37,9 +39,5 @@ impl PPU {
             }
         }
         self.secondary_oam.sprite_infos = sprite_infos;
-        // println!(
-        //     "secondary_oams: {:0x?}, y: {:0x?}",
-        //     self.secondary_oam.sprite_infos, y
-        // );
     }
 }

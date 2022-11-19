@@ -96,7 +96,7 @@ pub struct PpuCtrl {
     ppu_selector: bool,
     sprite_size: bool,
     pub bk_table_addr: bool,
-    sprite_ptn_table_addr: bool,
+    pub sprite_ptn_table_addr: bool,
     vram_increment: bool,
     pub base_name_table_addr: u8,
 }

@@ -18,6 +18,22 @@ impl PrimaryOAM {
         Self { sprite_infos }
     }
 
+    pub fn push_sprite_info(&mut self, data: &Vec<u8>) {
+        let mut tile_index = TileIndex::default();
+        tile_index.set(data[1]);
+        let mut attr = Attr::default();
+        attr.set(data[2]);
+
+        let sprite_info = SpriteInfo {
+            pos_y: data[0],
+            tile_index,
+            attr,
+            pos_x: data[3],
+        };
+
+        self.sprite_infos.push(sprite_info);
+    }
+
     pub fn set_sprite_infos(&mut self, v: Vec<u8>) {
         let mut sprite_infos: SpriteInfos = vec![];
         for i in 0..63 {

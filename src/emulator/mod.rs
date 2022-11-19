@@ -201,10 +201,6 @@ impl Emulator {
         Ok(())
     }
 
-    fn clear_secondary_oam(&mut self) {
-        self.cpu.bus.ppu.secondary_oam.clear_sprite_infos();
-    }
-
     fn set_secondary_oam(&mut self) {
         self.cpu
             .bus
@@ -213,34 +209,7 @@ impl Emulator {
     }
 
     fn prepare_secondary_oam(&mut self) {
-        self.clear_secondary_oam();
         self.set_secondary_oam();
-    }
-
-    fn draw_backgraund_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
-        let attr_idx = (0x23C0 + (x / 4) + (y / 32) * 8) as u16;
-        let attr_arr_idx = ((x / 2) % 2) | (((y / 16) % 2) << 1);
-        let ppu_map = &mut self.cpu.bus.ppu.map;
-        let pallets = ppu_map.addr(attr_idx);
-        let pallete_idx = ppu_map.addr(0x3F00 + (pallets & (0x1 << attr_arr_idx)) as u16);
-        let texture = if (pallete_idx as usize) < textures.len() {
-            &textures[pallete_idx as usize]
-        } else {
-            &textures[(pallete_idx as usize) - &textures.len()]
-        };
-
-        self.canvas.copy(
-            texture,
-            None,
-            Rect::new(
-                (x as u32 * SQUARE_SIZE) as i32,
-                (self.drawing_line) as i32,
-                SPRITE_SIZE,
-                SPRITE_SIZE,
-            ),
-        )?;
-
-        Ok(())
     }
 
     fn draw_sprite_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
@@ -279,7 +248,6 @@ impl Emulator {
 
     fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH {
-            self.draw_backgraund_line(textures, n as u16, self.drawing_line)?;
             self.draw_sprite_line(textures, n as u16, self.drawing_line)?;
         }
         Ok(())
@@ -299,13 +267,13 @@ impl Emulator {
     }
 
     fn draw_sprites_refed_secondary_oams(&mut self, textures: &[Texture]) -> Result<(), String> {
-        for n in 0..PLAYGROUND_WIDTH {
+        for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
                 .bus
                 .ppu
                 .secondary_oam
-                .pick_sprite_info_with_x(n as u8 * 8)
+                .pick_sprite_info_with_x(n as u8)
             {
                 Some(SpriteInfo {
                     pos_y,
@@ -314,7 +282,9 @@ impl Emulator {
                     ..
                 }) => {
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
+                    let ppu_ctrl = &self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl;
                     let base_addr = tile_index.bank_of_tile as u16 * 0x1000
+                        + ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
                         + (tile_index.tile_number as u16) * 0x10
                         + relative_hight;
                     let ppu_map = &mut self.cpu.bus.ppu.map;
@@ -324,7 +294,7 @@ impl Emulator {
                         let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
                         let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
                         let idx = high_idx << 1 | row_idx;
-                        let sprite_color_idx = ppu_map.addr(0x3F00 + idx);
+                        let sprite_color_idx = ppu_map.addr(0x3F10 + idx);
                         let square_texture = if (sprite_color_idx as usize) < textures.len() {
                             &textures[sprite_color_idx as usize]
                         } else {

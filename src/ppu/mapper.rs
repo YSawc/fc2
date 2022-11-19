@@ -86,7 +86,13 @@ impl Mapper for Map {
             0x3F01..=0x3F03 | 0x3F05..=0x3F07 | 0x3F09..=0x3F0B | 0x03F0D..=0x03F0F => {
                 self.background_table[(n - 0x3F00) as usize] = r
             }
-            0x3F10..=0x3F1F => self.sprite_pallet[(n - 0x3F10) as usize] = r,
+            0x3F10 | 0x3F14 | 0x3F18 | 0x3F1C => {
+                self.background_table[(n - 0x3F10) as usize] = r;
+                self.sprite_pallet[(n - 0x3F10) as usize] = r;
+            }
+            0x3F11..=0x3F13 | 0x3F15..=0x3F17 | 0x3F19..=0x3F1B | 0x03F1D..=0x03F1F => {
+                self.sprite_pallet[(n - 0x3F10) as usize] = r
+            }
             0x3F20..=0x3FFF => self.background_and_sprite_pallet_mirror[(n - 0x3F20) as usize] = r,
             _ => unreachable!(),
         };
