@@ -224,7 +224,7 @@ impl Emulator {
             let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
             let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
             let idx = high_idx << 1 | row_idx;
-            let sprite_color_idx = ppu_map.addr(0x3F00 + idx);
+            let sprite_color_idx = ppu_map.background_table[idx as usize];
             let square_texture = if (sprite_color_idx as usize) < textures.len() {
                 &textures[sprite_color_idx as usize]
             } else {
@@ -294,7 +294,7 @@ impl Emulator {
                         let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
                         let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
                         let idx = high_idx << 1 | row_idx;
-                        let sprite_color_idx = ppu_map.addr(0x3F10 + idx);
+                        let sprite_color_idx = ppu_map.sprite_pallet[idx as usize];
                         let square_texture = if (sprite_color_idx as usize) < textures.len() {
                             &textures[sprite_color_idx as usize]
                         } else {

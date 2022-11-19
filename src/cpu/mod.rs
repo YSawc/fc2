@@ -358,8 +358,7 @@ impl CPU {
             0x8000 => {
                 for (i, n) in prgs.iter().enumerate() {
                     match i {
-                        0x0000..=0x3FFF => self.bus.set((i + 0x8000) as u16, *n),
-                        0x4000..=0x8000 => self.bus.set((i + 0x8000) as u16, *n),
+                        0x0000..=0x8000 => self.bus.set((i + 0x8000) as u16, *n),
                         _ => unreachable!(),
                     }
                 }
@@ -591,8 +590,9 @@ impl CPU {
         let r = self.bus.addr(0x2004);
         self.bus.ppu.oam_buf.push(r);
         if self.bus.ppu.oam_buf.len() == 4 {
+            let target = self.bus.addr(0x2003);
             let data = &self.bus.ppu.oam_buf;
-            self.bus.ppu.primary_oam.push_sprite_info(data);
+            self.bus.ppu.primary_oam.put_sprite_info(data, target);
             self.bus.ppu.oam_buf = vec![];
         }
     }

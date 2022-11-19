@@ -18,7 +18,7 @@ impl PrimaryOAM {
         Self { sprite_infos }
     }
 
-    pub fn push_sprite_info(&mut self, data: &Vec<u8>) {
+    pub fn put_sprite_info(&mut self, data: &Vec<u8>, target: u8) {
         let mut tile_index = TileIndex::default();
         tile_index.set(data[1]);
         let mut attr = Attr::default();
@@ -31,7 +31,7 @@ impl PrimaryOAM {
             pos_x: data[3],
         };
 
-        self.sprite_infos.push(sprite_info);
+        self.sprite_infos[target as usize] = sprite_info;
     }
 
     pub fn set_sprite_infos(&mut self, v: Vec<u8>) {
@@ -52,7 +52,6 @@ impl PrimaryOAM {
             sprite_infos.push(sprite_info);
         }
         self.sprite_infos = sprite_infos;
-        // print!("[[sprite_infos: {:?}]], ", self.sprite_infos);
     }
 }
 
