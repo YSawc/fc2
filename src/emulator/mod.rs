@@ -314,7 +314,7 @@ impl Emulator {
                             square_texture,
                             None,
                             Rect::new(
-                                (*pos_x + j) as i32,
+                                (pos_x.wrapping_add(j)) as i32,
                                 self.drawing_line as i32,
                                 SPRITE_SIZE,
                                 SPRITE_SIZE,

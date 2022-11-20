@@ -15,6 +15,7 @@ pub struct CPU {
     pub operators: FxHashMap<u8, Operator>,
     pub bus: Bus,
     pub cycle: u16,
+    pub total_cycle: i64,
 }
 
 impl Default for CPU {
@@ -36,11 +37,14 @@ impl CPU {
             operators,
             bus,
             cycle: 0,
+            total_cycle: 0,
         }
     }
 
     fn prepare_operators(&mut self) {
         let mut operators = FxHashMap::default();
+
+        //  x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF
         let cycles = [
             7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6, // 0x00
             2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7, // 0x10
@@ -50,15 +54,14 @@ impl CPU {
             2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7, // 0x50
             6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6, // 0x60
             2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7, // 0x70
-            2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, // 0x80
-            2, 6, 2, 6, 4, 4, 4, 4, 2, 4, 2, 5, 5, 4, 5, 5, // 0x90
+            2, 6, 6, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, // 0x80
+            2, 5, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 4, 5, 5, // 0x90
             2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, // 0xA0
             2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4, // 0xB0
             2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, // 0xC0
             2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, // 0xD0
             2, 6, 3, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, // 0xE0
-            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
-            // 0xF0
+            2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, // 0xF0
         ];
 
         macro_rules! ope_reserved {
@@ -400,6 +403,17 @@ impl CPU {
         }
     }
 
+    fn inc_cycle(&mut self, n: u8) {
+        self.cycle += n as u16;
+        self.total_cycle += n as i64;
+    }
+
+    // MEMO: use for nestest.nes
+    // pub fn reset(&mut self) {
+    //     self.inc_cycle(7);
+    //     self.register.set_pc(0 + (0xc0 << 8));
+    // }
+
     pub fn reset(&mut self) {
         let l = self.bus.addr(0xFFFC);
         let h = self.bus.addr(0xFFFD);
@@ -657,7 +671,11 @@ impl CPU {
         let (l, h) = self.fetch_lh_register();
         let x = self.get_x() as u16;
         let m = combine_high_low(l, h);
+        let h1 = m & 0xF00;
         let (m, c) = m.overflowing_add(x);
+        let h2 = m & 0xF00;
+        let b = (h1 | h2) != h1;
+        self.inc_if_page_accrossed(b);
         if c {
             self.set_carry(c);
         }
@@ -668,7 +686,11 @@ impl CPU {
         let (l, h) = self.fetch_lh_register();
         let y = self.get_y() as u16;
         let m = combine_high_low(l, h);
+        let h1 = m & 0xF00;
         let (m, c) = m.overflowing_add(y);
+        let h2 = m & 0xF00;
+        let b = (h1 | h2) != h1;
+        self.inc_if_page_accrossed(b);
         if c {
             self.set_carry(c);
         }
@@ -698,7 +720,11 @@ impl CPU {
         let (l, h) = self.bus.cpu_bus.lh_zeropage_addr(t);
         let r = self.get_y() as u16;
         let l = combine_high_low(l as u8, h as u8);
+        let h1 = l & 0xF00;
         let t = l.wrapping_add(r);
+        let h2 = t & 0xF00;
+        let b = (h1 | h2) != h1;
+        self.inc_if_page_accrossed(b);
         t
     }
 
@@ -921,50 +947,62 @@ impl CPU {
         };
     }
 
+    fn branch_taken(&mut self) {
+        self.inc_cycle(1);
+    }
+
     fn bcc(&mut self, r: u16) {
         if !self.get_carry() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
 
     fn bcs(&mut self, r: u16) {
         if self.get_carry() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
 
     fn beq(&mut self, r: u16) {
         if self.get_zero() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
 
     fn bne(&mut self, r: u16) {
         if !self.get_zero() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
 
     fn bvc(&mut self, r: u16) {
         if !self.get_overflow() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
 
     fn bvs(&mut self, r: u16) {
         if self.get_overflow() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
 
     fn bpl(&mut self, r: u16) {
         if !self.get_negative() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
 
     fn bmi(&mut self, r: u16) {
         if self.get_negative() {
+            self.branch_taken();
             self.set_pc(r);
         }
     }
@@ -974,6 +1012,12 @@ impl CPU {
         self.set_zero((v & self.get_a()) == 0);
         self.set_negative((v & 0b10000000) != 0);
         self.set_overflow((v & 0b01000000) != 0);
+    }
+
+    fn inc_if_page_accrossed(&mut self, b: bool) {
+        if b {
+            self.inc_cycle(1);
+        }
     }
 
     fn cmp(&mut self, r: u16, addr_mode: &AddrMode) {
@@ -1287,7 +1331,7 @@ impl CPU {
                 let cycle = cycle.clone();
                 let reg_addr = self.ex_addr_mode(&addr_mode);
                 self.run_ope(reg_addr, ope_kind, addr_mode);
-                self.cycle += cycle as u16;
+                self.inc_cycle(cycle);
                 // println!("pc: {:0x?}, reg_addr: {:0x?}", self.register.pc, reg_addr);
             }
             None => {
@@ -1410,8 +1454,14 @@ mod test {
         use crate::cpu::test::rand::Rng;
 
         let mut rng = rand::thread_rng();
-        let n: u8 = rng.gen();
-        n
+        loop {
+            let n: u8 = rng.gen();
+            if 0x20 <= n && n <= 0x3F {
+                continue;
+            } else {
+                return n;
+            }
+        }
     }
 
     fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> CPU {
@@ -1579,7 +1629,8 @@ mod test {
 
         let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
         let y = cpu.get_y() as u16;
-        let r = combine_high_low(l, h) + y;
+        let m = combine_high_low(l, h);
+        let r = m.wrapping_add(y);
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
