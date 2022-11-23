@@ -2,10 +2,8 @@ pub mod configure;
 pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
-use crate::emulator::configure::{PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, SPRITE_SIZE, SQUARE_SIZE};
 use crate::emulator::texture::{dummy_texture, texture_combine_builtin_colors};
 use crate::ppu::oam::SpriteInfo;
-use configure::{PPU_DRAW_LINE_CYCLE, TOTAL_LINE, VBLANK_LINE, VERTICAL_PIXEL};
 use rustc_hash::FxHashSet;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -15,7 +13,16 @@ use sdl2::video::Window;
 use sdl2::EventPump;
 use sdl2::Sdl;
 
-pub struct Emulator {
+pub struct Emulator<
+    const PLAYGROUND_HEIGHT: u32,
+    const PLAYGROUND_WIDTH: u32,
+    const SQUARE_SIZE: u32,
+    const SPRITE_SIZE: u32,
+    const PPU_DRAW_LINE_CYCLE: u16,
+    const VBLANK_LINE: u16,
+    const TOTAL_LINE: u16,
+    const VERTICAL_PIXEL: u16,
+> {
     pub cpu: CPU,
     pub ppu_cycle: u16,
     pub drawing_line: u16,
@@ -23,13 +30,53 @@ pub struct Emulator {
     canvas: Canvas<Window>,
 }
 
-impl Default for Emulator {
+impl<
+        const PLAYGROUND_HEIGHT: u32,
+        const PLAYGROUND_WIDTH: u32,
+        const SQUARE_SIZE: u32,
+        const SPRITE_SIZE: u32,
+        const PPU_DRAW_LINE_CYCLE: u16,
+        const VBLANK_LINE: u16,
+        const TOTAL_LINE: u16,
+        const VERTICAL_PIXEL: u16,
+    > Default
+    for Emulator<
+        PLAYGROUND_HEIGHT,
+        PLAYGROUND_WIDTH,
+        SQUARE_SIZE,
+        SPRITE_SIZE,
+        PPU_DRAW_LINE_CYCLE,
+        VBLANK_LINE,
+        TOTAL_LINE,
+        VERTICAL_PIXEL,
+    >
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Emulator {
+impl<
+        const PLAYGROUND_HEIGHT: u32,
+        const PLAYGROUND_WIDTH: u32,
+        const SQUARE_SIZE: u32,
+        const SPRITE_SIZE: u32,
+        const PPU_DRAW_LINE_CYCLE: u16,
+        const VBLANK_LINE: u16,
+        const TOTAL_LINE: u16,
+        const VERTICAL_PIXEL: u16,
+    >
+    Emulator<
+        PLAYGROUND_HEIGHT,
+        PLAYGROUND_WIDTH,
+        SQUARE_SIZE,
+        SPRITE_SIZE,
+        PPU_DRAW_LINE_CYCLE,
+        VBLANK_LINE,
+        TOTAL_LINE,
+        VERTICAL_PIXEL,
+    >
+{
     fn new() -> Self {
         let cpu = CPU::default();
 
