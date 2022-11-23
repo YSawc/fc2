@@ -2,7 +2,7 @@ pub mod configure;
 pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
-use crate::emulator::texture::{dummy_texture, texture_combine_builtin_colors};
+use crate::emulator::texture::texture_combine_builtin_colors;
 use crate::ppu::oam::SpriteInfo;
 use rustc_hash::FxHashSet;
 use sdl2::event::Event;
@@ -127,35 +127,28 @@ impl<
     pub fn render_all_sprites(&mut self, sprites_num: u32) -> Result<(), String> {
         let mut event_pump = self.sdl.event_pump()?;
         let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
-        let (square_texture1, square_texture2, square_texture3, square_texture4) =
-            dummy_texture(&mut self.canvas, &texture_creator)?;
+        let textures = texture_combine_builtin_colors(&mut self.canvas, &texture_creator)?;
+        let ppu_map = &mut self.cpu.bus.ppu.map;
 
         for n in 0..sprites_num {
             for i in 0..8 {
-                let sprite_row_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i);
-                let sprite_high_line = self.cpu.bus.ppu.map.addr((n * 0x10) as u16 + i + 0x8);
+                let sprite_row_line = ppu_map.addr((n * 0x10) as u16 + i);
+                let sprite_high_line = ppu_map.addr((n * 0x10) as u16 + i + 0x8);
                 for j in 0..8 {
-                    let r = ((sprite_row_line & (0b1 << (7 - j))) != 0) as u16;
-                    let h = ((sprite_high_line & (0b1 << (7 - j))) != 0) as u16;
-                    let sprite_dot = h << 1 | r;
-                    let square_texture = match sprite_dot {
-                        0 => &square_texture1,
-                        1 => &square_texture2,
-                        2 => &square_texture3,
-                        3 => &square_texture4,
-                        _ => unreachable!(),
+                    let (idx, x, y) = {
+                        let idx = {
+                            let r = ((sprite_row_line & (0b1 << (7 - j))) != 0) as u16;
+                            let h = ((sprite_high_line & (0b1 << (7 - j))) != 0) as u16;
+                            h << 1 | r
+                        };
+                        let x = (j as u32 + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32;
+                        let y = (i as u32 + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32;
+                        (idx, x, y)
                     };
+                    let texture = &textures[idx as usize];
 
-                    self.canvas.copy(
-                        square_texture,
-                        None,
-                        Rect::new(
-                            (j as u32 + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                            (i as u32 + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32,
-                            SPRITE_SIZE,
-                            SPRITE_SIZE,
-                        ),
-                    )?;
+                    self.canvas
+                        .copy(texture, None, Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE))?;
                 }
             }
         }
