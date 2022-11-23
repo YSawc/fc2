@@ -170,6 +170,19 @@ impl Emulator {
         Ok(())
     }
 
+    fn enable_render_bottom(&self) -> bool {
+        self.drawing_line >= 8
+    }
+
+    fn draw_sprite_for_big_size(&mut self, textures: &[Texture]) -> Result<(), String> {
+        self.draw_sprites_for_big_top(textures)?;
+        if self.enable_render_bottom() {
+            self.set_secondary_oam_for_bottom();
+            self.draw_sprites_for_big_bottom(textures)?;
+        };
+        Ok(())
+    }
+
     fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
         self.cpu.ex_ope();
         self.inc_ppu_cycle();
@@ -178,8 +191,12 @@ impl Emulator {
             if self.drawing_line < VERTICAL_PIXEL {
                 self.draw_line(textures)?;
                 if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
-                    self.prepare_secondary_oam();
-                    self.draw_sprites_refed_secondary_oams(textures)?;
+                    self.set_secondary_oam_for_nomal();
+                    if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
+                        self.draw_sprite_for_big_size(textures)?;
+                    } else {
+                        self.draw_sprites_for_normal_size(textures)?;
+                    }
                 }
             }
             if self.drawing_line == TOTAL_LINE {
@@ -201,35 +218,42 @@ impl Emulator {
         Ok(())
     }
 
-    fn set_secondary_oam(&mut self) {
+    fn set_secondary_oam_for_nomal(&mut self) {
+        self.cpu.bus.ppu.set_secondary_oam(self.drawing_line as u8);
+    }
+
+    fn set_secondary_oam_for_bottom(&mut self) {
         self.cpu
             .bus
             .ppu
-            .set_secondary_oam_in_line(self.drawing_line as u8);
+            .set_secondary_oam(self.drawing_line as u8 - 8);
     }
 
-    fn prepare_secondary_oam(&mut self) {
-        self.set_secondary_oam();
-    }
-
-    fn draw_sprite_line(&mut self, textures: &[Texture], x: u16, y: u16) -> Result<(), String> {
+    fn draw_sprite_line_for_small(
+        &mut self,
+        textures: &[Texture],
+        x: u16,
+        y: u16,
+    ) -> Result<(), String> {
         let i1 = y / 8;
         let i2 = y % 8;
         let ppu_map = &mut self.cpu.bus.ppu.map;
         let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
 
         let sprite_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + x);
-        let sprite_row = ppu_map.addr((sprite_idx as u16 * 0x10) as u16 + i2);
-        let sprite_high = ppu_map.addr((sprite_idx as u16 * 0x10 + 0x8) as u16 + i2);
+        let base_addr = (sprite_idx as u16 * 0x10) as u16 + i2;
+        let sprite_row = ppu_map.addr(base_addr);
+        let sprite_high = ppu_map.addr(base_addr + 0x8);
         for j in 0..8 {
-            let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
-            let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
-            let idx = high_idx << 1 | row_idx;
+            let idx = {
+                let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
+                let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
+                high_idx << 1 | row_idx
+            };
             let mut sprite_color_idx = ppu_map.background_table[idx as usize];
             if ppu_mask.gray_scale {
                 sprite_color_idx &= 0b11110000;
             }
-
             let square_texture = if (sprite_color_idx as usize) < textures.len() {
                 &textures[sprite_color_idx as usize]
             } else {
@@ -253,7 +277,7 @@ impl Emulator {
 
     fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH {
-            self.draw_sprite_line(textures, n as u16, self.drawing_line)?;
+            self.draw_sprite_line_for_small(textures, n as u16, self.drawing_line)?;
         }
         Ok(())
     }
@@ -271,7 +295,19 @@ impl Emulator {
         }
     }
 
-    fn draw_sprites_refed_secondary_oams(&mut self, textures: &[Texture]) -> Result<(), String> {
+    fn draw_sprites_for_big_top(&mut self, textures: &[Texture]) -> Result<(), String> {
+        Ok(self.draw_sprites_for_big_size(textures, false)?)
+    }
+
+    fn draw_sprites_for_big_bottom(&mut self, textures: &[Texture]) -> Result<(), String> {
+        Ok(self.draw_sprites_for_big_size(textures, true)?)
+    }
+
+    fn draw_sprites_for_big_size(
+        &mut self,
+        textures: &[Texture],
+        is_bottom: bool,
+    ) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
@@ -284,10 +320,89 @@ impl Emulator {
                     pos_y,
                     tile_index,
                     pos_x,
-                    ..
+                    attr,
                 }) => {
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
+                    let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
+                    let base_addr = (((tile_index.tile_number + 1) % 2) == 0) as u16 * 0x1000
+                        + ((tile_index.tile_number as u16) / 2) * 0x20
+                        + relative_hight;
+                    let ppu_map = &mut self.cpu.bus.ppu.map;
+                    let (sprite_row, sprite_high) = {
+                        if is_bottom {
+                            (
+                                ppu_map.addr(base_addr + 0x10),
+                                ppu_map.addr(base_addr + 0x18),
+                            )
+                        } else {
+                            (ppu_map.addr(base_addr), ppu_map.addr(base_addr + 8))
+                        }
+                    };
+                    let pallet_base_idx = (attr.palette * 4) as usize;
+                    let for_count = if is_bottom { 16 } else { 8 };
+                    for i in for_count - 8..for_count {
+                        let (idx, x, y) = {
+                            if is_bottom {
+                                let idx = {
+                                    let r = (sprite_row & (0b1 << (15 - i)) != 0) as u16;
+                                    let h = (sprite_high & (0b1 << (15 - i)) != 0) as u16;
+                                    h << 1 | r
+                                };
+                                let x = pos_x.wrapping_add(i - 8) as i32;
+                                let y = (self.drawing_line) as i32;
+                                (idx, x, y)
+                            } else {
+                                let idx = {
+                                    let r = (sprite_row & (0b1 << (7 - i)) != 0) as u16;
+                                    let h = (sprite_high & (0b1 << (7 - i)) != 0) as u16;
+                                    h << 1 | r
+                                };
+                                let x = pos_x.wrapping_add(i) as i32;
+                                let y = (self.drawing_line) as i32;
+                                (idx, x, y)
+                            }
+                        };
+
+                        let mut color_idx = ppu_map.sprite_pallet[pallet_base_idx + idx as usize];
+                        if ppu_mask.gray_scale {
+                            color_idx &= 0b11110000;
+                        }
+
+                        let square_texture = if (color_idx as usize) < textures.len() {
+                            &textures[color_idx as usize]
+                        } else {
+                            &textures[(color_idx as usize) - textures.len()]
+                        };
+                        self.canvas.copy(
+                            square_texture,
+                            None,
+                            Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE),
+                        )?;
+                    }
+                }
+                None => continue,
+            };
+        }
+        Ok(())
+    }
+
+    fn draw_sprites_for_normal_size(&mut self, textures: &[Texture]) -> Result<(), String> {
+        for n in 0..PLAYGROUND_WIDTH * 8 {
+            match self
+                .cpu
+                .bus
+                .ppu
+                .secondary_oam
+                .pick_sprite_info_with_x(n as u8)
+            {
+                Some(SpriteInfo {
+                    pos_y,
+                    tile_index,
+                    pos_x,
+                    attr,
+                }) => {
                     let ppu_ctrl = &self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl;
+                    let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
                     let base_addr = tile_index.bank_of_tile as u16 * 0x1000
                         + ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
@@ -296,29 +411,33 @@ impl Emulator {
                     let ppu_map = &mut self.cpu.bus.ppu.map;
                     let sprite_row = ppu_map.addr(base_addr);
                     let sprite_high = ppu_map.addr(base_addr + 8);
-                    for j in 0..8 {
-                        let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
-                        let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
-                        let idx = high_idx << 1 | row_idx;
-                        let mut sprite_color_idx = ppu_map.sprite_pallet[idx as usize];
-                        if ppu_mask.gray_scale {
-                            sprite_color_idx &= 0b11110000;
-                        }
+                    let pallet_base_idx = (attr.palette * 4) as usize;
 
-                        let square_texture = if (sprite_color_idx as usize) < textures.len() {
-                            &textures[sprite_color_idx as usize]
-                        } else {
-                            &textures[(sprite_color_idx as usize) - textures.len()]
+                    for i in 0..8 {
+                        let (idx, x, y) = {
+                            let idx = {
+                                let r = (sprite_row & (0b1 << (7 - i)) != 0) as u16;
+                                let h = (sprite_high & (0b1 << (7 - i)) != 0) as u16;
+                                h << 1 | r
+                            };
+                            let x = (pos_x.wrapping_add(i)) as i32;
+                            let y = self.drawing_line as i32;
+                            (idx, x, y)
                         };
+                        let mut color_idx = ppu_map.sprite_pallet[pallet_base_idx + idx as usize];
+                        if ppu_mask.gray_scale {
+                            color_idx &= 0b11110000;
+                        }
+                        let square_texture = if (color_idx as usize) < textures.len() {
+                            &textures[color_idx as usize]
+                        } else {
+                            &textures[(color_idx as usize) - textures.len()]
+                        };
+
                         self.canvas.copy(
                             square_texture,
                             None,
-                            Rect::new(
-                                (pos_x.wrapping_add(j)) as i32,
-                                self.drawing_line as i32,
-                                SPRITE_SIZE,
-                                SPRITE_SIZE,
-                            ),
+                            Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE),
                         )?;
                     }
                 }

@@ -28,7 +28,7 @@ impl PPU {
         }
     }
 
-    pub fn set_secondary_oam_in_line(&mut self, y: u8) {
+    pub fn set_secondary_oam(&mut self, y: u8) {
         let mut sprite_infos: SpriteInfos = vec![];
         for sprite_info in &self.primary_oam.sprite_infos {
             if sprite_info.in_drawing_range(y) {
