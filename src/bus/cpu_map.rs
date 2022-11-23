@@ -94,7 +94,7 @@ impl WriteTwiceRegister {
 pub struct PpuCtrl {
     pub gen_nmi: bool,
     ppu_selector: bool,
-    sprite_size: bool,
+    pub sprite_size: bool,
     pub bk_table_addr: bool,
     pub sprite_ptn_table_addr: bool,
     vram_increment: bool,
@@ -147,6 +147,10 @@ impl PpuCtrl {
             false => 1,
             true => 32,
         }
+    }
+
+    pub fn for_big(&self) -> bool {
+        self.sprite_size
     }
 }
 
