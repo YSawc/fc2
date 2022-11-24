@@ -23,7 +23,7 @@ fn main() -> Result<(), String> {
     emulator.cpu.init(&nes);
     // println!("{:#?}", nes);
     // println!("{:#?}", emulator.cpu);
-    emulator.reset();
+    emulator.startup();
     emulator.set_sprites(&nes.header.info.chr_rom);
 
     let args: Vec<String> = env::args().collect();

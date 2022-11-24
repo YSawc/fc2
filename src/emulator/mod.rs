@@ -111,7 +111,7 @@ impl<
         }
     }
 
-    pub fn reset(&mut self) {
+    pub fn startup(&mut self) {
         let pc = self.cpu.get_pc() as u8;
         self.cpu.push_stack(pc);
         let p = self.cpu.get_p();
@@ -179,8 +179,8 @@ impl<
         for scancode in pressed_scancodes.iter() {
             match *scancode {
                 Keycode::Escape => return None,
-                Keycode::A => self.cpu.bus.controller_0_polling_data |= 0b00000001,
-                Keycode::B => self.cpu.bus.controller_0_polling_data |= 0b00000010,
+                Keycode::X => self.cpu.bus.controller_0_polling_data |= 0b00000001,
+                Keycode::Z => self.cpu.bus.controller_0_polling_data |= 0b00000010,
                 Keycode::Space => self.cpu.bus.controller_0_polling_data |= 0b00000100,
                 Keycode::Return => self.cpu.bus.controller_0_polling_data |= 0b00001000,
                 Keycode::Up => self.cpu.bus.controller_0_polling_data |= 0b00010000,
@@ -269,57 +269,51 @@ impl<
             .set_secondary_oam(self.drawing_line as u8 - 8);
     }
 
-    fn draw_sprite_line_for_small(
-        &mut self,
-        textures: &[Texture],
-        x: u16,
-        y: u16,
-    ) -> Result<(), String> {
-        let i1 = y / 8;
-        let i2 = y % 8;
-        let ppu_map = &mut self.cpu.bus.ppu.map;
-        let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
+    fn draw_sprite_line(&mut self, textures: &[Texture]) -> Result<(), String> {
+        for n in 0..PLAYGROUND_WIDTH as u16 {
+            let i1 = self.drawing_line / 8;
+            let i2 = self.drawing_line % 8;
+            let ppu_map = &mut self.cpu.bus.ppu.map;
+            let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
 
-        let sprite_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + x);
-        let base_addr = (sprite_idx as u16 * 0x10) as u16 + i2;
-        let sprite_row = ppu_map.addr(base_addr);
-        let sprite_high = ppu_map.addr(base_addr + 0x8);
-        for j in 0..8 {
-            let idx = {
-                let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
-                let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
-                high_idx << 1 | row_idx
-            };
-            let mut sprite_color_idx = ppu_map.background_table[idx as usize];
-            if ppu_mask.gray_scale {
-                sprite_color_idx &= 0b11110000;
+            let sprite_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + n);
+            let base_addr = (sprite_idx as u16 * 0x10) as u16 + i2;
+            let sprite_row = ppu_map.addr(base_addr);
+            let sprite_high = ppu_map.addr(base_addr + 0x8);
+            for j in 0..8 {
+                let (idx, x, y) = {
+                    let idx = {
+                        let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
+                        let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
+                        high_idx << 1 | row_idx
+                    };
+                    let x = (j + n as u32 * SQUARE_SIZE) as i32;
+                    let y = self.drawing_line as i32;
+                    (idx, x, y)
+                };
+                let mut sprite_color_idx = ppu_map.background_table[idx as usize];
+                if ppu_mask.gray_scale {
+                    sprite_color_idx &= 0b11110000;
+                }
+                let square_texture = if (sprite_color_idx as usize) < textures.len() {
+                    &textures[sprite_color_idx as usize]
+                } else {
+                    &textures[(sprite_color_idx as usize) - textures.len()]
+                };
+
+                self.canvas.copy(
+                    square_texture,
+                    None,
+                    Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE),
+                )?;
             }
-            let square_texture = if (sprite_color_idx as usize) < textures.len() {
-                &textures[sprite_color_idx as usize]
-            } else {
-                &textures[(sprite_color_idx as usize) - textures.len()]
-            };
-
-            self.canvas.copy(
-                square_texture,
-                None,
-                Rect::new(
-                    (j + x as u32 * SQUARE_SIZE) as i32,
-                    y as i32,
-                    SPRITE_SIZE,
-                    SPRITE_SIZE,
-                ),
-            )?;
         }
 
         Ok(())
     }
 
     fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
-        for n in 0..PLAYGROUND_WIDTH {
-            self.draw_sprite_line_for_small(textures, n as u16, self.drawing_line)?;
-        }
-        Ok(())
+        Ok(self.draw_sprite_line(textures)?)
     }
 
     fn is_just_in_vblank_line(&self) -> bool {

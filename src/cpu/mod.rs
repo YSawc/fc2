@@ -1497,11 +1497,7 @@ mod test {
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
 
-        let (l, h) = cpu.fetch_next_lh_register();
-
         assert_eq!(reg_addr, 0);
-        assert_ne!(reg_addr, l as u16);
-        assert_ne!(reg_addr, h as u16);
     }
 
     #[test]
@@ -1509,13 +1505,12 @@ mod test {
         let mut cpu = prepare_cpu_for_addr_mode_test(AddrMode::Imm);
         cpu.insert_random_num_into_b1_b2();
 
-        let (l, h) = cpu.fetch_next_lh_register();
+        let l = cpu.fetch_next_register();
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
 
         assert_eq!(reg_addr, l as u16);
-        assert_ne!(reg_addr, h as u16);
     }
 
     #[test]
@@ -1540,7 +1535,8 @@ mod test {
         let (l, h) = cpu.fetch_next_lh_register();
         cpu.set_x(rand_u8());
         let x = cpu.get_x() as u16;
-        let r = combine_high_low(l, h) + x;
+        let m = combine_high_low(l, h);
+        let r = m.wrapping_add(x);
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
@@ -1556,7 +1552,8 @@ mod test {
         let (l, h) = cpu.fetch_next_lh_register();
         cpu.set_y(rand_u8());
         let y = cpu.get_y() as u16;
-        let r = combine_high_low(l, h) + y;
+        let m = combine_high_low(l, h);
+        let r = m.wrapping_add(y);
 
         let mut reg_addr = u16::MAX;
         cpu.set_next_reg_addr(&mut reg_addr);
@@ -1649,7 +1646,7 @@ mod test {
         cpu.bus_set(t, rand_u8());
         cpu.bus_set(t + 1, rand_u8());
 
-        let (l, h) = cpu.bus.cpu_bus.lh_addr(t);
+        let (l, h) = cpu.bus.cpu_bus.lh_ignore_overflowing_addr(t);
         let r = combine_high_low(l, h);
 
         let mut reg_addr = u16::MAX;
