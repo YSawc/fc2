@@ -441,17 +441,26 @@ impl<
                     let base_addr = tile_index.bank_of_tile as u16 * 0x1000
                         + ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
                         + (tile_index.tile_number as u16) * 0x10
-                        + relative_hight;
+                        + if attr.flip_sprite_vertically {
+                            7 - relative_hight
+                        } else {
+                            relative_hight
+                        };
                     let ppu_map = &mut self.cpu.bus.ppu.map;
                     let sprite_row = ppu_map.addr(base_addr);
                     let sprite_high = ppu_map.addr(base_addr + 8);
                     let pallet_base_idx = (attr.palette * 4) as usize;
-
                     for i in 0..8 {
                         let (idx, x, y) = {
                             let idx = {
-                                let r = (sprite_row & (0b1 << (7 - i)) != 0) as u16;
-                                let h = (sprite_high & (0b1 << (7 - i)) != 0) as u16;
+                                let i = if attr.flip_sprite_horizontally {
+                                    i
+                                } else {
+                                    7 - i
+                                };
+
+                                let r = (sprite_row & (0b1 << i) != 0) as u16;
+                                let h = (sprite_high & (0b1 << i) != 0) as u16;
                                 h << 1 | r
                             };
                             let x = (pos_x.wrapping_add(i)) as i32;
