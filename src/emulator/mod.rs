@@ -276,6 +276,13 @@ impl<
             let ppu_map = &mut self.cpu.bus.ppu.map;
             let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
 
+            let attr_idx = {
+                let relative_idx = (((self.drawing_line / 16) % 2) * 2) + (n / 2) % 2;
+                let n = 0x23c0 + { (self.drawing_line / 32) * 8 } + (n / 4);
+                let m = ppu_map.addr(n);
+                (((m & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
+            };
+
             let sprite_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + n);
             let base_addr = (sprite_idx as u16 * 0x10) as u16 + i2;
             let sprite_row = ppu_map.addr(base_addr);
@@ -291,7 +298,7 @@ impl<
                     let y = self.drawing_line as i32;
                     (idx, x, y)
                 };
-                let mut sprite_color_idx = ppu_map.background_table[idx as usize];
+                let mut sprite_color_idx = ppu_map.background_table[attr_idx + idx as usize];
                 if ppu_mask.gray_scale {
                     sprite_color_idx &= 0b11110000;
                 }
