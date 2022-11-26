@@ -12,9 +12,8 @@ pub trait Mapper {
 pub struct Bus {
     pub cpu_bus: CpuMap,
     pub ppu: PPU,
-    pub controller_0_polling_data: u8,
+    pub controller_polling_data: u16,
     pub controller_0_polled_data: u8,
-    pub controller_1_polling_data: u8,
     pub controller_1_polled_data: u8,
 }
 
@@ -29,9 +28,8 @@ impl Bus {
         Self {
             cpu_bus: CpuMap::default(),
             ppu: PPU::default(),
-            controller_0_polling_data: 0,
+            controller_polling_data: 0,
             controller_0_polled_data: 0,
-            controller_1_polling_data: 0,
             controller_1_polled_data: 0,
         }
     }
@@ -71,20 +69,16 @@ impl Mapper for Bus {
             }
             0x4016 => match r % 2 {
                 1 => {
-                    self.controller_0_polled_data = self.controller_0_polling_data;
+                    let polling_data = self.controller_polling_data;
+                    self.controller_0_polled_data = (polling_data & 0xff) as u8;
+                    self.controller_1_polled_data = ((polling_data & (0xff << 8)) >> 8) as u8;
                 }
                 0 => {
-                    self.controller_0_polling_data = 0;
+                    self.controller_polling_data = 0;
                 }
                 _ => (),
             },
-            0x4017 => match r {
-                1 => {
-                    self.controller_1_polled_data = self.controller_1_polling_data;
-                    self.controller_1_polling_data = 0;
-                }
-                _ => (),
-            },
+            0x4017 => (),
         };
     }
 }
