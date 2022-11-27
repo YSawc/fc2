@@ -237,7 +237,7 @@ impl<
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VERTICAL_PIXEL {
-                self.draw_line(textures)?;
+                self.draw_background(textures)?;
                 if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
                     self.set_secondary_oam_for_nomal();
                     if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
@@ -277,7 +277,7 @@ impl<
             .set_secondary_oam(self.drawing_line as u8 - 8);
     }
 
-    fn draw_sprite_line(&mut self, textures: &[Texture]) -> Result<(), String> {
+    fn draw_background(&mut self, textures: &[Texture]) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH as u16 {
             let i1 = self.drawing_line / 8;
             let i2 = self.drawing_line % 8;
@@ -291,15 +291,15 @@ impl<
                 (((m & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
             };
 
-            let sprite_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + n);
-            let base_addr = (sprite_idx as u16 * 0x10) as u16 + i2;
-            let sprite_row = ppu_map.addr(base_addr);
-            let sprite_high = ppu_map.addr(base_addr + 0x8);
+            let background_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + n);
+            let base_addr = (background_idx as u16 * 0x10) as u16 + i2;
+            let background_row = ppu_map.addr(base_addr);
+            let background_high = ppu_map.addr(base_addr + 0x8);
             for j in 0..8 {
                 let (idx, x, y) = {
                     let idx = {
-                        let row_idx = (sprite_row & (0b1 << (7 - j)) != 0) as u16;
-                        let high_idx = (sprite_high & (0b1 << (7 - j)) != 0) as u16;
+                        let row_idx = (background_row & (0b1 << (7 - j)) != 0) as u16;
+                        let high_idx = (background_high & (0b1 << (7 - j)) != 0) as u16;
                         high_idx << 1 | row_idx
                     };
                     let x = (j + n as u32 * SQUARE_SIZE) as i32;
@@ -325,10 +325,6 @@ impl<
         }
 
         Ok(())
-    }
-
-    fn draw_line(&mut self, textures: &[Texture]) -> Result<(), String> {
-        Ok(self.draw_sprite_line(textures)?)
     }
 
     fn is_just_in_vblank_line(&self) -> bool {
@@ -395,7 +391,11 @@ impl<
                                 let idx = {
                                     let r = (sprite_row & (0b1 << (15 - i)) != 0) as u16;
                                     let h = (sprite_high & (0b1 << (15 - i)) != 0) as u16;
-                                    h << 1 | r
+                                    let idx = h << 1 | r;
+                                    if idx == 0 {
+                                        continue;
+                                    }
+                                    idx
                                 };
                                 let x = pos_x.wrapping_add(i - 8) as i32;
                                 let y = (self.drawing_line) as i32;
@@ -404,7 +404,11 @@ impl<
                                 let idx = {
                                     let r = (sprite_row & (0b1 << (7 - i)) != 0) as u16;
                                     let h = (sprite_high & (0b1 << (7 - i)) != 0) as u16;
-                                    h << 1 | r
+                                    let idx = h << 1 | r;
+                                    if idx == 0 {
+                                        continue;
+                                    }
+                                    idx
                                 };
                                 let x = pos_x.wrapping_add(i) as i32;
                                 let y = (self.drawing_line) as i32;
@@ -473,10 +477,13 @@ impl<
                                 } else {
                                     7 - i
                                 };
-
                                 let r = (sprite_row & (0b1 << i) != 0) as u16;
                                 let h = (sprite_high & (0b1 << i) != 0) as u16;
-                                h << 1 | r
+                                let idx = h << 1 | r;
+                                if idx == 0 {
+                                    continue;
+                                }
+                                idx
                             };
                             let x = (pos_x.wrapping_add(i)) as i32;
                             let y = self.drawing_line as i32;
