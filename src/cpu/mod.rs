@@ -382,8 +382,6 @@ impl CPU {
                 prgs.len()
             ),
         }
-        // println!("{:0x?}", prgs);
-        // unimplemented!("!!!");
     }
 
     pub fn interrupt(&mut self, intr: Interrupt) {

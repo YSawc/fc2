@@ -2,7 +2,7 @@ pub mod configure;
 pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
-use crate::emulator::texture::{texture_combine_builtin_colors, TextureBuffer};
+use crate::emulator::texture::TextureBuffer;
 use crate::ppu::oam::SpriteInfo;
 use rustc_hash::FxHashSet;
 use sdl2::event::Event;
@@ -132,7 +132,9 @@ impl<
     pub fn render_all_sprites(&mut self, sprites_num: u32) -> Result<(), String> {
         let mut event_pump = self.sdl.event_pump()?;
         let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
-        let textures = texture_combine_builtin_colors(&mut self.canvas, &texture_creator)?;
+        let mut texture = texture_creator
+            .create_texture_streaming(PixelFormatEnum::RGB24, 256, 256)
+            .map_err(|e| e.to_string())?;
         let ppu_map = &mut self.cpu.bus.ppu.map;
 
         for n in 0..sprites_num {
@@ -144,19 +146,24 @@ impl<
                         let idx = {
                             let r = ((sprite_row_line & (0b1 << (7 - j))) != 0) as u16;
                             let h = ((sprite_high_line & (0b1 << (7 - j))) != 0) as u16;
-                            h << 1 | r
+                            (h << 1 | r) as usize
                         };
-                        let x = (j as u32 + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32;
-                        let y = (i as u32 + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE) as i32;
+                        let x = j as u32 + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE;
+                        let y = i as u32 + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE;
                         (idx, x, y)
                     };
-                    let texture = &textures[idx as usize];
-
-                    self.canvas
-                        .copy(texture, None, Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE))?;
+                    self.texture_buffer.insert_color(x as u8, y as u8, idx);
                 }
             }
         }
+        texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+            for n in 0..self.texture_buffer.buffer.len() {
+                buffer[n] = self.texture_buffer.buffer[n];
+            }
+        })?;
+        self.canvas.clear();
+        self.canvas
+            .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
         self.canvas.present();
 
         'show_sprites: loop {
