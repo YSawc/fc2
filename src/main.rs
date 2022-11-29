@@ -1,7 +1,7 @@
 extern crate sdl2;
 use fc2::emulator::configure::{
     PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, PPU_DRAW_LINE_CYCLE, SPRITE_SIZE, SQUARE_SIZE, TOTAL_LINE,
-    VBLANK_LINE, VERTICAL_PIXEL,
+    VBLANK_LINE, VISIBLE_LINES,
 };
 
 use fc2::emulator::*;
@@ -18,11 +18,9 @@ fn main() -> Result<(), String> {
         PPU_DRAW_LINE_CYCLE,
         VBLANK_LINE,
         TOTAL_LINE,
-        VERTICAL_PIXEL,
+        VISIBLE_LINES,
     > = Emulator::default();
     emulator.cpu.init(&nes);
-    // println!("{:#?}", nes);
-    // println!("{:#?}", emulator.cpu);
     emulator.startup();
     emulator.set_sprites(&nes.header.info.chr_rom);
 

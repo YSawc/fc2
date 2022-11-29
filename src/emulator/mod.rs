@@ -22,14 +22,14 @@ pub struct Emulator<
     const PPU_DRAW_LINE_CYCLE: u16,
     const VBLANK_LINE: u16,
     const TOTAL_LINE: u16,
-    const VERTICAL_PIXEL: u16,
+    const VISIBLE_LINES: u16,
 > {
     pub cpu: CPU,
     pub ppu_cycle: u16,
     pub drawing_line: u16,
     pub sdl: Sdl,
     canvas: Canvas<Window>,
-    texture_buffer: TextureBuffer<PLAYGROUND_WIDTH, VERTICAL_PIXEL>,
+    texture_buffer: TextureBuffer<PLAYGROUND_WIDTH, VISIBLE_LINES>,
 }
 
 impl<
@@ -40,7 +40,7 @@ impl<
         const PPU_DRAW_LINE_CYCLE: u16,
         const VBLANK_LINE: u16,
         const TOTAL_LINE: u16,
-        const VERTICAL_PIXEL: u16,
+        const VISIBLE_LINES: u16,
     > Default
     for Emulator<
         PLAYGROUND_HEIGHT,
@@ -50,7 +50,7 @@ impl<
         PPU_DRAW_LINE_CYCLE,
         VBLANK_LINE,
         TOTAL_LINE,
-        VERTICAL_PIXEL,
+        VISIBLE_LINES,
     >
 {
     fn default() -> Self {
@@ -66,7 +66,7 @@ impl<
         const PPU_DRAW_LINE_CYCLE: u16,
         const VBLANK_LINE: u16,
         const TOTAL_LINE: u16,
-        const VERTICAL_PIXEL: u16,
+        const VISIBLE_LINES: u16,
     >
     Emulator<
         PLAYGROUND_HEIGHT,
@@ -76,7 +76,7 @@ impl<
         PPU_DRAW_LINE_CYCLE,
         VBLANK_LINE,
         TOTAL_LINE,
-        VERTICAL_PIXEL,
+        VISIBLE_LINES,
     >
 {
     fn new() -> Self {
@@ -244,7 +244,7 @@ impl<
         self.inc_ppu_cycle();
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
-            if self.drawing_line < VERTICAL_PIXEL {
+            if self.drawing_line < VISIBLE_LINES {
                 self.draw_background()?;
                 if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
                     self.set_secondary_oam_for_nomal();

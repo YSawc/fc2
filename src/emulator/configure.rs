@@ -5,5 +5,5 @@ pub const PLAYGROUND_HEIGHT: u32 = 30;
 pub const PPU_DRAW_LINE_CYCLE: u16 = 341;
 pub const VBLANK_LINE: u16 = 241;
 const VBLANK_LINES: u16 = 20;
-pub const VERTICAL_PIXEL: u16 = 240;
-pub const TOTAL_LINE: u16 = VBLANK_LINES + VERTICAL_PIXEL + 2;
+pub const VISIBLE_LINES: u16 = 240;
+pub const TOTAL_LINE: u16 = VBLANK_LINES + VISIBLE_LINES + 2;

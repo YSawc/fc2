@@ -4,14 +4,13 @@ use sdl2::rect::Point;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
-pub struct TextureBuffer<const PLAYGROUND_WIDTH: u32, const VERTICAL_PIXEL: u16> {
-    // pub buffer: Vec<u8>,
+pub struct TextureBuffer<const PLAYGROUND_WIDTH: u32, const VISIBLE_LINES: u16> {
     pub buffer: [u8; 184320],
     colors: [[u8; 3]; 64],
 }
 
-impl<const PLAYGROUND_WIDTH: u32, const VERTICAL_PIXEL: u16>
-    TextureBuffer<PLAYGROUND_WIDTH, VERTICAL_PIXEL>
+impl<const PLAYGROUND_WIDTH: u32, const VISIBLE_LINES: u16>
+    TextureBuffer<PLAYGROUND_WIDTH, VISIBLE_LINES>
 {
     pub fn new() -> Self {
         let buffer: [u8; 184320] = [0; 184320];
