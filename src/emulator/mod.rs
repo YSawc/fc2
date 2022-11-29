@@ -2,11 +2,12 @@ pub mod configure;
 pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
-use crate::emulator::texture::texture_combine_builtin_colors;
+use crate::emulator::texture::{texture_combine_builtin_colors, TextureBuffer};
 use crate::ppu::oam::SpriteInfo;
 use rustc_hash::FxHashSet;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::Window;
@@ -28,6 +29,7 @@ pub struct Emulator<
     pub drawing_line: u16,
     pub sdl: Sdl,
     canvas: Canvas<Window>,
+    texture_buffer: TextureBuffer<PLAYGROUND_WIDTH, VERTICAL_PIXEL>,
 }
 
 impl<
@@ -102,12 +104,15 @@ impl<
             .map_err(|e| e.to_string())
             .unwrap();
 
+        let texture_buffer = TextureBuffer::new();
+
         Self {
             cpu,
             ppu_cycle: 0,
             drawing_line: 0,
             sdl: sdl_context,
             canvas,
+            texture_buffer,
         }
     }
 
@@ -204,7 +209,10 @@ impl<
     pub fn main_loop(&mut self) -> Result<(), String> {
         let mut event_pump = self.sdl.event_pump()?;
         let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
-        let textures = texture_combine_builtin_colors(&mut self.canvas, &texture_creator)?;
+        let mut texture = texture_creator
+            .create_texture_streaming(PixelFormatEnum::RGB24, 256, 256)
+            .map_err(|e| e.to_string())?;
+
         'running: loop {
             match self.handle_keyboard(&event_pump) {
                 Some(_) => (),
@@ -212,7 +220,7 @@ impl<
             }
             event_pump.poll_event();
 
-            self.run(&textures)?;
+            self.run(&mut texture)?;
         }
 
         Ok(())
@@ -222,32 +230,40 @@ impl<
         self.drawing_line >= 8
     }
 
-    fn draw_sprite_for_big_size(&mut self, textures: &[Texture]) -> Result<(), String> {
-        self.draw_sprites_for_big_top(textures)?;
+    fn draw_sprite_for_big_size(&mut self) -> Result<(), String> {
+        self.draw_sprites_for_big_top()?;
         if self.enable_render_bottom() {
             self.set_secondary_oam_for_bottom();
-            self.draw_sprites_for_big_bottom(textures)?;
+            self.draw_sprites_for_big_bottom()?;
         };
         Ok(())
     }
 
-    fn run(&mut self, textures: &[Texture]) -> Result<(), String> {
+    fn run(&mut self, texture: &mut Texture) -> Result<(), String> {
         self.cpu.ex_ope();
         self.inc_ppu_cycle();
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VERTICAL_PIXEL {
-                self.draw_background(textures)?;
+                self.draw_background()?;
                 if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
                     self.set_secondary_oam_for_nomal();
                     if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
-                        self.draw_sprite_for_big_size(textures)?;
+                        self.draw_sprite_for_big_size()?;
                     } else {
-                        self.draw_sprites_for_normal_size(textures)?;
+                        self.draw_sprites_for_normal_size()?;
                     }
                 }
             }
             if self.drawing_line == TOTAL_LINE {
+                texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+                    for n in 0..self.texture_buffer.buffer.len() {
+                        buffer[n] = self.texture_buffer.buffer[n];
+                    }
+                })?;
+                self.canvas.clear();
+                self.canvas
+                    .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
                 self.canvas.present();
                 self.drawing_line = 0;
             } else {
@@ -277,7 +293,7 @@ impl<
             .set_secondary_oam(self.drawing_line as u8 - 8);
     }
 
-    fn draw_background(&mut self, textures: &[Texture]) -> Result<(), String> {
+    fn draw_background(&mut self) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH as u16 {
             let i1 = self.drawing_line / 8;
             let i2 = self.drawing_line % 8;
@@ -302,25 +318,17 @@ impl<
                         let high_idx = (background_high & (0b1 << (7 - j)) != 0) as u16;
                         high_idx << 1 | row_idx
                     };
-                    let x = (j + n as u32 * SQUARE_SIZE) as i32;
-                    let y = self.drawing_line as i32;
+                    let x = j + n as u32 * SQUARE_SIZE;
+                    let y = self.drawing_line;
                     (idx, x, y)
                 };
-                let mut sprite_color_idx = ppu_map.background_table[attr_idx + idx as usize];
+                let mut sprite_color_idx =
+                    ppu_map.background_table[attr_idx + idx as usize] as usize;
                 if ppu_mask.gray_scale {
                     sprite_color_idx &= 0b11110000;
                 }
-                let square_texture = if (sprite_color_idx as usize) < textures.len() {
-                    &textures[sprite_color_idx as usize]
-                } else {
-                    &textures[(sprite_color_idx as usize) - textures.len()]
-                };
-
-                self.canvas.copy(
-                    square_texture,
-                    None,
-                    Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE),
-                )?;
+                self.texture_buffer
+                    .insert_color(x as u8, y as u8, sprite_color_idx);
             }
         }
 
@@ -340,19 +348,15 @@ impl<
         }
     }
 
-    fn draw_sprites_for_big_top(&mut self, textures: &[Texture]) -> Result<(), String> {
-        Ok(self.draw_sprites_for_big_size(textures, false)?)
+    fn draw_sprites_for_big_top(&mut self) -> Result<(), String> {
+        Ok(self.draw_sprites_for_big_size(false)?)
     }
 
-    fn draw_sprites_for_big_bottom(&mut self, textures: &[Texture]) -> Result<(), String> {
-        Ok(self.draw_sprites_for_big_size(textures, true)?)
+    fn draw_sprites_for_big_bottom(&mut self) -> Result<(), String> {
+        Ok(self.draw_sprites_for_big_size(true)?)
     }
 
-    fn draw_sprites_for_big_size(
-        &mut self,
-        textures: &[Texture],
-        is_bottom: bool,
-    ) -> Result<(), String> {
+    fn draw_sprites_for_big_size(&mut self, is_bottom: bool) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
@@ -397,8 +401,8 @@ impl<
                                     }
                                     idx
                                 };
-                                let x = pos_x.wrapping_add(i - 8) as i32;
-                                let y = (self.drawing_line) as i32;
+                                let x = pos_x.wrapping_add(i - 8);
+                                let y = self.drawing_line;
                                 (idx, x, y)
                             } else {
                                 let idx = {
@@ -410,27 +414,20 @@ impl<
                                     }
                                     idx
                                 };
-                                let x = pos_x.wrapping_add(i) as i32;
-                                let y = (self.drawing_line) as i32;
+                                let x = pos_x.wrapping_add(i);
+                                let y = self.drawing_line;
                                 (idx, x, y)
                             }
                         };
 
-                        let mut color_idx = ppu_map.sprite_pallet[pallet_base_idx + idx as usize];
+                        let mut color_idx =
+                            ppu_map.sprite_pallet[pallet_base_idx + idx as usize] as usize;
                         if ppu_mask.gray_scale {
                             color_idx &= 0b11110000;
                         }
 
-                        let square_texture = if (color_idx as usize) < textures.len() {
-                            &textures[color_idx as usize]
-                        } else {
-                            &textures[(color_idx as usize) - textures.len()]
-                        };
-                        self.canvas.copy(
-                            square_texture,
-                            None,
-                            Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE),
-                        )?;
+                        self.texture_buffer
+                            .insert_color(x as u8, y as u8, color_idx);
                     }
                 }
                 None => continue,
@@ -439,7 +436,7 @@ impl<
         Ok(())
     }
 
-    fn draw_sprites_for_normal_size(&mut self, textures: &[Texture]) -> Result<(), String> {
+    fn draw_sprites_for_normal_size(&mut self) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
@@ -485,25 +482,17 @@ impl<
                                 }
                                 idx
                             };
-                            let x = (pos_x.wrapping_add(i)) as i32;
-                            let y = self.drawing_line as i32;
+                            let x = pos_x.wrapping_add(i);
+                            let y = self.drawing_line;
                             (idx, x, y)
                         };
-                        let mut color_idx = ppu_map.sprite_pallet[pallet_base_idx + idx as usize];
+                        let mut color_idx =
+                            ppu_map.sprite_pallet[pallet_base_idx + idx as usize] as usize;
                         if ppu_mask.gray_scale {
                             color_idx &= 0b11110000;
                         }
-                        let square_texture = if (color_idx as usize) < textures.len() {
-                            &textures[color_idx as usize]
-                        } else {
-                            &textures[(color_idx as usize) - textures.len()]
-                        };
-
-                        self.canvas.copy(
-                            square_texture,
-                            None,
-                            Rect::new(x, y, SPRITE_SIZE, SPRITE_SIZE),
-                        )?;
+                        self.texture_buffer
+                            .insert_color(x as u8, y as u8, color_idx);
                     }
                 }
                 None => continue,
