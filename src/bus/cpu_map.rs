@@ -142,6 +142,10 @@ impl PpuCtrl {
         n
     }
 
+    pub fn is_deep_bk_index(&self) -> bool {
+        self.bk_table_addr
+    }
+
     pub fn increment_vram_num(&mut self) -> u8 {
         match self.vram_increment {
             false => 1,

@@ -314,8 +314,16 @@ impl<
                 (((m & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
             };
 
+            let deep_idx = 0x1000
+                * self
+                    .cpu
+                    .bus
+                    .cpu_bus
+                    .ppu_register
+                    .ppu_ctrl
+                    .is_deep_bk_index() as u16;
             let background_idx = ppu_map.addr((0x2000 + i1 * PLAYGROUND_WIDTH as u16) + n);
-            let base_addr = (background_idx as u16 * 0x10) as u16 + i2;
+            let base_addr = (background_idx as u16 * 0x10) as u16 + i2 + deep_idx;
             let background_row = ppu_map.addr(base_addr);
             let background_high = ppu_map.addr(base_addr + 0x8);
             for j in 0..8 {
