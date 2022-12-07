@@ -26,3 +26,10 @@ I use nestest for cpu tests.
 cargo run roms/nestest.nes
 ```
 
+## Tips
+
+Poor rendering performance will be small improved when build.
+``` rust
+cargo build --release
+./target/release/fc2 roms/nestest.nes
+```
