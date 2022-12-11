@@ -95,7 +95,7 @@ pub struct PpuCtrl {
     pub gen_nmi: bool,
     ppu_selector: bool,
     pub sprite_size: bool,
-    pub bk_table_addr: bool,
+    bk_table_addr: bool,
     pub sprite_ptn_table_addr: bool,
     vram_increment: bool,
     pub base_name_table_addr: u8,
@@ -252,6 +252,18 @@ impl PpuStatus {
         n += self.sprite_evoluation as u8 * 0b00100000;
         n += self.bus;
         n
+    }
+
+    pub fn is_occured_sprite_zero_hit(&self) -> bool {
+        self.sprite_zero_hit
+    }
+
+    pub fn true_sprite_zero_hit(&mut self) {
+        self.sprite_zero_hit = true;
+    }
+
+    pub fn false_sprite_zero_hit(&mut self) {
+        self.sprite_zero_hit = false;
     }
 }
 

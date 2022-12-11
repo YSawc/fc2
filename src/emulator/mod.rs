@@ -283,6 +283,12 @@ impl<
                 }
             } else if self.drawing_line == 0 {
                 self.cpu.bus.cpu_bus.ppu_register.ppu_status.in_vlank = false;
+                self.cpu
+                    .bus
+                    .cpu_bus
+                    .ppu_register
+                    .ppu_status
+                    .false_sprite_zero_hit();
                 self.cpu.set_interrupt(false);
             }
         }
@@ -338,7 +344,7 @@ impl<
                     (idx, x, y)
                 };
                 let mut sprite_color_idx =
-                    ppu_map.background_table[attr_idx + idx as usize] as usize;
+                    ppu_map.addr(0x3F00 as u16 + attr_idx as u16 + idx as u16) as usize;
                 if ppu_mask.gray_scale {
                     sprite_color_idx &= 0b11110000;
                 }
@@ -386,6 +392,23 @@ impl<
                     pos_x,
                     attr,
                 }) => {
+                    if attr.priority
+                        && !self
+                            .cpu
+                            .bus
+                            .cpu_bus
+                            .ppu_register
+                            .ppu_status
+                            .is_occured_sprite_zero_hit()
+                    {
+                        self.cpu
+                            .bus
+                            .cpu_bus
+                            .ppu_register
+                            .ppu_status
+                            .true_sprite_zero_hit();
+                        continue;
+                    }
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
                     let base_addr = (((tile_index.tile_number + 1) % 2) == 0) as u16 * 0x1000
@@ -466,6 +489,23 @@ impl<
                     pos_x,
                     attr,
                 }) => {
+                    if attr.priority
+                        && !self
+                            .cpu
+                            .bus
+                            .cpu_bus
+                            .ppu_register
+                            .ppu_status
+                            .is_occured_sprite_zero_hit()
+                    {
+                        self.cpu
+                            .bus
+                            .cpu_bus
+                            .ppu_register
+                            .ppu_status
+                            .true_sprite_zero_hit();
+                        continue;
+                    }
                     let ppu_ctrl = &self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl;
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;

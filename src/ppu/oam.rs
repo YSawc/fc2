@@ -1,3 +1,32 @@
+#[derive(Debug, Clone)]
+pub struct SpriteInfo {
+    pub pos_y: u8,
+    pub tile_index: TileIndex,
+    pub attr: Attr,
+    pub pos_x: u8,
+}
+
+impl Default for SpriteInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SpriteInfo {
+    fn new() -> Self {
+        Self {
+            pos_y: 0,
+            tile_index: TileIndex::default(),
+            attr: Attr::default(),
+            pos_x: 0,
+        }
+    }
+
+    pub fn in_drawing_range(&self, y: u8) -> bool {
+        (self.pos_y <= y) && (self.pos_y + 7 >= y)
+    }
+}
+
 pub type SpriteInfos = Vec<SpriteInfo>;
 
 #[derive(Debug, Clone)]
@@ -52,35 +81,6 @@ impl PrimaryOAM {
             sprite_infos.push(sprite_info);
         }
         self.sprite_infos = sprite_infos;
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SpriteInfo {
-    pub pos_y: u8,
-    pub tile_index: TileIndex,
-    pub attr: Attr,
-    pub pos_x: u8,
-}
-
-impl Default for SpriteInfo {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SpriteInfo {
-    fn new() -> Self {
-        Self {
-            pos_y: 0,
-            tile_index: TileIndex::default(),
-            attr: Attr::default(),
-            pos_x: 0,
-        }
-    }
-
-    pub fn in_drawing_range(&self, y: u8) -> bool {
-        (self.pos_y <= y) && (self.pos_y + 7 >= y)
     }
 }
 
