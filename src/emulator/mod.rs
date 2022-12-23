@@ -321,13 +321,12 @@ impl<
 
     fn build_left_tile(
         &mut self,
-        tile_nametables: [usize; 33],
-        tile_idx: u16,
+        tile_nametable: usize,
+        tile_idx: usize,
         attr_idx: usize,
         left_x_ratio: u32,
     ) {
-        let (background_row, background_high) =
-            self.build_left_tile_high_low_background(tile_nametables, tile_idx);
+        let (background_row, background_high) = self.build_tile_background(tile_nametable);
         for i in 0..left_x_ratio {
             let (idx, x, y) = {
                 let idx = {
@@ -348,14 +347,13 @@ impl<
 
     fn build_right_tile(
         &mut self,
-        tile_nametables: [usize; 33],
-        tile_idx: u16,
+        tile_nametable: usize,
+        tile_idx: usize,
         attr_idx: usize,
         left_x_ratio: u32,
         right_x_ratio: u32,
     ) {
-        let (background_row, background_high) =
-            self.build_right_tile_high_low_background(tile_nametables, tile_idx);
+        let (background_row, background_high) = self.build_tile_background(tile_nametable);
         for i in 0..right_x_ratio {
             let (idx, x, y) = {
                 let idx = {
@@ -373,23 +371,33 @@ impl<
         }
     }
 
+    fn build_attr_idx(&mut self, nametable: usize) -> usize {
+        let corner_idx = ((nametable & 0x1F) / 4) as u16;
+
+        let relative_idx =
+            (((self.drawing_line / 16) % 2) * 2) + ((nametable & 0x1F) / 2) as u16 % 2;
+        let belongs_attr_idx = 0x23c0 + { (self.drawing_line / 32) * 8 } + corner_idx;
+        let belongs_palette = self.cpu.bus.ppu.map.addr(belongs_attr_idx);
+        (((belongs_palette & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
+    }
+
     fn build_tile(&mut self, tile_nametables: [usize; 33], scrolled_x: u8) {
         let (left_x_ratio, right_x_ratio) = calc_scroll_x_left_right_ratio_per_tile(scrolled_x);
-        for tile_idx in 0..PLAYGROUND_WIDTH as u16 {
-            let attr_idx = {
-                let relative_idx = (((self.drawing_line / 16) % 2) * 2) + (tile_idx / 2) % 2;
-                let n = 0x23c0 + { (self.drawing_line / 32) * 8 } + (tile_idx / 4);
-                let m = self.cpu.bus.ppu.map.addr(n);
-                (((m & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
-            };
+        for tile_idx in 0..PLAYGROUND_WIDTH as usize {
+            let (left_nametable, right_nametable) =
+                { (tile_nametables[tile_idx], tile_nametables[tile_idx + 1]) };
+            let (left_attr_idx, right_attr_idx) = (
+                self.build_attr_idx(left_nametable),
+                self.build_attr_idx(right_nametable),
+            );
 
-            self.build_left_tile(tile_nametables, tile_idx, attr_idx, left_x_ratio as u32);
+            self.build_left_tile(left_nametable, tile_idx, left_attr_idx, left_x_ratio);
             self.build_right_tile(
-                tile_nametables,
+                right_nametable,
                 tile_idx,
-                attr_idx,
-                left_x_ratio as u32,
-                right_x_ratio as u32,
+                right_attr_idx,
+                left_x_ratio,
+                right_x_ratio,
             );
         }
     }
@@ -407,31 +415,13 @@ impl<
         sprite_color_idx
     }
 
-    fn build_left_tile_high_low_background(
-        &mut self,
-        tile_nametables: [usize; 33],
-        tile_idx: u16,
-    ) -> (u8, u8) {
-        let background_idx = self.cpu.bus.ppu.map.addr(
-            tile_nametables[tile_idx as usize] as u16
-                + (self.drawing_line / 8) * PLAYGROUND_WIDTH as u16,
-        );
-        self.build_tile_background(background_idx)
-    }
-
-    fn build_right_tile_high_low_background(
-        &mut self,
-        tile_nametables: [usize; 33],
-        tile_idx: u16,
-    ) -> (u8, u8) {
-        let background_idx = self.cpu.bus.ppu.map.addr(
-            tile_nametables[tile_idx as usize + 1] as u16
-                + (self.drawing_line / 8) * PLAYGROUND_WIDTH as u16,
-        );
-        self.build_tile_background(background_idx)
-    }
-
-    fn build_tile_background(&mut self, background_idx: u8) -> (u8, u8) {
+    fn build_tile_background(&mut self, tile_nametable: usize) -> (u8, u8) {
+        let background_idx = self
+            .cpu
+            .bus
+            .ppu
+            .map
+            .addr(tile_nametable as u16 + (self.drawing_line / 8) * PLAYGROUND_WIDTH as u16);
         let deep_idx = 0x1000
             * self
                 .cpu
