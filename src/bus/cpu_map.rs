@@ -44,7 +44,7 @@ pub struct PpuRegister {
 
 #[derive(Debug, Clone)]
 pub struct WriteTwiceRegister {
-    write_flag: bool,
+    latch_flag: bool,
     pub addr: u16,
 }
 
@@ -57,20 +57,31 @@ impl Default for WriteTwiceRegister {
 impl WriteTwiceRegister {
     fn new() -> Self {
         Self {
-            write_flag: false,
+            latch_flag: false,
             addr: 0,
         }
     }
 
-    fn toggle_flag(&mut self) {
-        match self.write_flag {
-            true => self.write_flag = false,
-            false => self.write_flag = true,
+    pub fn latch_on(&mut self) {
+        self.latch_flag = true;
+    }
+
+    pub fn latch_off(&mut self) {
+        self.latch_flag = false;
+    }
+
+    fn toggle_latch(&mut self) {
+        match self.latch_flag {
+            true => self.latch_off(),
+            false => self.latch_on(),
         }
     }
 
     fn set(&mut self, r: u8) {
-        match self.write_flag {
+        // if r != 0 {
+        //     println!("2005(w):{:0x?}", r);
+        // }
+        match self.latch_flag {
             true => {
                 self.addr += r as u16;
             }
@@ -79,11 +90,11 @@ impl WriteTwiceRegister {
                 self.addr += (r as u16) << 8;
             }
         }
-        self.toggle_flag();
+        self.toggle_latch();
     }
 
     pub fn addr(&mut self) -> u16 {
-        match self.write_flag {
+        match self.latch_flag {
             true => unreachable!(),
             false => self.addr,
         }
@@ -130,7 +141,7 @@ impl PpuCtrl {
         self.base_name_table_addr = n & 0b00000011;
     }
 
-    fn to_n(&self) -> u8 {
+    pub fn to_n(&self) -> u8 {
         let mut n = 0;
         n += self.gen_nmi as u8 * 0b10000000;
         n += self.ppu_selector as u8 * 0b01000000;
@@ -155,6 +166,16 @@ impl PpuCtrl {
 
     pub fn for_big(&self) -> bool {
         self.sprite_size
+    }
+
+    pub fn referencing_nametable(&self) -> u16 {
+        match self.base_name_table_addr {
+            0b00 => 0x2000,
+            0b01 => 0x2400,
+            0b10 => 0x2800,
+            0b11 => 0x2C00,
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -246,6 +267,7 @@ impl PpuStatus {
     }
 
     fn to_n(&self) -> u8 {
+        // println!("2000(r)");
         let mut n = 0;
         n += self.in_vlank as u8 * 0b10000000;
         n += self.sprite_zero_hit as u8 * 0b01000000;
@@ -399,12 +421,6 @@ pub struct CpuMap {
     pub eram: [u8; 0x2000],
     pub prg_rom1: [u8; 0x4000],
     pub prg_rom2: [u8; 0x4000],
-}
-
-impl Default for CpuMap {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl CpuMap {

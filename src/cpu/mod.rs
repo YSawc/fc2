@@ -18,19 +18,11 @@ pub struct CPU {
     pub total_cycle: i64,
 }
 
-impl Default for CPU {
-    fn default() -> Self {
-        let mut cpu = Self::new();
-        cpu.prepare_operators();
-        cpu
-    }
-}
-
 impl CPU {
-    fn new() -> Self {
+    pub fn new(nes: &Nes) -> Self {
         let register = Register::default();
         let operators = FxHashMap::default();
-        let bus = Bus::default();
+        let bus = Bus::new(nes);
 
         Self {
             register,
@@ -41,7 +33,7 @@ impl CPU {
         }
     }
 
-    fn prepare_operators(&mut self) {
+    pub fn prepare_operators(&mut self) {
         let mut operators = FxHashMap::default();
 
         //  x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF
@@ -1464,7 +1456,8 @@ mod test {
 
     fn prepare_cpu_for_addr_mode_test(addr_mode: AddrMode) -> CPU {
         let nes = Nes::new_for_test();
-        let mut cpu = CPU::default();
+        let mut cpu = CPU::new(&nes);
+        cpu.prepare_operators();
         cpu.init(&nes);
         cpu.interrupt(Interrupt::Reset);
         let (code, _) = cpu.random_pick_operator_with_specify_addr_mode(addr_mode);

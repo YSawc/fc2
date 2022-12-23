@@ -1,5 +1,6 @@
 pub mod cpu_map;
 
+use crate::nes::*;
 use crate::ppu::*;
 use cpu_map::*;
 
@@ -17,17 +18,11 @@ pub struct Bus {
     pub controller_1_polled_data: u8,
 }
 
-impl Default for Bus {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Bus {
-    fn new() -> Self {
+    pub fn new(nes: &Nes) -> Self {
         Self {
-            cpu_bus: CpuMap::default(),
-            ppu: PPU::default(),
+            cpu_bus: CpuMap::new(),
+            ppu: PPU::new(nes),
             controller_polling_data: 0,
             controller_0_polled_data: 0,
             controller_1_polled_data: 0,
@@ -38,7 +33,13 @@ impl Bus {
 impl Mapper for Bus {
     fn addr(&mut self, n: u16) -> u8 {
         match n {
-            0x0000..=0x2004 | 0x2007..=0x4015 | 0x4018..=0xFFFF => self.cpu_bus.addr(n),
+            0x0000..=0x2001 | 0x2003..=0x2004 | 0x2007..=0x4015 | 0x4018..=0xFFFF => {
+                self.cpu_bus.addr(n)
+            }
+            0x2002 => {
+                self.cpu_bus.ppu_register.ppu_scroll.latch_off();
+                self.cpu_bus.addr(n)
+            }
             0x2005..=0x2006 => {
                 let r = self.cpu_bus.ppu_register.relative_addr(n);
                 self.cpu_bus.addr(r)

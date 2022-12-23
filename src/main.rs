@@ -19,7 +19,7 @@ fn main() -> Result<(), String> {
         VBLANK_LINE,
         TOTAL_LINE,
         VISIBLE_LINES,
-    > = Emulator::default();
+    > = Emulator::new(&nes);
     emulator.cpu.init(&nes);
     emulator.startup();
     emulator.set_sprites(&nes.header.info.chr_rom);
