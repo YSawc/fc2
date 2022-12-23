@@ -1,6 +1,7 @@
 pub mod mapper;
 pub mod oam;
 
+use crate::nes::*;
 use mapper::*;
 use oam::*;
 
@@ -12,16 +13,10 @@ pub struct PPU {
     pub oam_buf: Vec<u8>,
 }
 
-impl Default for PPU {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PPU {
-    fn new() -> Self {
+    pub fn new(nes: &Nes) -> Self {
         Self {
-            map: Map::default(),
+            map: Map::new(nes),
             primary_oam: PrimaryOAM::default(),
             secondary_oam: SecondaryOAM::default(),
             oam_buf: vec![],

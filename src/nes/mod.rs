@@ -89,6 +89,13 @@ impl Header {
 }
 
 #[derive(Debug, Clone)]
+pub enum TypeOfMirroring {
+    HORIZONTAL,
+    VERTICAL,
+    IGNORING,
+}
+
+#[derive(Debug, Clone)]
 pub struct Flags6 {
     pub mirroring: bool,
     pub ram_or_memory: bool,
@@ -113,6 +120,16 @@ impl Flags6 {
             trainer,
             ignore_mirroring,
             mapper,
+        }
+    }
+
+    pub const fn get_type_of_mirroring(&self) -> TypeOfMirroring {
+        match self.ignore_mirroring {
+            false => match self.mirroring {
+                true => TypeOfMirroring::VERTICAL,
+                false => TypeOfMirroring::HORIZONTAL,
+            },
+            true => TypeOfMirroring::IGNORING,
         }
     }
 }
