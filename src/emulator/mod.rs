@@ -214,12 +214,37 @@ impl<
         self.drawing_line >= 8
     }
 
-    fn draw_sprite_for_big_size(&mut self) -> Result<(), String> {
-        self.draw_sprites_for_big_top()?;
+    fn insert_front_sprite_for_big_size(&mut self) -> Result<(), String> {
+        self.insert_sprites_for_big_top()?;
         if self.enable_render_bottom() {
             self.set_secondary_oam_for_bottom();
-            self.draw_sprites_for_big_bottom()?;
+            self.insert_sprites_for_big_bottom()?;
         };
+        Ok(())
+    }
+
+    fn insert_front_sprites(&mut self) -> Result<(), String> {
+        if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
+            self.set_secondary_oam_for_nomal();
+            if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
+                self.insert_front_sprite_for_big_size()?;
+            } else {
+                self.insert_front_sprites_for_normal_size()?;
+            }
+        }
+        Ok(())
+    }
+
+    fn draw_line(&mut self, texture: &mut Texture) -> Result<(), String> {
+        texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+            for n in 0..self.texture_buffer.buffer.len() {
+                buffer[n] = self.texture_buffer.buffer[n];
+            }
+        })?;
+        self.canvas
+            .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
+        self.canvas.present();
+
         Ok(())
     }
 
@@ -229,25 +254,11 @@ impl<
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VISIBLE_LINES {
-                self.draw_background_line()?;
-                if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
-                    self.set_secondary_oam_for_nomal();
-                    if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
-                        self.draw_sprite_for_big_size()?;
-                    } else {
-                        self.draw_sprites_for_normal_size()?;
-                    }
-                }
+                self.insert_background_line()?;
+                self.insert_front_sprites()?;
             }
             if self.drawing_line == TOTAL_LINE {
-                texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-                    for n in 0..self.texture_buffer.buffer.len() {
-                        buffer[n] = self.texture_buffer.buffer[n];
-                    }
-                })?;
-                self.canvas
-                    .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
-                self.canvas.present();
+                self.draw_line(texture)?;
                 self.drawing_line = 0;
             } else {
                 self.drawing_line += 1;
@@ -318,7 +329,7 @@ impl<
         arr
     }
 
-    fn build_bg_dot_info(
+    fn build_background_dot_info(
         &mut self,
         background_row: u8,
         background_high: u8,
@@ -343,9 +354,9 @@ impl<
         attr_idx: usize,
         left_x_ratio: u32,
     ) {
-        let (background_row, background_high) = self.build_tile_background(tile_nametable);
+        let (background_row, background_high) = self.pick_row_high_tile_background(tile_nametable);
         for i in 0..left_x_ratio {
-            let (palette_idx, x, y) = self.build_bg_dot_info(
+            let (palette_idx, x, y) = self.build_background_dot_info(
                 background_row,
                 background_high,
                 tile_idx,
@@ -365,9 +376,9 @@ impl<
         left_x_ratio: u32,
         right_x_ratio: u32,
     ) {
-        let (background_row, background_high) = self.build_tile_background(tile_nametable);
+        let (background_row, background_high) = self.pick_row_high_tile_background(tile_nametable);
         for i in 0..right_x_ratio {
-            let (palette_idx, x, y) = self.build_bg_dot_info(
+            let (palette_idx, x, y) = self.build_background_dot_info(
                 background_row,
                 background_high,
                 tile_idx,
@@ -423,7 +434,7 @@ impl<
         sprite_color_idx
     }
 
-    fn build_tile_background(&mut self, tile_nametable: usize) -> (u8, u8) {
+    fn pick_row_high_tile_background(&mut self, tile_nametable: usize) -> (u8, u8) {
         let background_idx = self
             .cpu
             .bus
@@ -445,7 +456,7 @@ impl<
         (row, high)
     }
 
-    fn draw_background_line(&mut self) -> Result<(), String> {
+    fn insert_background_line(&mut self) -> Result<(), String> {
         let scrolled_addr = self.cpu.bus.cpu_bus.ppu_register.relative_addr(0x2005);
         let scrolled_x = ((scrolled_addr & 0xFF00) >> 8) as u8;
         let tile_nametables = self.refers_tile_nametable(scrolled_x);
@@ -467,15 +478,15 @@ impl<
         }
     }
 
-    fn draw_sprites_for_big_top(&mut self) -> Result<(), String> {
-        Ok(self.draw_sprites_for_big_size(false)?)
+    fn insert_sprites_for_big_top(&mut self) -> Result<(), String> {
+        Ok(self.insert_sprites_for_big_size(false)?)
     }
 
-    fn draw_sprites_for_big_bottom(&mut self) -> Result<(), String> {
-        Ok(self.draw_sprites_for_big_size(true)?)
+    fn insert_sprites_for_big_bottom(&mut self) -> Result<(), String> {
+        Ok(self.insert_sprites_for_big_size(true)?)
     }
 
-    fn draw_sprites_for_big_size(&mut self, is_bottom: bool) -> Result<(), String> {
+    fn insert_sprites_for_big_size(&mut self, is_bottom: bool) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
@@ -572,7 +583,7 @@ impl<
         Ok(())
     }
 
-    fn draw_sprites_for_normal_size(&mut self) -> Result<(), String> {
+    fn insert_front_sprites_for_normal_size(&mut self) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
