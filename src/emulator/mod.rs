@@ -229,7 +229,7 @@ impl<
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VISIBLE_LINES {
-                self.draw_background()?;
+                self.draw_background_line()?;
                 if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
                     self.set_secondary_oam_for_nomal();
                     if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
@@ -245,7 +245,6 @@ impl<
                         buffer[n] = self.texture_buffer.buffer[n];
                     }
                 })?;
-                self.canvas.clear();
                 self.canvas
                     .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
                 self.canvas.present();
@@ -319,7 +318,25 @@ impl<
         arr
     }
 
-    fn build_left_tile(
+    fn build_bg_dot_info(
+        &mut self,
+        background_row: u8,
+        background_high: u8,
+        tile_idx: usize,
+        shift_count: u32,
+        x_per_tile: u32,
+    ) -> (u16, u8, u8) {
+        let idx = {
+            let row_idx = (background_row & (0b1 << shift_count) != 0) as u16;
+            let high_idx = (background_high & (0b1 << shift_count) != 0) as u16;
+            high_idx << 1 | row_idx
+        };
+        let x = (x_per_tile + tile_idx as u32 * SQUARE_SIZE) as u8;
+        let y = self.drawing_line as u8;
+        (idx, x, y)
+    }
+
+    fn build_left_background_tile(
         &mut self,
         tile_nametable: usize,
         tile_idx: usize,
@@ -328,24 +345,19 @@ impl<
     ) {
         let (background_row, background_high) = self.build_tile_background(tile_nametable);
         for i in 0..left_x_ratio {
-            let (idx, x, y) = {
-                let idx = {
-                    let row_idx =
-                        (background_row & (0b1 << (left_x_ratio as u32 - 1 - i)) != 0) as u16;
-                    let high_idx =
-                        (background_high & (0b1 << (left_x_ratio as u32 - 1 - i)) != 0) as u16;
-                    high_idx << 1 | row_idx
-                };
-                let x = (i + tile_idx as u32 * SQUARE_SIZE) as u8;
-                let y = self.drawing_line as u8;
-                (idx, x, y)
-            };
-            let sprite_color_idx = self.calc_background_color_idx(attr_idx, idx);
+            let (palette_idx, x, y) = self.build_bg_dot_info(
+                background_row,
+                background_high,
+                tile_idx,
+                left_x_ratio as u32 - 1 - i,
+                i,
+            );
+            let sprite_color_idx = self.calc_background_color_idx(attr_idx, palette_idx);
             self.texture_buffer.insert_color(x, y, sprite_color_idx);
         }
     }
 
-    fn build_right_tile(
+    fn build_right_background_tile(
         &mut self,
         tile_nametable: usize,
         tile_idx: usize,
@@ -355,18 +367,14 @@ impl<
     ) {
         let (background_row, background_high) = self.build_tile_background(tile_nametable);
         for i in 0..right_x_ratio {
-            let (idx, x, y) = {
-                let idx = {
-                    let row_idx = (background_row & (0b1 << (7 - i)) != 0) as u16;
-                    let high_idx = (background_high & (0b1 << (7 - i)) != 0) as u16;
-                    high_idx << 1 | row_idx
-                };
-                let x = (left_x_ratio + i + tile_idx as u32 * SQUARE_SIZE) as u8;
-                let y = self.drawing_line as u8;
-                (idx, x, y)
-            };
-
-            let sprite_color_idx = self.calc_background_color_idx(attr_idx, idx);
+            let (palette_idx, x, y) = self.build_bg_dot_info(
+                background_row,
+                background_high,
+                tile_idx,
+                7 - i,
+                left_x_ratio + i,
+            );
+            let sprite_color_idx = self.calc_background_color_idx(attr_idx, palette_idx);
             self.texture_buffer.insert_color(x, y, sprite_color_idx);
         }
     }
@@ -381,7 +389,7 @@ impl<
         (((belongs_palette & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
     }
 
-    fn build_tile(&mut self, tile_nametables: [usize; 33], scrolled_x: u8) {
+    fn build_background_tiles(&mut self, tile_nametables: [usize; 33], scrolled_x: u8) {
         let (left_x_ratio, right_x_ratio) = calc_scroll_x_left_right_ratio_per_tile(scrolled_x);
         for tile_idx in 0..PLAYGROUND_WIDTH as usize {
             let (left_nametable, right_nametable) =
@@ -391,8 +399,8 @@ impl<
                 self.build_attr_idx(right_nametable),
             );
 
-            self.build_left_tile(left_nametable, tile_idx, left_attr_idx, left_x_ratio);
-            self.build_right_tile(
+            self.build_left_background_tile(left_nametable, tile_idx, left_attr_idx, left_x_ratio);
+            self.build_right_background_tile(
                 right_nametable,
                 tile_idx,
                 right_attr_idx,
@@ -402,13 +410,13 @@ impl<
         }
     }
 
-    fn calc_background_color_idx(&mut self, attr_idx: usize, idx: u16) -> usize {
+    fn calc_background_color_idx(&mut self, attr_idx: usize, pallete_idx: u16) -> usize {
         let mut sprite_color_idx =
             self.cpu
                 .bus
                 .ppu
                 .map
-                .addr(0x3F00 as u16 + attr_idx as u16 + idx) as usize;
+                .addr(0x3F00 as u16 + attr_idx as u16 + pallete_idx) as usize;
         if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.gray_scale {
             sprite_color_idx &= 0b11110000;
         }
@@ -437,12 +445,12 @@ impl<
         (row, high)
     }
 
-    fn draw_background(&mut self) -> Result<(), String> {
+    fn draw_background_line(&mut self) -> Result<(), String> {
         let scrolled_addr = self.cpu.bus.cpu_bus.ppu_register.relative_addr(0x2005);
         let scrolled_x = ((scrolled_addr & 0xFF00) >> 8) as u8;
         let tile_nametables = self.refers_tile_nametable(scrolled_x);
 
-        self.build_tile(tile_nametables, scrolled_x);
+        self.build_background_tiles(tile_nametables, scrolled_x);
         Ok(())
     }
 

@@ -78,9 +78,6 @@ impl WriteTwiceRegister {
     }
 
     fn set(&mut self, r: u8) {
-        // if r != 0 {
-        //     println!("2005(w):{:0x?}", r);
-        // }
         match self.latch_flag {
             true => {
                 self.addr += r as u16;
@@ -267,7 +264,6 @@ impl PpuStatus {
     }
 
     fn to_n(&self) -> u8 {
-        // println!("2000(r)");
         let mut n = 0;
         n += self.in_vlank as u8 * 0b10000000;
         n += self.sprite_zero_hit as u8 * 0b01000000;
@@ -311,7 +307,6 @@ impl PpuRegister {
     }
 
     pub fn set(&mut self, n: u16, r: u8) {
-        // println!("n: {:0x?}, r: {:0x?}", n, r);
         match n {
             0x2000 => self.ppu_ctrl.set(r),
             0x2001 => self.ppu_mask.set(r),
