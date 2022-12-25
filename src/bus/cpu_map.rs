@@ -39,7 +39,7 @@ pub struct PpuRegister {
     pub ppu_scroll: WriteTwiceRegister,
     pub ppu_addr: WriteTwiceRegister,
     pub ppu_data: u8,
-    pub ppu_buffer: u16,
+    pub ppu_buffer: PpuBuffer,
 }
 
 #[derive(Debug, Clone)]
@@ -154,7 +154,7 @@ impl PpuCtrl {
         self.bk_table_addr
     }
 
-    pub fn increment_vram_num(&mut self) -> u8 {
+    pub fn increment_vram_num(&mut self) -> u16 {
         match self.vram_increment {
             false => 1,
             true => 32,
@@ -285,6 +285,37 @@ impl PpuStatus {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PpuBuffer {
+    pub buffer: u8,
+    pub vram_memory: u8,
+}
+
+impl Default for PpuBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PpuBuffer {
+    fn new() -> Self {
+        PpuBuffer {
+            buffer: 0,
+            vram_memory: 0,
+        }
+    }
+
+    pub fn addr(&mut self) -> u8 {
+        let n = self.buffer;
+        self.buffer = self.vram_memory;
+        n
+    }
+
+    pub fn set(&mut self, n: u8) {
+        self.vram_memory = n;
+    }
+}
+
 impl Default for PpuRegister {
     fn default() -> Self {
         Self::new()
@@ -302,7 +333,7 @@ impl PpuRegister {
             ppu_scroll: WriteTwiceRegister::default(),
             ppu_addr: WriteTwiceRegister::default(),
             ppu_data: 0,
-            ppu_buffer: 0,
+            ppu_buffer: PpuBuffer::default(),
         }
     }
 
@@ -319,14 +350,13 @@ impl PpuRegister {
         }
     }
 
-    pub fn addr(&self, n: u16) -> u8 {
+    pub fn addr(&mut self, n: u16) -> u8 {
         match n {
             0x2000 => self.ppu_ctrl.to_n(),
             0x2001 => self.ppu_mask.to_n(),
             0x2002 => self.ppu_status.to_n(),
             0x2003 => self.oam_addr,
             0x2004 => self.oam_data,
-            0x2007 => self.ppu_buffer as u8,
             _ => unreachable!(),
         }
     }
