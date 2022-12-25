@@ -214,22 +214,22 @@ impl<
         self.drawing_line >= 8
     }
 
-    fn insert_front_sprite_for_big_size(&mut self) -> Result<(), String> {
-        self.insert_sprites_for_big_top()?;
+    fn insert_sprite_for_big_size(&mut self, behind_background: bool) -> Result<(), String> {
+        self.insert_sprites_for_big_top(behind_background)?;
         if self.enable_render_bottom() {
             self.set_secondary_oam_for_bottom();
-            self.insert_sprites_for_big_bottom()?;
+            self.insert_sprites_for_big_bottom(behind_background)?;
         };
         Ok(())
     }
 
-    fn insert_front_sprites(&mut self) -> Result<(), String> {
+    fn insert_sprites(&mut self, behind_background: bool) -> Result<(), String> {
         if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
             self.set_secondary_oam_for_nomal();
             if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
-                self.insert_front_sprite_for_big_size()?;
+                self.insert_sprite_for_big_size(behind_background)?;
             } else {
-                self.insert_front_sprites_for_normal_size()?;
+                self.insert_sprites_for_normal_size(behind_background)?;
             }
         }
         Ok(())
@@ -254,8 +254,9 @@ impl<
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VISIBLE_LINES {
+                self.insert_sprites(true)?;
                 self.insert_background_line()?;
-                self.insert_front_sprites()?;
+                self.insert_sprites(false)?;
             }
             if self.drawing_line == TOTAL_LINE {
                 self.draw_line(texture)?;
@@ -478,22 +479,26 @@ impl<
         }
     }
 
-    fn insert_sprites_for_big_top(&mut self) -> Result<(), String> {
-        Ok(self.insert_sprites_for_big_size(false)?)
+    fn insert_sprites_for_big_top(&mut self, behind_background: bool) -> Result<(), String> {
+        Ok(self.insert_sprites_for_big_size(behind_background, false)?)
     }
 
-    fn insert_sprites_for_big_bottom(&mut self) -> Result<(), String> {
-        Ok(self.insert_sprites_for_big_size(true)?)
+    fn insert_sprites_for_big_bottom(&mut self, behind_background: bool) -> Result<(), String> {
+        Ok(self.insert_sprites_for_big_size(behind_background, true)?)
     }
 
-    fn insert_sprites_for_big_size(&mut self, is_bottom: bool) -> Result<(), String> {
+    fn insert_sprites_for_big_size(
+        &mut self,
+        behind_background: bool,
+        is_bottom: bool,
+    ) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
                 .bus
                 .ppu
                 .secondary_oam
-                .pick_sprite_info_with_x(n as u8)
+                .pick_sprite_info_with_x(n as u8, behind_background)
             {
                 Some(SpriteInfo {
                     pos_y,
@@ -583,14 +588,14 @@ impl<
         Ok(())
     }
 
-    fn insert_front_sprites_for_normal_size(&mut self) -> Result<(), String> {
+    fn insert_sprites_for_normal_size(&mut self, behind_background: bool) -> Result<(), String> {
         for n in 0..PLAYGROUND_WIDTH * 8 {
             match self
                 .cpu
                 .bus
                 .ppu
                 .secondary_oam
-                .pick_sprite_info_with_x(n as u8)
+                .pick_sprite_info_with_x(n as u8, behind_background)
             {
                 Some(SpriteInfo {
                     pos_y,

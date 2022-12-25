@@ -86,26 +86,54 @@ impl Mapper for Map {
                 }
                 self.attr_table_00[(n - 0x23C0) as usize] = r;
             }
-            0x2400..=0x27BF => match self.type_of_mirroring {
-                TypeOfMirroring::HORIZONTAL => (),
-                _ => self.name_table_01[(n - 0x2400) as usize] = r,
-            },
-            0x27C0..=0x27FF => match self.type_of_mirroring {
-                TypeOfMirroring::HORIZONTAL => (),
-                _ => self.attr_table_01[(n - 0x27C0) as usize] = r,
-            },
-            0x2800..=0x2BBF => match self.type_of_mirroring {
-                TypeOfMirroring::VERTICAL => (),
-                _ => self.name_table_02[(n - 0x2800) as usize] = r,
-            },
-            0x2BC0..=0x2BFF => match self.type_of_mirroring {
-                TypeOfMirroring::VERTICAL => (),
-                _ => self.attr_table_02[(n - 0x2BC0) as usize] = r,
-            },
-            0x2C00..=0x2FBF => match self.type_of_mirroring {
-                TypeOfMirroring::IGNORING => self.name_table_03[(n - 0x2C00) as usize] = r,
-                _ => (),
-            },
+            0x2400..=0x27BF => {
+                match self.type_of_mirroring {
+                    TypeOfMirroring::HORIZONTAL => self.name_table_00[(n - 0x2400) as usize] = r,
+                    TypeOfMirroring::VERTICAL => self.name_table_03[(n - 0x2400) as usize] = r,
+                    _ => (),
+                }
+                self.name_table_01[(n - 0x2400) as usize] = r;
+            }
+            0x27C0..=0x27FF => {
+                match self.type_of_mirroring {
+                    TypeOfMirroring::HORIZONTAL => self.attr_table_00[(n - 0x27C0) as usize] = r,
+                    TypeOfMirroring::VERTICAL => self.attr_table_03[(n - 0x27C0) as usize] = r,
+                    _ => (),
+                }
+                self.attr_table_01[(n - 0x27C0) as usize] = r;
+            }
+            0x2800..=0x28BF => {
+                match self.type_of_mirroring {
+                    TypeOfMirroring::HORIZONTAL => self.name_table_03[(n - 0x2800) as usize] = r,
+                    TypeOfMirroring::VERTICAL => self.name_table_00[(n - 0x2800) as usize] = r,
+                    _ => (),
+                }
+                self.name_table_02[(n - 0x2800) as usize] = r;
+            }
+            0x2BC0..=0x2BFF => {
+                match self.type_of_mirroring {
+                    TypeOfMirroring::HORIZONTAL => self.attr_table_03[(n - 0x2BC0) as usize] = r,
+                    TypeOfMirroring::VERTICAL => self.attr_table_00[(n - 0x2BC0) as usize] = r,
+                    _ => (),
+                }
+                self.attr_table_02[(n - 0x2BC0) as usize] = r;
+            }
+            0x2C00..=0x2FBF => {
+                match self.type_of_mirroring {
+                    TypeOfMirroring::HORIZONTAL => self.name_table_02[(n - 0x2C00) as usize] = r,
+                    TypeOfMirroring::VERTICAL => self.name_table_01[(n - 0x2C00) as usize] = r,
+                    _ => (),
+                }
+                self.name_table_03[(n - 0x2C00) as usize] = r;
+            }
+            0x2FC0..=0x2FFF => {
+                match self.type_of_mirroring {
+                    TypeOfMirroring::HORIZONTAL => self.attr_table_02[(n - 0x2FC0) as usize] = r,
+                    TypeOfMirroring::VERTICAL => self.attr_table_01[(n - 0x2FC0) as usize] = r,
+                    _ => (),
+                }
+                self.attr_table_03[(n - 0x2FC0) as usize] = r;
+            }
             0x3000..=0x3EFF => self.name_and_attr_table_mirror[(n - 0x3000) as usize] = r,
             0x3F00 | 0x3F04 | 0x3F08 | 0x3F0C => {
                 self.sprite_pallet[(n - 0x3F00) as usize] = r;

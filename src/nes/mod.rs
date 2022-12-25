@@ -1,4 +1,3 @@
-use crate::util::*;
 use std::env;
 use std::fs::File;
 use std::io::Read;
@@ -71,11 +70,11 @@ impl Info {
 impl Header {
     pub fn new(buffer: &[u8]) -> Self {
         let info = Info::new(buffer);
-        let flags6 = Flags6::parse_buf(&buffer[6]);
-        let flags7 = Flags7::parse_buf(&buffer[7]);
-        let flags8 = Flags8::parse_buf(&buffer[8]);
-        let flags9 = Flags9::parse_buf(&buffer[9]);
-        let flags10 = Flags10::parse_buf(&buffer[10]);
+        let flags6 = Flags6::parse_buf(buffer[6]);
+        let flags7 = Flags7::parse_buf(buffer[7]);
+        let flags8 = Flags8::parse_buf(buffer[8]);
+        let flags9 = Flags9::parse_buf(buffer[9]);
+        let flags10 = Flags10::parse_buf(buffer[10]);
 
         Self {
             info,
@@ -101,18 +100,16 @@ pub struct Flags6 {
     pub ram_or_memory: bool,
     pub trainer: bool,
     pub ignore_mirroring: bool,
-    pub mapper: u32,
+    pub mapper: u8,
 }
 
 impl Flags6 {
-    fn parse_buf(num: &u8) -> Self {
-        let s = format!("{:08b}", num);
-        let v: Vec<char> = s.chars().collect();
-        let mirroring = char_to_bool(&v[0]);
-        let ram_or_memory = char_to_bool(&v[1]);
-        let trainer = char_to_bool(&v[2]);
-        let ignore_mirroring = char_to_bool(&v[3]);
-        let mapper = chars_to_u32(&v[4..=7].to_vec());
+    fn parse_buf(n: u8) -> Self {
+        let mirroring = (n & 0b00000001) != 0;
+        let ram_or_memory = (n & 0b00000010) != 0;
+        let trainer = (n & 0b00000100) != 0;
+        let ignore_mirroring = (n & 0b00001000) != 0;
+        let mapper = (n & 0b11110000) as u8;
 
         Self {
             mirroring,
@@ -138,18 +135,16 @@ impl Flags6 {
 pub struct Flags7 {
     pub vs_unisystem: bool,
     pub play_choice_10: bool,
-    pub nes_20_format: u32,
-    pub mapper: u32,
+    pub nes_20_format: u8,
+    pub mapper: u8,
 }
 
 impl Flags7 {
-    fn parse_buf(num: &u8) -> Self {
-        let s = format!("{:08b}", num);
-        let v: Vec<char> = s.chars().collect();
-        let vs_unisystem = char_to_bool(&v[0]);
-        let play_choice_10 = char_to_bool(&v[1]);
-        let nes_20_format = chars_to_u32(&v[2..=3].to_vec());
-        let mapper = chars_to_u32(&v[4..=7].to_vec());
+    fn parse_buf(n: u8) -> Self {
+        let vs_unisystem = (n & 0b00000001) != 0;
+        let play_choice_10 = (n & 0b00000010) != 0;
+        let nes_20_format = n & 0b00001100;
+        let mapper = n & 0b11110000;
 
         Self {
             vs_unisystem,
@@ -162,14 +157,12 @@ impl Flags7 {
 
 #[derive(Debug, Clone)]
 pub struct Flags8 {
-    pub prg_ram_size: u32,
+    pub prg_ram_size: u8,
 }
 
 impl Flags8 {
-    fn parse_buf(num: &u8) -> Self {
-        let s = format!("{:08b}", num);
-        let v: Vec<char> = s.chars().collect();
-        let prg_ram_size = chars_to_u32(&v[0..=7].to_vec());
+    fn parse_buf(n: u8) -> Self {
+        let prg_ram_size = n;
 
         Self { prg_ram_size }
     }
@@ -178,15 +171,13 @@ impl Flags8 {
 #[derive(Debug, Clone)]
 pub struct Flags9 {
     pub tv_system: bool,
-    pub reserved: u32,
+    pub reserved: u8,
 }
 
 impl Flags9 {
-    fn parse_buf(num: &u8) -> Self {
-        let s = format!("{:08b}", num);
-        let v: Vec<char> = s.chars().collect();
-        let tv_system = char_to_bool(&v[0]);
-        let reserved = chars_to_u32(&v[1..=7].to_vec());
+    fn parse_buf(n: u8) -> Self {
+        let tv_system = (n & 0b00000001) != 0;
+        let reserved = 0;
 
         Self {
             tv_system,
@@ -197,18 +188,16 @@ impl Flags9 {
 
 #[derive(Debug, Clone)]
 pub struct Flags10 {
-    pub tv_system: u32,
+    pub tv_system: u8,
     pub prg_ram: bool,
     pub board_mode: bool,
 }
 
 impl Flags10 {
-    fn parse_buf(num: &u8) -> Self {
-        let s = format!("{:08b}", num);
-        let v: Vec<char> = s.chars().collect();
-        let tv_system = chars_to_u32(&v[0..=1].to_vec());
-        let prg_ram = char_to_bool(&v[4]);
-        let board_mode = char_to_bool(&v[5]);
+    fn parse_buf(n: u8) -> Self {
+        let tv_system = n & 0b00000011;
+        let prg_ram = (n & 0b00010000) != 0;
+        let board_mode = (n & 0b00100000) != 0;
 
         Self {
             tv_system,
