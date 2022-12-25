@@ -391,12 +391,23 @@ impl<
         }
     }
 
+    fn pick_attr_base_addr(&mut self, nametable: usize) -> u16 {
+        match nametable {
+            0x2000..=0x23BF => 0x23C0,
+            0x2400..=0x27BF => 0x27C0,
+            0x2800..=0x28BF => 0x28C0,
+            0x2C00..=0x2CBF => 0x2CC0,
+            _ => unreachable!(),
+        }
+    }
+
     fn build_attr_idx(&mut self, nametable: usize) -> usize {
         let corner_idx = ((nametable & 0x1F) / 4) as u16;
 
         let relative_idx =
             (((self.drawing_line / 16) % 2) * 2) + ((nametable & 0x1F) / 2) as u16 % 2;
-        let belongs_attr_idx = 0x23c0 + { (self.drawing_line / 32) * 8 } + corner_idx;
+        let belongs_attr_idx =
+            self.pick_attr_base_addr(nametable) + { (self.drawing_line / 32) * 8 } + corner_idx;
         let belongs_palette = self.cpu.bus.ppu.map.addr(belongs_attr_idx);
         (((belongs_palette & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
     }
