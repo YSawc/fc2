@@ -10,5 +10,13 @@ sdl2 = "0.35"
 rustc-hash = "1.1.0"
 rand = "0.8.5"
 
+[dev-dependencies]
+criterion = "0.3"
+
 [features]
 render_sprites = []
+
+[[bench]]
+name = "bench_main"
+harness = false
+

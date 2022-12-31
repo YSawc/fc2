@@ -26,6 +26,9 @@ I use nestest for cpu tests.
 cargo run roms/nestest.nes
 ```
 
+## Benches
+Measuring performance with [criterion.rs](https://github.com/bheisler/criterion.rs) helps easy improvements.
+
 ## Tips
 
 Poor rendering performance will be small improved when build.
