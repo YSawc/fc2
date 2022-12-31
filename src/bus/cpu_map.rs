@@ -165,12 +165,12 @@ impl PpuCtrl {
         self.sprite_size
     }
 
-    pub fn referencing_nametable(&self) -> u16 {
+    pub fn refers_base_nametable(&self) -> (bool, bool) {
         match self.base_name_table_addr {
-            0b00 => 0x2000,
-            0b01 => 0x2400,
-            0b10 => 0x2800,
-            0b11 => 0x2C00,
+            0b00 => (false, false),
+            0b01 => (true, false),
+            0b10 => (false, true),
+            0b11 => (true, true),
             _ => unreachable!(),
         }
     }
@@ -426,10 +426,7 @@ impl RP2A03 {
             0x4010..=0x4013 => self.dmc[(n - 0x4010) as usize] = r,
             0x4014 => self.oam_dma = r,
             0x4015 => self.snd_chn = r,
-            _ => {
-                print!("{:0x?}", n);
-                unreachable!();
-            }
+            _ => unreachable!(),
         }
     }
 }
