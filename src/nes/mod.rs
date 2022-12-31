@@ -109,7 +109,7 @@ impl Flags6 {
         let ram_or_memory = (n & 0b00000010) != 0;
         let trainer = (n & 0b00000100) != 0;
         let ignore_mirroring = (n & 0b00001000) != 0;
-        let mapper = (n & 0b11110000) as u8;
+        let mapper = (n & 0b11110000) >> 4;
 
         Self {
             mirroring,
@@ -143,8 +143,8 @@ impl Flags7 {
     fn parse_buf(n: u8) -> Self {
         let vs_unisystem = (n & 0b00000001) != 0;
         let play_choice_10 = (n & 0b00000010) != 0;
-        let nes_20_format = n & 0b00001100;
-        let mapper = n & 0b11110000;
+        let nes_20_format = (n & 0b00001100) >> 2;
+        let mapper = (n & 0b11110000) >> 4;
 
         Self {
             vs_unisystem,

@@ -294,39 +294,61 @@ impl<
             .set_secondary_oam(self.drawing_line as u8 - 8);
     }
 
-    fn calc_tile_idx(&self, x: u16, n: u16, refering_nametable: u16) -> u16 {
-        let x = x / 8;
-        if x + n <= 0x1F {
-            refering_nametable + x + n
-        } else {
-            self.refers_side_nametable(refering_nametable) + (x + n - 0x1F) - 1 as u16
-        }
-    }
-
-    fn refers_side_nametable(&self, references_nametable: u16) -> u16 {
-        match references_nametable {
-            0x2000 => 0x2400,
-            0x2400 => 0x2000,
-            0x2800 => 0x2C00,
-            0x2C00 => 0x2800,
-            _ => unimplemented!(),
-        }
-    }
-
-    // When over 0xFF dot scroll position, refers side nametable continuous.
-    fn refers_tile_nametable(&self, positions_x: u8) -> [usize; 33] {
-        let references_nametable = self
+    fn build_base_nametable_addr(&self) -> u16 {
+        let mut base_addr = 0x2000;
+        let (additional_x, additional_y) = self
             .cpu
             .bus
             .cpu_bus
             .ppu_register
             .ppu_ctrl
-            .referencing_nametable();
+            .refers_base_nametable();
+
+        if additional_x {
+            base_addr += 0x400;
+        }
+
+        if additional_y {
+            base_addr += 0x800;
+        }
+
+        base_addr
+    }
+
+    fn calc_tile_idx(&self, x: u16, y: u16, n: u16) -> u16 {
+        let mut base_addr = self.build_base_nametable_addr();
+        let mut x = x / 8 + n;
+        let mut y = ((y + self.drawing_line) / 8) * 0x20;
+
+        if x > 0x1F {
+            x -= 0x20;
+            base_addr ^= 0x400;
+            if x > 0x1F {
+                x -= 0x20;
+                base_addr ^= 0x400;
+            }
+        }
+
+        if y > 0x3A0 {
+            y -= 0x3C0;
+            base_addr ^= 0x800;
+            if y > 0x3A0 {
+                y -= 0x3C0;
+                base_addr ^= 0x800;
+            }
+        }
+
+        base_addr + x + y
+    }
+
+    // When over 0xFF dot scroll position, refers side nametable continuous.
+    fn refers_tile_nametable(&self, scrolled_x: u16, scrolled_y: u16) -> [usize; 33] {
         let mut arr: [usize; 33] = [0; 33];
         for i in 0..33 as u16 {
-            let x = self.calc_tile_idx(positions_x as u16, i, references_nametable);
+            let x = self.calc_tile_idx(scrolled_x, scrolled_y, i);
             arr[i as usize] = x as usize;
         }
+
         arr
     }
 
@@ -350,18 +372,20 @@ impl<
 
     fn build_left_background_tile(
         &mut self,
-        tile_nametable: usize,
+        nametable: usize,
         tile_idx: usize,
         attr_idx: usize,
         left_x_ratio: u32,
+        scrolled_y: u16,
     ) {
-        let (background_row, background_high) = self.pick_row_high_tile_background(tile_nametable);
+        let (background_row, background_high) =
+            self.pick_row_high_tile_background(nametable, scrolled_y);
         for i in 0..left_x_ratio {
             let (palette_idx, x, y) = self.build_background_dot_info(
                 background_row,
                 background_high,
                 tile_idx,
-                left_x_ratio as u32 - 1 - i,
+                left_x_ratio - 1 - i,
                 i,
             );
             let sprite_color_idx = self.calc_background_color_idx(attr_idx, palette_idx);
@@ -371,13 +395,15 @@ impl<
 
     fn build_right_background_tile(
         &mut self,
-        tile_nametable: usize,
+        nametable: usize,
         tile_idx: usize,
         attr_idx: usize,
         left_x_ratio: u32,
         right_x_ratio: u32,
+        scrolled_y: u16,
     ) {
-        let (background_row, background_high) = self.pick_row_high_tile_background(tile_nametable);
+        let (background_row, background_high) =
+            self.pick_row_high_tile_background(nametable, scrolled_y);
         for i in 0..right_x_ratio {
             let (palette_idx, x, y) = self.build_background_dot_info(
                 background_row,
@@ -391,29 +417,48 @@ impl<
         }
     }
 
-    fn pick_attr_base_addr(&mut self, nametable: usize) -> u16 {
+    fn calc_relative_addr_with_base_nametable(&self, nametable: usize) -> usize {
+        let addr = match nametable {
+            0x2000..=0x23BF => nametable - 0x2000,
+            0x2400..=0x27BF => nametable - 0x2400,
+            0x2800..=0x2BBF => nametable - 0x2800,
+            0x2C00..=0x2FBF => nametable - 0x2C00,
+            _ => unreachable!(),
+        };
+        addr & 0xFFF
+    }
+
+    fn pick_attr_base_addr(&mut self, nametable: usize) -> usize {
         match nametable {
             0x2000..=0x23BF => 0x23C0,
             0x2400..=0x27BF => 0x27C0,
-            0x2800..=0x28BF => 0x28C0,
-            0x2C00..=0x2CBF => 0x2CC0,
+            0x2800..=0x2BBF => 0x2BC0,
+            0x2C00..=0x2FBF => 0x2FC0,
             _ => unreachable!(),
         }
     }
 
     fn build_attr_idx(&mut self, nametable: usize) -> usize {
-        let corner_idx = ((nametable & 0x1F) / 4) as u16;
+        let corner_idx = (nametable & 0x1F) / 4;
+        let addr_relative_with_base_nametable =
+            self.calc_relative_addr_with_base_nametable(nametable);
 
         let relative_idx =
-            (((self.drawing_line / 16) % 2) * 2) + ((nametable & 0x1F) / 2) as u16 % 2;
-        let belongs_attr_idx =
-            self.pick_attr_base_addr(nametable) + { (self.drawing_line / 32) * 8 } + corner_idx;
-        let belongs_palette = self.cpu.bus.ppu.map.addr(belongs_attr_idx);
-        (((belongs_palette & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) as usize) * 4
+            (((addr_relative_with_base_nametable / 0x40) % 2) * 2) + ((nametable & 0x1F) / 2) % 2;
+        let belongs_attr_idx = self.pick_attr_base_addr(nametable)
+            + (addr_relative_with_base_nametable / 0x80) * 8
+            + corner_idx;
+        let belongs_palette = self.cpu.bus.ppu.map.addr(belongs_attr_idx as u16) as usize;
+        ((belongs_palette & (0b11 << relative_idx * 2)) >> (relative_idx * 2)) * 4
     }
 
-    fn build_background_tiles(&mut self, tile_nametables: [usize; 33], scrolled_x: u8) {
-        let (left_x_ratio, right_x_ratio) = calc_scroll_x_left_right_ratio_per_tile(scrolled_x);
+    fn build_background_tiles(
+        &mut self,
+        tile_nametables: [usize; 33],
+        scrolled_x: u16,
+        scrolled_y: u16,
+    ) {
+        let (left_x_ratio, right_x_ratio) = calc_scrolled_tile_ratio(scrolled_x);
         for tile_idx in 0..PLAYGROUND_WIDTH as usize {
             let (left_nametable, right_nametable) =
                 { (tile_nametables[tile_idx], tile_nametables[tile_idx + 1]) };
@@ -422,13 +467,20 @@ impl<
                 self.build_attr_idx(right_nametable),
             );
 
-            self.build_left_background_tile(left_nametable, tile_idx, left_attr_idx, left_x_ratio);
+            self.build_left_background_tile(
+                left_nametable,
+                tile_idx,
+                left_attr_idx,
+                left_x_ratio,
+                scrolled_y,
+            );
             self.build_right_background_tile(
                 right_nametable,
                 tile_idx,
                 right_attr_idx,
                 left_x_ratio,
                 right_x_ratio,
+                scrolled_y,
             );
         }
     }
@@ -446,13 +498,12 @@ impl<
         sprite_color_idx
     }
 
-    fn pick_row_high_tile_background(&mut self, tile_nametable: usize) -> (u8, u8) {
-        let background_idx = self
-            .cpu
-            .bus
-            .ppu
-            .map
-            .addr(tile_nametable as u16 + (self.drawing_line / 8) * PLAYGROUND_WIDTH as u16);
+    fn pick_row_high_tile_background(
+        &mut self,
+        tile_nametable: usize,
+        scrolled_y: u16,
+    ) -> (u8, u8) {
+        let background_idx = self.cpu.bus.ppu.map.addr(tile_nametable as u16) as u16;
         let deep_idx = 0x1000
             * self
                 .cpu
@@ -462,7 +513,8 @@ impl<
                 .ppu_ctrl
                 .is_deep_bk_index() as u16;
 
-        let base_addr = (background_idx as u16 * 0x10) as u16 + (self.drawing_line % 8) + deep_idx;
+        let base_addr =
+            background_idx as u16 * 0x10 + (scrolled_y + self.drawing_line) % 8 + deep_idx;
         let row = self.cpu.bus.ppu.map.addr(base_addr);
         let high = self.cpu.bus.ppu.map.addr(base_addr + 0x8);
         (row, high)
@@ -470,10 +522,11 @@ impl<
 
     fn insert_background_line(&mut self) -> Result<(), String> {
         let scrolled_addr = self.cpu.bus.cpu_bus.ppu_register.relative_addr(0x2005);
-        let scrolled_x = ((scrolled_addr & 0xFF00) >> 8) as u8;
-        let tile_nametables = self.refers_tile_nametable(scrolled_x);
+        let (scrolled_x, scrolled_y) =
+            { (((scrolled_addr & 0xFF00) >> 8), (scrolled_addr & 0x00FF)) };
+        let tile_nametables = self.refers_tile_nametable(scrolled_x, scrolled_y);
 
-        self.build_background_tiles(tile_nametables, scrolled_x);
+        self.build_background_tiles(tile_nametables, scrolled_x, scrolled_y);
         Ok(())
     }
 
@@ -482,11 +535,11 @@ impl<
     }
 
     pub fn set_sprites(&mut self, chars: &Vec<u8>) {
-        if chars.len() > 0x2000 {
-            unimplemented!()
-        }
         for (i, chr) in chars.iter().enumerate() {
             self.cpu.bus.ppu.map.set(i as u16, *chr);
+            if i == 0x2000 {
+                return;
+            }
         }
     }
 
