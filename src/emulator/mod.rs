@@ -106,6 +106,16 @@ impl<
         self.cpu.clear_cycle();
     }
 
+    fn update_texture_buffer(&mut self, texture: &mut Texture) -> Result<(), String> {
+        texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+            for (key, value) in self.texture_buffer.buffer.iter().enumerate() {
+                buffer[key] = *value;
+            }
+        })?;
+
+        Ok(())
+    }
+
     pub fn render_all_sprites(&mut self, sprites_num: u32) -> Result<(), String> {
         let mut event_pump = self.sdl.event_pump()?;
         let texture_creator: TextureCreator<_> = self.canvas.texture_creator();
@@ -133,11 +143,9 @@ impl<
                 }
             }
         }
-        texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-            for n in 0..self.texture_buffer.buffer.len() {
-                buffer[n] = self.texture_buffer.buffer[n];
-            }
-        })?;
+
+        self.update_texture_buffer(&mut texture)?;
+
         self.canvas.clear();
         self.canvas
             .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
@@ -236,11 +244,7 @@ impl<
     }
 
     fn draw_line(&mut self, texture: &mut Texture) -> Result<(), String> {
-        texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-            for n in 0..self.texture_buffer.buffer.len() {
-                buffer[n] = self.texture_buffer.buffer[n];
-            }
-        })?;
+        self.update_texture_buffer(texture)?;
         self.canvas
             .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
         self.canvas.present();

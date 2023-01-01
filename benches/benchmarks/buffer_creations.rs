@@ -5,8 +5,8 @@ fn create_buffer_with_index_origin() {
     let new_buffer: &mut [u8] = &mut [0; 1000000];
     let origin_buffer: [u8; 1000000] = [1; 1000000];
 
-    for n in 0..origin_buffer.len() {
-        new_buffer[n] = origin_buffer[n];
+    for (key, value) in origin_buffer.iter().enumerate() {
+        new_buffer[key] = *value;
     }
 }
 
@@ -14,8 +14,8 @@ fn create_buffer_with_clone() {
     let new_buffer: &mut [u8] = &mut [0; 1000000];
     let origin_buffer: [u8; 1000000] = [1; 1000000];
 
-    for n in 0..origin_buffer.len() {
-        new_buffer[n].clone_from(&origin_buffer[n]);
+    for (key, value) in origin_buffer.iter().enumerate() {
+        new_buffer[key].clone_from(&value);
     }
 }
 
