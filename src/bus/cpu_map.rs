@@ -30,72 +30,68 @@ impl Controller {
 }
 
 #[derive(Debug, Clone)]
+pub struct InternalRegisters {
+    pub current_vram: u16,
+    pub temporary_vram: u16,
+    pub x_scroll: u8,
+    pub latch_flag: bool,
+}
+
+impl Default for InternalRegisters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InternalRegisters {
+    pub fn new() -> Self {
+        let current_vram = 0;
+        let temporary_vram = 0;
+        let x_scroll = 0;
+        let latch_flag = false;
+
+        Self {
+            current_vram,
+            temporary_vram,
+            x_scroll,
+            latch_flag,
+        }
+    }
+
+    pub fn on_latch(&mut self) {
+        self.latch_flag = true;
+    }
+
+    pub fn off_latch(&mut self) {
+        self.latch_flag = false;
+    }
+
+    pub fn toggle_latch(&mut self) {
+        match self.latch_flag {
+            true => self.off_latch(),
+            false => self.on_latch(),
+        }
+    }
+
+    pub fn inc_vram_addr(&mut self, n: u16) {
+        self.current_vram += n;
+    }
+
+    pub fn copy_current_vram_to_tempolary_vram(&mut self) {
+        self.current_vram = self.temporary_vram;
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PpuRegister {
     pub ppu_ctrl: PpuCtrl,
     pub ppu_mask: PpuMask,
     pub ppu_status: PpuStatus,
     pub oam_addr: u8,
     pub oam_data: u8,
-    pub ppu_scroll: WriteTwiceRegister,
-    pub ppu_addr: WriteTwiceRegister,
     pub ppu_data: u8,
     pub ppu_buffer: PpuBuffer,
-}
-
-#[derive(Debug, Clone)]
-pub struct WriteTwiceRegister {
-    latch_flag: bool,
-    pub addr: u16,
-}
-
-impl Default for WriteTwiceRegister {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl WriteTwiceRegister {
-    fn new() -> Self {
-        Self {
-            latch_flag: false,
-            addr: 0,
-        }
-    }
-
-    pub fn latch_on(&mut self) {
-        self.latch_flag = true;
-    }
-
-    pub fn latch_off(&mut self) {
-        self.latch_flag = false;
-    }
-
-    fn toggle_latch(&mut self) {
-        match self.latch_flag {
-            true => self.latch_off(),
-            false => self.latch_on(),
-        }
-    }
-
-    fn set(&mut self, r: u8) {
-        match self.latch_flag {
-            true => {
-                self.addr += r as u16;
-            }
-            false => {
-                self.addr = 0;
-                self.addr += (r as u16) << 8;
-            }
-        }
-        self.toggle_latch();
-    }
-
-    pub fn addr(&mut self) -> u16 {
-        match self.latch_flag {
-            true => unreachable!(),
-            false => self.addr,
-        }
-    }
+    pub internal_registers: InternalRegisters,
 }
 
 #[derive(Debug, Clone)]
@@ -163,16 +159,6 @@ impl PpuCtrl {
 
     pub fn for_big(&self) -> bool {
         self.sprite_size
-    }
-
-    pub fn refers_base_nametable(&self) -> (bool, bool) {
-        match self.base_name_table_addr {
-            0b00 => (false, false),
-            0b01 => (true, false),
-            0b10 => (false, true),
-            0b11 => (true, true),
-            _ => unreachable!(),
-        }
     }
 }
 
@@ -330,22 +316,59 @@ impl PpuRegister {
             ppu_status: PpuStatus::default(),
             oam_addr: 0,
             oam_data: 0,
-            ppu_scroll: WriteTwiceRegister::default(),
-            ppu_addr: WriteTwiceRegister::default(),
             ppu_data: 0,
             ppu_buffer: PpuBuffer::default(),
+            internal_registers: InternalRegisters::default(),
         }
     }
 
     pub fn set(&mut self, n: u16, r: u8) {
         match n {
-            0x2000 => self.ppu_ctrl.set(r),
+            0x2000 => {
+                self.internal_registers.temporary_vram &= 0b1111001111111111;
+                self.internal_registers.temporary_vram |= (r as u16 & 0b00000011) << 10;
+                self.ppu_ctrl.set(r);
+            }
             0x2001 => self.ppu_mask.set(r),
             0x2002 => self.ppu_status.set(r),
             0x2003 => self.oam_addr = r,
             0x2004 => self.oam_data = r,
-            0x2005 => self.ppu_scroll.set(r),
-            0x2006 => self.ppu_addr.set(r),
+            0x2005 => {
+                let r = r as u16;
+                match self.internal_registers.latch_flag {
+                    true => {
+                        self.internal_registers.temporary_vram &= 0b1000110000011111;
+                        let b = (r & 0b00000111) << 12;
+                        let m = ((r & 0b00111000) >> 3) << 5;
+                        let h = ((r & 0b11000000) >> 6) << 8;
+                        self.internal_registers.temporary_vram |= h | m | b
+                    }
+                    false => {
+                        self.internal_registers.x_scroll = 0;
+                        self.internal_registers.temporary_vram &= 0b1111111111100000;
+                        let b = r & 0b00000111;
+                        let h = (r & 0b11111000) >> 3;
+                        self.internal_registers.x_scroll = b as u8;
+                        self.internal_registers.temporary_vram |= h;
+                    }
+                }
+                self.internal_registers.toggle_latch();
+            }
+            0x2006 => {
+                match self.internal_registers.latch_flag {
+                    true => {
+                        self.internal_registers.temporary_vram &= 0b111111100000000;
+                        self.internal_registers.temporary_vram |= r as u16;
+                        self.internal_registers
+                            .copy_current_vram_to_tempolary_vram();
+                    }
+                    false => {
+                        self.internal_registers.temporary_vram &= 0b000000011111111;
+                        self.internal_registers.temporary_vram |= (r as u16 & 0b00111111) << 8;
+                    }
+                }
+                self.internal_registers.toggle_latch();
+            }
             _ => unreachable!(),
         }
     }
@@ -361,12 +384,9 @@ impl PpuRegister {
         }
     }
 
-    pub fn relative_addr(&self, n: u16) -> u16 {
-        match n {
-            0x2005 => self.ppu_scroll.addr,
-            0x2006 => self.ppu_addr.addr,
-            _ => unreachable!(),
-        }
+    pub fn constant_inc_vram(&mut self) {
+        let n = self.ppu_ctrl.increment_vram_num();
+        self.internal_registers.inc_vram_addr(n);
     }
 }
 

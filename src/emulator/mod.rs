@@ -298,15 +298,28 @@ impl<
             .set_secondary_oam(self.drawing_line as u8 - 8);
     }
 
-    fn build_base_nametable_addr(&self) -> u16 {
-        let mut base_addr = 0x2000;
-        let (additional_x, additional_y) = self
+    pub fn refers_base_nametable(&self) -> (bool, bool) {
+        let base_name_table_addr = (self
             .cpu
             .bus
             .cpu_bus
             .ppu_register
-            .ppu_ctrl
-            .refers_base_nametable();
+            .internal_registers
+            .temporary_vram
+            & 0b0000110000000000)
+            >> 10;
+        match base_name_table_addr {
+            0b00 => (false, false),
+            0b01 => (true, false),
+            0b10 => (false, true),
+            0b11 => (true, true),
+            _ => unreachable!(),
+        }
+    }
+
+    fn build_base_nametable_addr(&self) -> u16 {
+        let mut base_addr = 0x2000;
+        let (additional_x, additional_y) = self.refers_base_nametable();
 
         if additional_x {
             base_addr += 0x400;
@@ -524,10 +537,32 @@ impl<
         (row, high)
     }
 
+    fn get_scroll_addrs(&self) -> (u16, u16) {
+        let ppu_register = &self.cpu.bus.cpu_bus.ppu_register;
+
+        let scrolled_x = {
+            let l = if ppu_register.ppu_status.is_occured_sprite_zero_hit() {
+                ppu_register.internal_registers.x_scroll
+            } else {
+                0
+            };
+            let h = (ppu_register.internal_registers.temporary_vram & 0b00011111) << 3;
+            h | l as u16
+        };
+
+        let scrolled_y = {
+            let b = (ppu_register.internal_registers.temporary_vram & 0b0111000000000000) >> 12;
+            let m = ((ppu_register.internal_registers.temporary_vram & 0b011100000) >> 5) << 3;
+            let h =
+                ((ppu_register.internal_registers.temporary_vram & 0b0000001100000000) >> 8) << 6;
+
+            h | m | b
+        };
+        (scrolled_x, scrolled_y)
+    }
+
     fn insert_background_line(&mut self) -> Result<(), String> {
-        let scrolled_addr = self.cpu.bus.cpu_bus.ppu_register.relative_addr(0x2005);
-        let (scrolled_x, scrolled_y) =
-            { (((scrolled_addr & 0xFF00) >> 8), (scrolled_addr & 0x00FF)) };
+        let (scrolled_x, scrolled_y) = self.get_scroll_addrs();
         let tile_nametables = self.refers_tile_nametable(scrolled_x, scrolled_y);
 
         self.build_background_tiles(tile_nametables, scrolled_x, scrolled_y);
@@ -574,23 +609,6 @@ impl<
                     pos_x,
                     attr,
                 }) => {
-                    if attr.priority
-                        && !self
-                            .cpu
-                            .bus
-                            .cpu_bus
-                            .ppu_register
-                            .ppu_status
-                            .is_occured_sprite_zero_hit()
-                    {
-                        self.cpu
-                            .bus
-                            .cpu_bus
-                            .ppu_register
-                            .ppu_status
-                            .true_sprite_zero_hit();
-                        continue;
-                    }
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
                     let base_addr = (((tile_index.tile_number + 1) % 2) == 0) as u16 * 0x1000
@@ -640,10 +658,28 @@ impl<
                             }
                         };
 
-                        let mut color_idx =
-                            ppu_map.sprite_pallet[pallet_base_idx + idx as usize] as usize;
+                        let pallet_idx = pallet_base_idx + idx as usize;
+                        let mut color_idx = ppu_map.sprite_pallet[pallet_idx] as usize;
                         if ppu_mask.gray_scale {
                             color_idx &= 0b11110000;
+                        }
+
+                        if !self
+                            .cpu
+                            .bus
+                            .cpu_bus
+                            .ppu_register
+                            .ppu_status
+                            .is_occured_sprite_zero_hit()
+                            && attr.priority
+                            && pallet_idx % 4 != 0
+                        {
+                            self.cpu
+                                .bus
+                                .cpu_bus
+                                .ppu_register
+                                .ppu_status
+                                .true_sprite_zero_hit();
                         }
 
                         self.texture_buffer
@@ -671,23 +707,6 @@ impl<
                     pos_x,
                     attr,
                 }) => {
-                    if attr.priority
-                        && !self
-                            .cpu
-                            .bus
-                            .cpu_bus
-                            .ppu_register
-                            .ppu_status
-                            .is_occured_sprite_zero_hit()
-                    {
-                        self.cpu
-                            .bus
-                            .cpu_bus
-                            .ppu_register
-                            .ppu_status
-                            .true_sprite_zero_hit();
-                        continue;
-                    }
                     let ppu_ctrl = &self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl;
                     let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
                     let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
@@ -723,10 +742,28 @@ impl<
                             let y = self.drawing_line;
                             (idx, x, y)
                         };
-                        let mut color_idx =
-                            ppu_map.sprite_pallet[pallet_base_idx + idx as usize] as usize;
+                        let pallet_idx = pallet_base_idx + idx as usize;
+                        let mut color_idx = ppu_map.sprite_pallet[pallet_idx] as usize;
                         if ppu_mask.gray_scale {
                             color_idx &= 0b11110000;
+                        }
+
+                        if !self
+                            .cpu
+                            .bus
+                            .cpu_bus
+                            .ppu_register
+                            .ppu_status
+                            .is_occured_sprite_zero_hit()
+                            && attr.priority
+                            && pallet_idx % 4 != 0
+                        {
+                            self.cpu
+                                .bus
+                                .cpu_bus
+                                .ppu_register
+                                .ppu_status
+                                .true_sprite_zero_hit();
                         }
                         self.texture_buffer
                             .insert_color(x as u8, y as u8, color_idx);
