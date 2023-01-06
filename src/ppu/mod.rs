@@ -23,10 +23,16 @@ impl PPU {
         }
     }
 
-    pub fn set_secondary_oam(&mut self, y: u8) {
+    pub fn set_secondary_oam(&mut self, y: u8, behind_background: bool) {
         let mut sprite_infos: SpriteInfos = vec![];
         for sprite_info in &self.primary_oam.sprite_infos {
-            if sprite_info.in_drawing_range(y) {
+            let is_in_condition = if behind_background {
+                sprite_info.in_drawing_range(y) && sprite_info.behind_of_background()
+            } else {
+                sprite_info.in_drawing_range(y)
+            };
+
+            if is_in_condition {
                 sprite_infos.push(sprite_info.to_owned());
                 if sprite_infos.len() >= 8 {
                     break;

@@ -25,6 +25,10 @@ impl SpriteInfo {
     pub fn in_drawing_range(&self, y: u8) -> bool {
         (self.pos_y <= y) && (self.pos_y + 7 >= y)
     }
+
+    pub fn behind_of_background(&self) -> bool {
+        self.attr.priority == true
+    }
 }
 
 pub type SpriteInfos = Vec<SpriteInfo>;
@@ -167,19 +171,11 @@ impl SecondaryOAM {
         self.sprite_infos = sprite_infos;
     }
 
-    pub fn pick_sprite_info_with_x(
-        &mut self,
-        x: u8,
-        behind_background: bool,
-    ) -> Option<&SpriteInfo> {
-        let sprite_info = self.sprite_infos.iter().find(|sprite_info| {
-            (sprite_info.pos_x == x)
-                && if behind_background {
-                    sprite_info.attr.priority
-                } else {
-                    true
-                }
-        });
+    pub fn pick_sprite_info_with_x(&mut self, x: u8) -> Option<&SpriteInfo> {
+        let sprite_info = self
+            .sprite_infos
+            .iter()
+            .find(|sprite_info| (sprite_info.pos_x == x));
         return sprite_info;
     }
 }
