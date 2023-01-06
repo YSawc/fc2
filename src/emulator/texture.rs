@@ -1,11 +1,9 @@
-pub struct TextureBuffer<const PLAYGROUND_WIDTH: u32, const VISIBLE_LINES: u16> {
+pub struct TextureBuffer<const TILE_COUNTS_ON_WIDTH: u32> {
     pub buffer: [u8; 184320],
     colors: [[u8; 3]; 64],
 }
 
-impl<const PLAYGROUND_WIDTH: u32, const VISIBLE_LINES: u16>
-    TextureBuffer<PLAYGROUND_WIDTH, VISIBLE_LINES>
-{
+impl<const TILE_COUNTS_ON_WIDTH: u32> TextureBuffer<TILE_COUNTS_ON_WIDTH> {
     pub fn new() -> Self {
         let buffer: [u8; 184320] = [0; 184320];
 
@@ -80,7 +78,7 @@ impl<const PLAYGROUND_WIDTH: u32, const VISIBLE_LINES: u16>
     }
 
     fn pick_offset(&self, x: u8, y: u8) -> usize {
-        let pitch = PLAYGROUND_WIDTH as usize * 8 * 3;
+        let pitch = TILE_COUNTS_ON_WIDTH as usize * 8 * 3;
         let offset = (y as usize) * pitch + x as usize * 3;
         offset as usize
     }

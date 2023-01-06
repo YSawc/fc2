@@ -1,7 +1,6 @@
-pub const SQUARE_SIZE: u32 = 8;
-pub const SPRITE_SIZE: u32 = SQUARE_SIZE / 8;
-pub const PLAYGROUND_WIDTH: u32 = 32;
-pub const PLAYGROUND_HEIGHT: u32 = 30;
+pub const TILE_COUNTS_ON_WIDTH: u32 = 32;
+pub const WINDOW_WIDTH: u32 = 512;
+pub const WINDOW_HEIGHT: u32 = 480;
 pub const PPU_DRAW_LINE_CYCLE: u16 = 341;
 pub const VBLANK_LINE: u16 = 241;
 const VBLANK_LINES: u16 = 20;

@@ -17,10 +17,9 @@ use sdl2::EventPump;
 use sdl2::Sdl;
 
 pub struct Emulator<
-    const PLAYGROUND_HEIGHT: u32,
-    const PLAYGROUND_WIDTH: u32,
-    const SQUARE_SIZE: u32,
-    const SPRITE_SIZE: u32,
+    const TILE_COUNTS_ON_WIDTH: u32,
+    const WINDOW_HEIGHT: u32,
+    const WINDOW_WIDTH: u32,
     const PPU_DRAW_LINE_CYCLE: u16,
     const VBLANK_LINE: u16,
     const TOTAL_LINE: u16,
@@ -31,24 +30,22 @@ pub struct Emulator<
     pub drawing_line: u16,
     pub sdl: Sdl,
     canvas: Canvas<Window>,
-    texture_buffer: TextureBuffer<PLAYGROUND_WIDTH, VISIBLE_LINES>,
+    texture_buffer: TextureBuffer<TILE_COUNTS_ON_WIDTH>,
 }
 
 impl<
-        const PLAYGROUND_HEIGHT: u32,
-        const PLAYGROUND_WIDTH: u32,
-        const SQUARE_SIZE: u32,
-        const SPRITE_SIZE: u32,
+        const TILE_COUNTS_ON_WIDTH: u32,
+        const WINDOW_HEIGHT: u32,
+        const WINDOW_WIDTH: u32,
         const PPU_DRAW_LINE_CYCLE: u16,
         const VBLANK_LINE: u16,
         const TOTAL_LINE: u16,
         const VISIBLE_LINES: u16,
     >
     Emulator<
-        PLAYGROUND_HEIGHT,
-        PLAYGROUND_WIDTH,
-        SQUARE_SIZE,
-        SPRITE_SIZE,
+        TILE_COUNTS_ON_WIDTH,
+        WINDOW_HEIGHT,
+        WINDOW_WIDTH,
         PPU_DRAW_LINE_CYCLE,
         VBLANK_LINE,
         TOTAL_LINE,
@@ -63,11 +60,7 @@ impl<
         let video_subsystem = sdl_context.video().unwrap();
 
         let window = video_subsystem
-            .window(
-                "fc2: render nes sprites",
-                SQUARE_SIZE * PLAYGROUND_WIDTH,
-                SQUARE_SIZE * PLAYGROUND_HEIGHT,
-            )
+            .window("fc2: render nes sprites", WINDOW_WIDTH, WINDOW_HEIGHT)
             .position_centered()
             .build()
             .map_err(|e| e.to_string())
@@ -135,8 +128,8 @@ impl<
                             let h = ((sprite_high_line & (0b1 << (7 - j))) != 0) as u16;
                             (h << 1 | r) as usize
                         };
-                        let x = j as u32 + (n % PLAYGROUND_WIDTH) * SQUARE_SIZE;
-                        let y = i as u32 + (n / PLAYGROUND_WIDTH) * SQUARE_SIZE;
+                        let x = j as u32 + (n % TILE_COUNTS_ON_WIDTH) * 8;
+                        let y = i as u32 + (n / TILE_COUNTS_ON_WIDTH) * 8;
                         (idx, x, y)
                     };
                     self.texture_buffer.insert_color(x as u8, y as u8, idx);
@@ -148,7 +141,7 @@ impl<
 
         self.canvas.clear();
         self.canvas
-            .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
+            .copy(&texture, None, Rect::new(0, 0, WINDOW_WIDTH, WINDOW_WIDTH))?;
         self.canvas.present();
 
         'show_sprites: loop {
@@ -267,7 +260,7 @@ impl<
     fn draw_line(&mut self, texture: &mut Texture) -> Result<(), String> {
         self.update_texture_buffer(texture)?;
         self.canvas
-            .copy(&texture, None, Some(Rect::new(0, 0, 256, 256)))?;
+            .copy(&texture, None, Rect::new(0, 0, WINDOW_WIDTH, WINDOW_WIDTH))?;
         self.canvas.present();
 
         Ok(())
@@ -424,7 +417,7 @@ impl<
             let high_idx = (background_high & (0b1 << shift_count) != 0) as u16;
             high_idx << 1 | row_idx
         };
-        let x = (x_per_tile + tile_idx as u32 * SQUARE_SIZE) as u8;
+        let x = (x_per_tile + tile_idx as u32 * 8) as u8;
         let y = self.drawing_line as u8;
         (idx, x, y)
     }
@@ -518,7 +511,7 @@ impl<
         scrolled_y: u16,
     ) {
         let (left_x_ratio, right_x_ratio) = calc_scrolled_tile_ratio(scrolled_x);
-        for tile_idx in 0..PLAYGROUND_WIDTH as usize {
+        for tile_idx in 0..TILE_COUNTS_ON_WIDTH as usize {
             let (left_nametable, right_nametable) =
                 { (tile_nametables[tile_idx], tile_nametables[tile_idx + 1]) };
             let (left_attr_idx, right_attr_idx) = (
@@ -633,7 +626,7 @@ impl<
     }
 
     fn insert_sprites_for_big_size(&mut self, is_bottom: bool) -> Result<(), String> {
-        for n in 0..PLAYGROUND_WIDTH * 8 {
+        for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
             match self
                 .cpu
                 .bus
@@ -731,7 +724,7 @@ impl<
     }
 
     fn insert_sprites_for_normal_size(&mut self) -> Result<(), String> {
-        for n in 0..PLAYGROUND_WIDTH * 8 {
+        for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
             match self
                 .cpu
                 .bus

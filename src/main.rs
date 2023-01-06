@@ -1,7 +1,7 @@
 extern crate sdl2;
 use fc2::emulator::configure::{
-    PLAYGROUND_HEIGHT, PLAYGROUND_WIDTH, PPU_DRAW_LINE_CYCLE, SPRITE_SIZE, SQUARE_SIZE, TOTAL_LINE,
-    VBLANK_LINE, VISIBLE_LINES,
+    PPU_DRAW_LINE_CYCLE, TILE_COUNTS_ON_WIDTH, TOTAL_LINE, VBLANK_LINE, VISIBLE_LINES,
+    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 
 use fc2::emulator::*;
@@ -11,10 +11,9 @@ use std::env;
 fn main() -> Result<(), String> {
     let nes = Nes::new();
     let mut emulator: Emulator<
-        PLAYGROUND_HEIGHT,
-        PLAYGROUND_WIDTH,
-        SQUARE_SIZE,
-        SPRITE_SIZE,
+        TILE_COUNTS_ON_WIDTH,
+        WINDOW_HEIGHT,
+        WINDOW_WIDTH,
         PPU_DRAW_LINE_CYCLE,
         VBLANK_LINE,
         TOTAL_LINE,
