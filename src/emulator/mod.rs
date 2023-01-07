@@ -6,6 +6,7 @@ use crate::emulator::texture::TextureBuffer;
 use crate::nes::*;
 use crate::ppu::oam::SpriteInfo;
 use crate::util::*;
+use rustc_hash::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -182,14 +183,14 @@ impl<
         }
     }
 
-    fn handle_keyboard(&mut self, event_pump: &mut EventPump) -> Result<Option<()>, String> {
+    fn handle_keyboard(&mut self, event_pump: &mut EventPump) -> Option<()> {
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => return Ok(None),
+                } => return None,
                 Event::KeyDown {
                     keycode: Some(key), ..
                 } => {
@@ -205,7 +206,7 @@ impl<
         }
         self.cpu.bus.controller_polling_data = self.pad_data;
 
-        Ok(Some(()))
+        Some(())
     }
 
     pub fn main_loop(&mut self) -> Result<(), String> {
@@ -215,7 +216,7 @@ impl<
             .create_texture_streaming(PixelFormatEnum::RGB24, 256, 256)
             .map_err(|e| e.to_string())?;
         'running: loop {
-            match self.handle_keyboard(&mut event_pump)? {
+            match self.handle_keyboard(&mut event_pump) {
                 None => break 'running,
                 _ => (),
             }
@@ -640,6 +641,7 @@ impl<
     }
 
     fn insert_sprites_for_big_size(&mut self, is_bottom: bool) -> Result<(), String> {
+        let mut color_info: FxHashMap<u8, usize> = FxHashMap::default();
         for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
             match self
                 .cpu
@@ -673,7 +675,7 @@ impl<
                     let pallet_base_idx = (attr.palette * 4) as usize;
                     let for_count = if is_bottom { 16 } else { 8 };
                     for i in for_count - 8..for_count {
-                        let (idx, x, y) = {
+                        let (idx, x) = {
                             if is_bottom {
                                 let idx = {
                                     let r = (sprite_row & (0b1 << (15 - i)) != 0) as u16;
@@ -685,8 +687,7 @@ impl<
                                     idx
                                 };
                                 let x = pos_x.wrapping_add(i - 8);
-                                let y = self.drawing_line;
-                                (idx, x, y)
+                                (idx, x)
                             } else {
                                 let idx = {
                                     let r = (sprite_row & (0b1 << (7 - i)) != 0) as u16;
@@ -698,8 +699,7 @@ impl<
                                     idx
                                 };
                                 let x = pos_x.wrapping_add(i);
-                                let y = self.drawing_line;
-                                (idx, x, y)
+                                (idx, x)
                             }
                         };
 
@@ -727,17 +727,21 @@ impl<
                                 .true_sprite_zero_hit();
                         }
 
-                        self.texture_buffer
-                            .insert_color(x as u8, y as u8, color_idx);
+                        if !color_info.contains_key(&x) {
+                            color_info.insert(x, color_idx);
+                        }
                     }
                 }
                 None => continue,
             };
         }
+        self.texture_buffer
+            .insert_colors(color_info, self.drawing_line as u8);
         Ok(())
     }
 
     fn insert_sprites_for_normal_size(&mut self) -> Result<(), String> {
+        let mut color_info: FxHashMap<u8, usize> = FxHashMap::default();
         for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
             match self
                 .cpu
@@ -768,7 +772,7 @@ impl<
                     let sprite_high = ppu_map.addr(base_addr + 8);
                     let pallet_base_idx = (attr.palette * 4) as usize;
                     for i in 0..8 {
-                        let (idx, x, y) = {
+                        let (idx, x) = {
                             let idx = {
                                 let i = if attr.flip_sprite_horizontally {
                                     i
@@ -784,8 +788,7 @@ impl<
                                 idx
                             };
                             let x = pos_x.wrapping_add(i);
-                            let y = self.drawing_line;
-                            (idx, x, y)
+                            (idx, x)
                         };
                         let pallet_idx = pallet_base_idx + idx as usize;
                         let mut color_idx = ppu_map.sprite_pallet[pallet_idx] as usize;
@@ -810,13 +813,17 @@ impl<
                                 .ppu_status
                                 .true_sprite_zero_hit();
                         }
-                        self.texture_buffer
-                            .insert_color(x as u8, y as u8, color_idx);
+
+                        if !color_info.contains_key(&x) {
+                            color_info.insert(x, color_idx);
+                        }
                     }
                 }
                 None => continue,
             };
         }
+        self.texture_buffer
+            .insert_colors(color_info, self.drawing_line as u8);
         Ok(())
     }
 }

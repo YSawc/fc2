@@ -1,3 +1,5 @@
+use rustc_hash::*;
+
 pub struct TextureBuffer<const TILE_COUNTS_ON_WIDTH: u32> {
     pub buffer: [u8; 184320],
     colors: [[u8; 3]; 64],
@@ -88,6 +90,16 @@ impl<const TILE_COUNTS_ON_WIDTH: u32> TextureBuffer<TILE_COUNTS_ON_WIDTH> {
         let color = self.colors[colors_idx];
         for n in 0..3 as usize {
             self.buffer[offset + n] = color[n];
+        }
+    }
+
+    pub fn insert_colors(&mut self, color_info: FxHashMap<u8, usize>, y: u8) {
+        for (x, colors_idx) in color_info {
+            let offset = self.pick_offset(x, y);
+            let color = self.colors[colors_idx as usize];
+            for n in 0..3 as usize {
+                self.buffer[offset + n] = color[n];
+            }
         }
     }
 }
