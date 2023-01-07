@@ -31,7 +31,7 @@ Measuring performance with [criterion.rs](https://github.com/bheisler/criterion.
 
 ## Tips
 
-Poor rendering performance will be small improved when build.
+Poor rendering performance will improved when build.
 ``` rust
 cargo build --release
 ./target/release/fc2 roms/nestest.nes

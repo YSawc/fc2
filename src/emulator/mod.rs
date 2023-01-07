@@ -6,7 +6,6 @@ use crate::emulator::texture::TextureBuffer;
 use crate::nes::*;
 use crate::ppu::oam::SpriteInfo;
 use crate::util::*;
-use rustc_hash::FxHashSet;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -31,6 +30,7 @@ pub struct Emulator<
     pub sdl: Sdl,
     canvas: Canvas<Window>,
     texture_buffer: TextureBuffer<TILE_COUNTS_ON_WIDTH>,
+    pub pad_data: u16,
 }
 
 impl<
@@ -83,6 +83,7 @@ impl<
             sdl: sdl_context,
             canvas,
             texture_buffer,
+            pad_data: 0,
         }
     }
 
@@ -159,36 +160,52 @@ impl<
         Ok(())
     }
 
-    fn handle_keyboard(&mut self, event_pump: &EventPump) -> Option<u32> {
-        let pressed_scancodes: FxHashSet<Keycode> = event_pump
-            .keyboard_state()
-            .pressed_scancodes()
-            .filter_map(Keycode::from_scancode)
-            .collect();
-
-        for scancode in pressed_scancodes.iter() {
-            match *scancode {
-                Keycode::Escape => return None,
-                Keycode::X => self.cpu.bus.controller_polling_data |= 0b00000001,
-                Keycode::Z => self.cpu.bus.controller_polling_data |= 0b00000010,
-                Keycode::Space => self.cpu.bus.controller_polling_data |= 0b00000100,
-                Keycode::Return => self.cpu.bus.controller_polling_data |= 0b00001000,
-                Keycode::Up => self.cpu.bus.controller_polling_data |= 0b00010000,
-                Keycode::Down => self.cpu.bus.controller_polling_data |= 0b00100000,
-                Keycode::Left => self.cpu.bus.controller_polling_data |= 0b01000000,
-                Keycode::Right => self.cpu.bus.controller_polling_data |= 0b10000000,
-                Keycode::N => self.cpu.bus.controller_polling_data |= 0b00000010 << 8,
-                Keycode::M => self.cpu.bus.controller_polling_data |= 0b00000001 << 8,
-                Keycode::Comma => self.cpu.bus.controller_polling_data |= 0b00000100 << 8,
-                Keycode::Semicolon => self.cpu.bus.controller_polling_data |= 0b00001000 << 8,
-                Keycode::I => self.cpu.bus.controller_polling_data |= 0b00010000 << 8,
-                Keycode::J => self.cpu.bus.controller_polling_data |= 0b01000000 << 8,
-                Keycode::L => self.cpu.bus.controller_polling_data |= 0b10000000 << 8,
-                Keycode::K => self.cpu.bus.controller_polling_data |= 0b00100000 << 8,
-                _ => (),
-            };
+    fn reference_keycode(&mut self, keycode: Keycode) -> u16 {
+        match keycode {
+            Keycode::X => 0b00000001,
+            Keycode::Z => 0b00000010,
+            Keycode::Space => 0b00000100,
+            Keycode::Return => 0b00001000,
+            Keycode::Up => 0b00010000,
+            Keycode::Down => 0b00100000,
+            Keycode::Left => 0b01000000,
+            Keycode::Right => 0b10000000,
+            Keycode::N => 0b00000010 << 8,
+            Keycode::M => 0b00000001 << 8,
+            Keycode::Comma => 0b00000100 << 8,
+            Keycode::Semicolon => 0b00001000 << 8,
+            Keycode::I => 0b00010000 << 8,
+            Keycode::J => 0b01000000 << 8,
+            Keycode::L => 0b10000000 << 8,
+            Keycode::K => 0b00100000 << 8,
+            _ => 0,
         }
-        Some(1)
+    }
+
+    fn handle_keyboard(&mut self, event_pump: &mut EventPump) -> Result<Option<()>, String> {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => return Ok(None),
+                Event::KeyDown {
+                    keycode: Some(key), ..
+                } => {
+                    self.pad_data |= self.reference_keycode(key);
+                }
+                Event::KeyUp {
+                    keycode: Some(key), ..
+                } => {
+                    self.pad_data &= !self.reference_keycode(key);
+                }
+                _ => {}
+            }
+        }
+        self.cpu.bus.controller_polling_data = self.pad_data;
+
+        Ok(Some(()))
     }
 
     pub fn main_loop(&mut self) -> Result<(), String> {
@@ -197,14 +214,11 @@ impl<
         let mut texture = texture_creator
             .create_texture_streaming(PixelFormatEnum::RGB24, 256, 256)
             .map_err(|e| e.to_string())?;
-
         'running: loop {
-            match self.handle_keyboard(&event_pump) {
-                Some(_) => (),
+            match self.handle_keyboard(&mut event_pump)? {
                 None => break 'running,
+                _ => (),
             }
-            event_pump.poll_event();
-
             self.run(&mut texture)?;
         }
 
