@@ -1,6 +1,8 @@
 use crate::bus::Mapper;
+use serde::{Deserialize, Serialize};
+use serde_with::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Controller {
     pub d0: u8,
     pub d1: u8,
@@ -29,7 +31,7 @@ impl Controller {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InternalRegisters {
     pub current_vram: u16,
     pub temporary_vram: u16,
@@ -82,7 +84,7 @@ impl InternalRegisters {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PpuRegister {
     pub ppu_ctrl: PpuCtrl,
     pub ppu_mask: PpuMask,
@@ -94,7 +96,7 @@ pub struct PpuRegister {
     pub internal_registers: InternalRegisters,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PpuCtrl {
     pub gen_nmi: bool,
     ppu_selector: bool,
@@ -162,7 +164,7 @@ impl PpuCtrl {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PpuMask {
     emf_blue: bool,
     emf_green: bool,
@@ -219,7 +221,7 @@ impl PpuMask {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PpuStatus {
     pub in_vlank: bool,
     sprite_zero_hit: bool,
@@ -271,7 +273,7 @@ impl PpuStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PpuBuffer {
     pub buffer: u8,
     pub vram_memory: u8,
@@ -390,7 +392,7 @@ impl PpuRegister {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RP2A03 {
     pub pulse: [u8; 0x0008],
     pub triangle: [u8; 0x0004],
@@ -451,17 +453,25 @@ impl RP2A03 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CpuMap {
+    #[serde_as(as = "[_; 0x0800]")]
     pub wram: [u8; 0x0800],
+    #[serde_as(as = "[_; 0x1800]")]
     pub wram_mirror: [u8; 0x1800],
     pub ppu_register: PpuRegister,
+    #[serde_as(as = "[_; 0x1FF8]")]
     pub ppu_register_mirror: [u8; 0x1FF8],
     pub rp2a03: RP2A03,
     pub func_apu_io: [u8; 0x0008],
+    #[serde_as(as = "[_; 0x1FE0]")]
     pub erom: [u8; 0x1FE0],
+    #[serde_as(as = "[_; 0x2000]")]
     pub eram: [u8; 0x2000],
+    #[serde_as(as = "[_; 0x4000]")]
     pub prg_rom1: [u8; 0x4000],
+    #[serde_as(as = "[_; 0x4000]")]
     pub prg_rom2: [u8; 0x4000],
 }
 

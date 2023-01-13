@@ -1,5 +1,6 @@
 pub mod operator;
 pub mod register;
+use serde::{Deserialize, Serialize};
 
 use crate::bus::*;
 use crate::nes::*;
@@ -9,7 +10,7 @@ use register::*;
 
 use rustc_hash::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CPU {
     pub register: Register,
     pub operators: FxHashMap<u8, Operator>,
@@ -1376,7 +1377,7 @@ impl CPU {
 //     None,
 // }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Interrupt {
     Nmi,
     Reset,

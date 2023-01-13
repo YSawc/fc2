@@ -1,21 +1,36 @@
 use crate::bus::Mapper;
 use crate::nes::*;
+use serde::{Deserialize, Serialize};
+use serde_with::*;
 
-#[derive(Debug, Clone)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Map {
+    #[serde_as(as = "[_; 0x1000]")]
     pub pattern_table_00: [u8; 0x1000],
+    #[serde_as(as = "[_; 0x1000]")]
     pub pattern_table_01: [u8; 0x1000],
+    #[serde_as(as = "[_; 0x03C0]")]
     pub name_table_00: [u8; 0x03C0],
+    #[serde_as(as = "[_; 0x0040]")]
     pub attr_table_00: [u8; 0x0040],
+    #[serde_as(as = "[_; 0x03C0]")]
     pub name_table_01: [u8; 0x03C0],
+    #[serde_as(as = "[_; 0x0040]")]
     pub attr_table_01: [u8; 0x0040],
+    #[serde_as(as = "[_; 0x03C0]")]
     pub name_table_02: [u8; 0x03C0],
+    #[serde_as(as = "[_; 0x0040]")]
     pub attr_table_02: [u8; 0x0040],
+    #[serde_as(as = "[_; 0x03C0]")]
     pub name_table_03: [u8; 0x03C0],
+    #[serde_as(as = "[_; 0x0040]")]
     pub attr_table_03: [u8; 0x0040],
+    #[serde_as(as = "[_; 0x0F00]")]
     pub name_and_attr_table_mirror: [u8; 0x0F00],
     pub background_table: [u8; 0x0010],
     pub sprite_pallet: [u8; 0x0010],
+    #[serde_as(as = "[_; 0x00E0]")]
     pub background_and_sprite_pallet_mirror: [u8; 0x00E0],
     pub type_of_mirroring: TypeOfMirroring,
 }

@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpriteInfo {
     pub pos_y: u8,
     pub tile_index: TileIndex,
@@ -33,7 +35,7 @@ impl SpriteInfo {
 
 pub type SpriteInfos = Vec<SpriteInfo>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrimaryOAM {
     pub sprite_infos: SpriteInfos,
 }
@@ -88,7 +90,7 @@ impl PrimaryOAM {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TileIndex {
     pub tile_number: u8,
     pub bank_of_tile: bool,
@@ -113,7 +115,7 @@ impl TileIndex {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attr {
     pub flip_sprite_vertically: bool,
     pub flip_sprite_horizontally: bool,
@@ -148,7 +150,7 @@ impl Attr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecondaryOAM {
     pub sprite_infos: SpriteInfos,
 }

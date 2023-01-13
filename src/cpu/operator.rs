@@ -1,11 +1,13 @@
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Operator {
     pub ope_kind: OpeKind,
     pub addr_mode: AddrMode,
     pub cycle: u8,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AddrMode {
     Acc,
     Imm,
@@ -23,7 +25,7 @@ pub enum AddrMode {
     Nop,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OpeKind {
     Adc,
     Sbc, // flags: N V Z C

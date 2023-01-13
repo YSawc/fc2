@@ -1,4 +1,10 @@
 pub mod configure;
+use std::env;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::Read;
+use std::io::Write;
+use std::path::Path;
 pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
@@ -183,6 +189,47 @@ impl<
         }
     }
 
+    fn save_state(&self) {
+        let file_path: Vec<String> = env::args().collect();
+
+        let file_name = Path::new(&file_path[file_path.len() - 1])
+            .to_str()
+            .unwrap()
+            .split('/')
+            .last()
+            .unwrap()
+            .split('.')
+            .nth(0)
+            .unwrap();
+        let mut file = File::create(format!("saves/{}_save.json", file_name)).unwrap();
+        let serialized = serde_json::to_string(&self.cpu).unwrap();
+        file.write_fmt(format_args!("{}", serialized)).unwrap();
+    }
+
+    fn load_state(&mut self) {
+        let file_path: Vec<String> = env::args().collect();
+        let file_name = Path::new(&file_path[file_path.len() - 1])
+            .to_str()
+            .unwrap()
+            .split('/')
+            .last()
+            .unwrap()
+            .split('.')
+            .nth(0)
+            .unwrap();
+
+        match File::open(format!("saves/{}_save.json", file_name)) {
+            Ok(file) => {
+                let mut buf_reader = BufReader::new(file);
+                let mut contents = String::new();
+                buf_reader.read_to_string(&mut contents).unwrap();
+                let cpu: CPU = serde_json::from_str(&contents).unwrap();
+                self.cpu = cpu;
+            }
+            _ => (),
+        }
+    }
+
     fn handle_keyboard(&mut self, event_pump: &mut EventPump) -> Option<()> {
         for event in event_pump.poll_iter() {
             match event {
@@ -191,6 +238,14 @@ impl<
                     keycode: Some(Keycode::Escape),
                     ..
                 } => return None,
+                Event::KeyDown {
+                    keycode: Some(Keycode::F1),
+                    ..
+                } => self.save_state(),
+                Event::KeyDown {
+                    keycode: Some(Keycode::F2),
+                    ..
+                } => self.load_state(),
                 Event::KeyDown {
                     keycode: Some(key), ..
                 } => {
