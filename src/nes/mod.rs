@@ -1,14 +1,15 @@
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Nes {
     pub header: Header,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Header {
     pub info: Info,
     pub flags6: Flags6,
@@ -18,7 +19,7 @@ pub struct Header {
     pub flags10: Flags10,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Info {
     pub nes_header_size: u32,
     pub chr_rom_per_size: u32,
@@ -87,14 +88,14 @@ impl Header {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TypeOfMirroring {
     HORIZONTAL,
     VERTICAL,
     IGNORING,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flags6 {
     pub mirroring: bool,
     pub ram_or_memory: bool,
@@ -131,7 +132,7 @@ impl Flags6 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flags7 {
     pub vs_unisystem: bool,
     pub play_choice_10: bool,
@@ -155,7 +156,7 @@ impl Flags7 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flags8 {
     pub prg_ram_size: u8,
 }
@@ -168,7 +169,7 @@ impl Flags8 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flags9 {
     pub tv_system: bool,
     pub reserved: u8,
@@ -186,7 +187,7 @@ impl Flags9 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flags10 {
     pub tv_system: u8,
     pub prg_ram: bool,

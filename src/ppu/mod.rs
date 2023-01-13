@@ -2,10 +2,12 @@ pub mod mapper;
 pub mod oam;
 
 use crate::nes::*;
-use mapper::*;
-use oam::*;
+use mapper::Map;
 
-#[derive(Debug, Clone)]
+use oam::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PPU {
     pub map: Map,
     pub primary_oam: PrimaryOAM,

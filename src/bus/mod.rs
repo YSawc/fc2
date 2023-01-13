@@ -3,13 +3,14 @@ pub mod cpu_map;
 use crate::nes::*;
 use crate::ppu::*;
 use cpu_map::*;
+use serde::{Deserialize, Serialize};
 
 pub trait Mapper {
     fn addr(&mut self, n: u16) -> u8;
     fn set(&mut self, n: u16, r: u8);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bus {
     pub cpu_bus: CpuMap,
     pub ppu: PPU,
