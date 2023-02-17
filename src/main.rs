@@ -1,7 +1,7 @@
 extern crate sdl2;
 use fc2::emulator::configure::{
-    PPU_DRAW_LINE_CYCLE, TILE_COUNTS_ON_WIDTH, TOTAL_LINE, VBLANK_LINE, VISIBLE_LINES,
-    WINDOW_HEIGHT, WINDOW_WIDTH,
+    APU_UPDATE_CYCLE, PPU_DRAW_LINE_CYCLE, TILE_COUNTS_ON_WIDTH, TOTAL_LINE, VBLANK_LINE,
+    VISIBLE_LINES, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 
 use fc2::emulator::*;
@@ -18,6 +18,7 @@ fn main() -> Result<(), String> {
         VBLANK_LINE,
         TOTAL_LINE,
         VISIBLE_LINES,
+        APU_UPDATE_CYCLE,
     > = Emulator::new(&nes);
     emulator.cpu.init(&nes);
     emulator.startup();

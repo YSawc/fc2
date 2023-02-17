@@ -394,12 +394,7 @@ impl PpuRegister {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RP2A03 {
-    pub pulse: [u8; 0x0008],
-    pub triangle: [u8; 0x0004],
-    pub noise: [u8; 0x0004],
-    pub dmc: [u8; 0x0004],
     pub oam_dma: u8,
-    pub snd_chn: u8,
     pub controller_0: Controller,
     pub controller_1: Controller,
     pub test_fanctionality: [u8; 0x0008],
@@ -414,12 +409,7 @@ impl Default for RP2A03 {
 impl RP2A03 {
     pub fn new() -> Self {
         Self {
-            pulse: [0; 0x0008],
-            triangle: [0; 0x0004],
-            noise: [0; 0x0004],
-            dmc: [0; 0x0004],
             oam_dma: 0,
-            snd_chn: 0,
             controller_0: Controller::default(),
             controller_1: Controller::default(),
             test_fanctionality: [0; 0x0008],
@@ -428,12 +418,7 @@ impl RP2A03 {
 
     fn addr(&mut self, n: u16) -> u8 {
         match n {
-            0x4000..=0x4007 => self.pulse[(n - 0x4000) as usize],
-            0x4008..=0x400B => self.triangle[(n - 0x4008) as usize],
-            0x400C..=0x400F => self.noise[(n - 0x400C) as usize],
-            0x4010..=0x4013 => self.dmc[(n - 0x4010) as usize],
             0x4014 => self.oam_dma,
-            0x4015 => self.snd_chn,
             0x4016 => self.controller_0.d0,
             0x4017 => self.controller_1.d0,
             _ => unreachable!(),
@@ -442,12 +427,7 @@ impl RP2A03 {
 
     fn set(&mut self, n: u16, r: u8) {
         match n {
-            0x4000..=0x4007 => self.pulse[(n - 0x4000) as usize] = r,
-            0x4008..=0x400B => self.triangle[(n - 0x4008) as usize] = r,
-            0x400C..=0x400F => self.noise[(n - 0x400C) as usize] = r,
-            0x4010..=0x4013 => self.dmc[(n - 0x4010) as usize] = r,
             0x4014 => self.oam_dma = r,
-            0x4015 => self.snd_chn = r,
             _ => unreachable!(),
         }
     }

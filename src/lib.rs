@@ -1,3 +1,4 @@
+pub mod apu;
 pub mod bus;
 pub mod cpu;
 pub mod emulator;

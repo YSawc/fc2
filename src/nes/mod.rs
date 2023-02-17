@@ -40,11 +40,6 @@ impl Info {
 
         let prm_rom_size = buffer[4] as u32;
         let chr_rom_size = buffer[5] as u32;
-
-        if buffer[5] == 0 {
-            println!("Info: The board uses chr RAM!");
-        }
-
         let nes_header_size = 0x0010;
         let prg_rom_per_size = 0x4000;
         let chr_rom_per_size = 0x2000;
