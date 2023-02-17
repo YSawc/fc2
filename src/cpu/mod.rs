@@ -10,7 +10,7 @@ use register::*;
 
 use rustc_hash::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CPU {
     pub register: Register,
     pub operators: FxHashMap<u8, Operator>,

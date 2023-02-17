@@ -1,10 +1,15 @@
 pub mod configure;
 use std::env;
+
+use crate::apu::*;
+use sdl2::audio::AudioDevice;
+use sdl2::audio::AudioSpecDesired;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
+use std::time::Instant;
 pub mod texture;
 use crate::bus::Mapper;
 use crate::cpu::*;
@@ -30,14 +35,18 @@ pub struct Emulator<
     const VBLANK_LINE: u16,
     const TOTAL_LINE: u16,
     const VISIBLE_LINES: u16,
+    const APU_UPDATE_CYCLE: u16,
 > {
     pub cpu: CPU,
     pub ppu_cycle: u16,
+    pub apu_cycle: u16,
     pub drawing_line: u16,
     pub sdl: Sdl,
     canvas: Canvas<Window>,
     texture_buffer: TextureBuffer<TILE_COUNTS_ON_WIDTH>,
     pub pad_data: u16,
+    pub audio_device_pulse1: AudioDevice<Pulse>,
+    pub audio_device_pulse2: AudioDevice<Pulse>,
 }
 
 impl<
@@ -48,6 +57,7 @@ impl<
         const VBLANK_LINE: u16,
         const TOTAL_LINE: u16,
         const VISIBLE_LINES: u16,
+        const APU_UPDATE_CYCLE: u16,
     >
     Emulator<
         TILE_COUNTS_ON_WIDTH,
@@ -57,6 +67,7 @@ impl<
         VBLANK_LINE,
         TOTAL_LINE,
         VISIBLE_LINES,
+        APU_UPDATE_CYCLE,
     >
 {
     pub fn new(nes: &Nes) -> Self {
@@ -83,14 +94,34 @@ impl<
 
         let texture_buffer = TextureBuffer::new();
 
+        let audio_subsystem = sdl_context.audio().unwrap();
+        let desired_spec = AudioSpecDesired {
+            freq: None,
+            channels: None,
+            samples: None,
+        };
+
+        let default_audio = |desired_spec: &mut AudioSpecDesired| {
+            audio_subsystem.open_playback(None, desired_spec, |_spec| Pulse::new())
+        };
+
+        let audio_device_pulse1 = default_audio(&mut desired_spec.clone()).unwrap();
+        let audio_device_pulse2 = default_audio(&mut desired_spec.clone()).unwrap();
+
+        audio_device_pulse1.resume();
+        audio_device_pulse2.resume();
+
         Self {
             cpu,
             ppu_cycle: 0,
+            apu_cycle: 0,
             drawing_line: 0,
             sdl: sdl_context,
             canvas,
             texture_buffer,
             pad_data: 0,
+            audio_device_pulse1,
+            audio_device_pulse2,
         }
     }
 
@@ -102,9 +133,12 @@ impl<
         self.cpu.reset();
     }
 
+    fn inc_apu_cycle(&mut self) {
+        self.apu_cycle += self.cpu.cycle as u16;
+    }
+
     fn inc_ppu_cycle(&mut self) {
         self.ppu_cycle += (self.cpu.cycle * 3) as u16;
-        self.cpu.clear_cycle();
     }
 
     fn update_texture_buffer(&mut self, texture: &mut Texture) -> Result<(), String> {
@@ -336,8 +370,101 @@ impl<
         Ok(())
     }
 
-    fn run(&mut self, texture: &mut Texture) -> Result<(), String> {
+    fn cpu_update(&mut self) {
+        let now = Instant::now();
         self.cpu.ex_ope();
+        while now.elapsed().as_nanos() < 1055 {}
+    }
+
+    fn update_pulse_audio_devices(&mut self) {
+        let update_pulse_audio_device =
+            |frame_counter: &FrameCounter,
+             is_enable: &mut bool,
+             audio_device: &mut AudioDevice<Pulse>,
+             pulse: &mut Pulse| {
+                let mut lock = audio_device.lock();
+                (*lock).call_back_duty_buf.push(pulse.duty);
+                let envelope_count = frame_counter.get_envelop_count() as u16;
+                if *is_enable && pulse.length_counter > 0 && pulse.timer >= 8 {
+                    (*lock).clock_count += 1;
+                    if (*lock).clock_count >= envelope_count {
+                        (*lock).clock_count -= envelope_count;
+                        if !pulse.counter_halt {
+                            pulse.envelope_and_liner_counter += 1;
+                            match frame_counter.mode {
+                                FrameMode::_4STEP => {
+                                    if pulse.envelope_and_liner_counter == 2
+                                        || pulse.envelope_and_liner_counter == 4
+                                    {
+                                        pulse.sweep.update(&mut pulse.timer);
+                                    }
+                                    if pulse.envelope_and_liner_counter > 4 {
+                                        pulse.envelope_and_liner_counter = 0;
+                                        if pulse.length_counter <= 0 {
+                                            pulse.length_counter = 0;
+                                            *is_enable = false;
+                                        } else {
+                                            pulse.length_counter -= 1;
+                                        };
+                                    }
+                                }
+                                FrameMode::_5STEP => {
+                                    if pulse.envelope_and_liner_counter == 2
+                                        || pulse.envelope_and_liner_counter == 5
+                                    {
+                                        pulse.sweep.update(&mut pulse.timer);
+                                    }
+                                    if pulse.envelope_and_liner_counter > 5 {
+                                        pulse.envelope_and_liner_counter = 0;
+                                        if pulse.length_counter <= 0 {
+                                            pulse.length_counter = 0;
+                                            *is_enable = false;
+                                        } else {
+                                            pulse.length_counter -= 1;
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                        pulse.current_volume = pulse.get_volume();
+                        pulse.current_phase_inc =
+                            (1780000.0 / ((16.0 * pulse.timer as f32) + 1.0)) / 44100 as f32;
+                    }
+                } else {
+                    pulse.current_volume = 0;
+                    pulse.current_phase_inc = 0.0;
+                };
+                (*lock).call_back_volume_buf.push(pulse.current_volume);
+                (*lock)
+                    .call_back_phase_inc_buf
+                    .push(pulse.current_phase_inc);
+                (*lock).call_back_duty_buf.push(pulse.duty);
+            };
+
+        update_pulse_audio_device(
+            &self.cpu.bus.apu.frame_counter,
+            &mut self.cpu.bus.apu.channel_controller.enable_pulse1,
+            &mut self.audio_device_pulse1,
+            &mut self.cpu.bus.apu.pulse1,
+        );
+
+        update_pulse_audio_device(
+            &self.cpu.bus.apu.frame_counter,
+            &mut self.cpu.bus.apu.channel_controller.enable_pulse2,
+            &mut self.audio_device_pulse2,
+            &mut self.cpu.bus.apu.pulse2,
+        );
+    }
+
+    fn apu_update(&mut self) {
+        self.inc_apu_cycle();
+        while self.apu_cycle >= APU_UPDATE_CYCLE {
+            self.apu_cycle -= APU_UPDATE_CYCLE;
+            self.update_pulse_audio_devices();
+        }
+    }
+
+    fn ppu_update(&mut self, texture: &mut Texture) -> Result<(), String> {
         self.inc_ppu_cycle();
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
@@ -368,6 +495,15 @@ impl<
                 self.cpu.set_interrupt(false);
             }
         }
+
+        Ok(())
+    }
+
+    fn run(&mut self, texture: &mut Texture) -> Result<(), String> {
+        self.cpu_update();
+        self.apu_update();
+        self.ppu_update(texture)?;
+        self.cpu.clear_cycle();
         Ok(())
     }
 
