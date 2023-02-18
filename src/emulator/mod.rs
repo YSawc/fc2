@@ -573,9 +573,9 @@ impl<
         base_addr
     }
 
-    fn calc_tile_idx(&self, x: u16, y: u16, n: u16) -> u16 {
+    fn calc_tile_idx(&self, x: u16, y: u16, data: u16) -> u16 {
         let mut base_addr = self.build_base_nametable_addr();
-        let mut x = x / 8 + n;
+        let mut x = x / 8 + data;
         let mut y = ((y + self.drawing_line) / 8) * 0x20;
 
         if x > 0x1F {
@@ -782,22 +782,24 @@ impl<
         let ppu_register = &self.cpu.bus.cpu_bus.ppu_register;
 
         let scrolled_x = {
-            let l = if ppu_register.ppu_status.is_occured_sprite_zero_hit() {
+            let l_data = if ppu_register.ppu_status.is_occured_sprite_zero_hit() {
                 ppu_register.internal_registers.x_scroll
             } else {
                 0
             };
-            let h = (ppu_register.internal_registers.temporary_vram & 0b00011111) << 3;
-            h | l as u16
+            let h_data = (ppu_register.internal_registers.temporary_vram & 0b00011111) << 3;
+            h_data | l_data as u16
         };
 
         let scrolled_y = {
-            let b = (ppu_register.internal_registers.temporary_vram & 0b0111000000000000) >> 12;
-            let m = ((ppu_register.internal_registers.temporary_vram & 0b011100000) >> 5) << 3;
-            let h =
+            let bottom_data =
+                (ppu_register.internal_registers.temporary_vram & 0b0111000000000000) >> 12;
+            let middle_data =
+                ((ppu_register.internal_registers.temporary_vram & 0b011100000) >> 5) << 3;
+            let high_data =
                 ((ppu_register.internal_registers.temporary_vram & 0b0000001100000000) >> 8) << 6;
 
-            h | m | b
+            high_data | middle_data | bottom_data
         };
         (scrolled_x, scrolled_y)
     }

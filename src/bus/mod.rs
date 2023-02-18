@@ -7,8 +7,8 @@ use cpu_map::*;
 use serde::{Deserialize, Serialize};
 
 pub trait Mapper {
-    fn addr(&mut self, n: u16) -> u8;
-    fn set(&mut self, n: u16, r: u8);
+    fn addr(&mut self, addr: u16) -> u8;
+    fn set(&mut self, addr: u16, data: u8);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,22 +36,22 @@ impl Bus {
 }
 
 impl Mapper for Bus {
-    fn addr(&mut self, n: u16) -> u8 {
-        match n {
+    fn addr(&mut self, addr: u16) -> u8 {
+        match addr {
             0x0000..=0x2001 | 0x2003..=0x2006 | 0x2008..=0x3FFF | 0x4014 | 0x4018..=0xFFFF => {
-                self.cpu_bus.addr(n)
+                self.cpu_bus.addr(addr)
             }
             0x2002 => {
                 self.cpu_bus.ppu_register.internal_registers.off_latch();
-                self.cpu_bus.addr(n)
+                self.cpu_bus.addr(addr)
             }
             0x2007 => {
-                let n = self.cpu_bus.ppu_register.internal_registers.current_vram;
+                let addr = self.cpu_bus.ppu_register.internal_registers.current_vram;
                 self.cpu_bus.ppu_register.constant_inc_vram();
                 self.cpu_bus
                     .ppu_register
                     .ppu_buffer
-                    .set(self.ppu.map.addr(n));
+                    .set(self.ppu.map.addr(addr));
                 self.cpu_bus.ppu_register.ppu_buffer.addr()
             }
             0x4000 => self.apu.pulse1.addr(0),
@@ -77,43 +77,45 @@ impl Mapper for Bus {
         }
     }
 
-    fn set(&mut self, n: u16, r: u8) {
-        match n {
-            0x0000..=0x2006 | 0x2008..=0x3FFF | 0x4014 | 0x4018..=0xFFFF => self.cpu_bus.set(n, r),
+    fn set(&mut self, addr: u16, data: u8) {
+        match addr {
+            0x0000..=0x2006 | 0x2008..=0x3FFF | 0x4014 | 0x4018..=0xFFFF => {
+                self.cpu_bus.set(addr, data)
+            }
             0x2007 => {
-                let n = self.cpu_bus.ppu_register.internal_registers.current_vram;
+                let addr = self.cpu_bus.ppu_register.internal_registers.current_vram;
                 self.cpu_bus.ppu_register.constant_inc_vram();
-                self.ppu.map.set(n, r);
+                self.ppu.map.set(addr, data);
             }
             0x4000 => {
-                self.apu.pulse1.set(0, r);
+                self.apu.pulse1.set(0, data);
             }
             0x4001 => {
-                self.apu.pulse1.sweep.set(r);
+                self.apu.pulse1.sweep.set(data);
             }
             0x4002 => {
-                self.apu.pulse1.set(2, r);
+                self.apu.pulse1.set(2, data);
             }
             0x4003 => {
-                self.apu.pulse1.set(3, r);
+                self.apu.pulse1.set(3, data);
             }
             0x4004 => {
-                self.apu.pulse2.set(0, r);
+                self.apu.pulse2.set(0, data);
             }
             0x4005 => {
-                self.apu.pulse2.sweep.set(r);
+                self.apu.pulse2.sweep.set(data);
             }
             0x4006 => {
-                self.apu.pulse2.set(2, r);
+                self.apu.pulse2.set(2, data);
             }
             0x4007 => {
-                self.apu.pulse2.set(3, r);
+                self.apu.pulse2.set(3, data);
             }
             0x4008..=0x4013 => {}
             0x4015 => {
-                self.apu.channel_controller.set(r);
+                self.apu.channel_controller.set(data);
             }
-            0x4016 => match r % 2 {
+            0x4016 => match data % 2 {
                 1 => {
                     let polling_data = self.controller_polling_data;
                     self.controller_0_polled_data = (polling_data & 0xff) as u8;
@@ -125,7 +127,7 @@ impl Mapper for Bus {
                 _ => (),
             },
             0x4017 => {
-                self.apu.frame_counter.set(r);
+                self.apu.frame_counter.set(data);
             }
         };
     }

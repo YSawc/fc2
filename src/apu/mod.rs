@@ -27,21 +27,21 @@ impl Sweep {
     }
 
     pub fn addr(&mut self) -> u8 {
-        let mut n = 0;
-        n += (self.is_enable as u8) << 7;
-        n += (self.dividers_period & 0b01110000) << 4;
-        n += (self.is_negative as u8) << 3;
-        n += self.shift_count;
+        let mut data = 0;
+        data += (self.is_enable as u8) << 7;
+        data += (self.dividers_period & 0b01110000) << 4;
+        data += (self.is_negative as u8) << 3;
+        data += self.shift_count;
 
-        n
+        data
     }
 
-    pub fn set(&mut self, n: u8) {
+    pub fn set(&mut self, data: u8) {
         self.dividers_count = 0;
-        self.is_enable = (n & 0b10000000) != 0;
-        self.dividers_period = (n & 0b01110000) >> 4;
-        self.is_negative = (n & 0b00001000) != 0;
-        self.shift_count = n & 0b00000111;
+        self.is_enable = (data & 0b10000000) != 0;
+        self.dividers_period = (data & 0b01110000) >> 4;
+        self.is_negative = (data & 0b00001000) != 0;
+        self.shift_count = data & 0b00000111;
     }
 
     pub fn update(&mut self, timer: &mut u16) {
@@ -188,24 +188,24 @@ impl Pulse {
         }
     }
 
-    pub fn set(&mut self, addr: u8, n: u8) {
+    pub fn set(&mut self, addr: u8, data: u8) {
         match addr {
             0 => {
-                self.duty = (n & 0b11000000) >> 6;
-                self.counter_halt = (n & 0b00100000) != 0;
-                self.is_loop_envelope = (n & 0b00100000) != 0;
-                self.is_constant_volume = (n & 0b00010000) != 0;
-                self.devider_period = n & 0b00001111;
+                self.duty = (data & 0b11000000) >> 6;
+                self.counter_halt = (data & 0b00100000) != 0;
+                self.is_loop_envelope = (data & 0b00100000) != 0;
+                self.is_constant_volume = (data & 0b00010000) != 0;
+                self.devider_period = data & 0b00001111;
             }
             2 => {
                 self.timer &= 0x700;
-                self.timer |= n as u16;
+                self.timer |= data as u16;
             }
             3 => {
                 self.timer &= 0xFF;
-                self.timer |= (n as u16 & 0b00000111) << 8;
-                self.length_counter_index = n & 0b11111000;
-                self.length_counter = Pulse::LENGTH_COUNTER[(n & 0b11111000) as usize >> 3];
+                self.timer |= (data as u16 & 0b00000111) << 8;
+                self.length_counter_index = data & 0b11111000;
+                self.length_counter = Pulse::LENGTH_COUNTER[(data & 0b11111000) as usize >> 3];
                 self.sequencer_count = self.devider_period;
                 self.envelope_volume = 0x0F;
             }
@@ -249,22 +249,22 @@ impl ChannelController {
     }
 
     pub fn addr(&mut self) -> u8 {
-        let mut n = 0;
-        n += self.enable_pulse1 as u8;
-        n += (self.enable_pulse2 as u8) << 1;
-        n += (self.enable_triangle as u8) << 2;
-        n += (self.enable_noise as u8) << 3;
-        n += (self.enable_dmc as u8) << 4;
+        let mut data = 0;
+        data += self.enable_pulse1 as u8;
+        data += (self.enable_pulse2 as u8) << 1;
+        data += (self.enable_triangle as u8) << 2;
+        data += (self.enable_noise as u8) << 3;
+        data += (self.enable_dmc as u8) << 4;
 
-        n
+        data
     }
 
-    pub fn set(&mut self, n: u8) {
-        self.enable_pulse1 = (n & 0b00000001) != 0;
-        self.enable_pulse2 = (n & 0b00000010) != 0;
-        self.enable_triangle = (n & 0b00000100) != 0;
-        self.enable_noise = (n & 0b00001000) != 0;
-        self.enable_dmc = (n & 0b00010000) != 0;
+    pub fn set(&mut self, data: u8) {
+        self.enable_pulse1 = (data & 0b00000001) != 0;
+        self.enable_pulse2 = (data & 0b00000010) != 0;
+        self.enable_triangle = (data & 0b00000100) != 0;
+        self.enable_noise = (data & 0b00001000) != 0;
+        self.enable_dmc = (data & 0b00010000) != 0;
     }
 }
 
@@ -294,14 +294,14 @@ impl FrameCounter {
         }
     }
 
-    pub fn set(&mut self, n: u8) {
-        self.mode = match (n & 0b10000000) >> 7 {
+    pub fn set(&mut self, data: u8) {
+        self.mode = match (data & 0b10000000) >> 7 {
             0 => FrameMode::_4STEP,
             1 => FrameMode::_5STEP,
             _ => unreachable!(),
         };
 
-        self.irq = ((n & 0b01000000) >> 6) != 0;
+        self.irq = ((data & 0b01000000) >> 6) != 0;
     }
 
     pub fn get_envelop_count(&self) -> u8 {

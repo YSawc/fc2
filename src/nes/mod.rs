@@ -100,12 +100,12 @@ pub struct Flags6 {
 }
 
 impl Flags6 {
-    fn parse_buf(n: u8) -> Self {
-        let mirroring = (n & 0b00000001) != 0;
-        let ram_or_memory = (n & 0b00000010) != 0;
-        let trainer = (n & 0b00000100) != 0;
-        let ignore_mirroring = (n & 0b00001000) != 0;
-        let mapper = (n & 0b11110000) >> 4;
+    fn parse_buf(data: u8) -> Self {
+        let mirroring = (data & 0b00000001) != 0;
+        let ram_or_memory = (data & 0b00000010) != 0;
+        let trainer = (data & 0b00000100) != 0;
+        let ignore_mirroring = (data & 0b00001000) != 0;
+        let mapper = (data & 0b11110000) >> 4;
 
         Self {
             mirroring,
@@ -136,11 +136,11 @@ pub struct Flags7 {
 }
 
 impl Flags7 {
-    fn parse_buf(n: u8) -> Self {
-        let vs_unisystem = (n & 0b00000001) != 0;
-        let play_choice_10 = (n & 0b00000010) != 0;
-        let nes_20_format = (n & 0b00001100) >> 2;
-        let mapper = (n & 0b11110000) >> 4;
+    fn parse_buf(data: u8) -> Self {
+        let vs_unisystem = (data & 0b00000001) != 0;
+        let play_choice_10 = (data & 0b00000010) != 0;
+        let nes_20_format = (data & 0b00001100) >> 2;
+        let mapper = (data & 0b11110000) >> 4;
 
         Self {
             vs_unisystem,
@@ -157,8 +157,8 @@ pub struct Flags8 {
 }
 
 impl Flags8 {
-    fn parse_buf(n: u8) -> Self {
-        let prg_ram_size = n;
+    fn parse_buf(data: u8) -> Self {
+        let prg_ram_size = data;
 
         Self { prg_ram_size }
     }
@@ -171,8 +171,8 @@ pub struct Flags9 {
 }
 
 impl Flags9 {
-    fn parse_buf(n: u8) -> Self {
-        let tv_system = (n & 0b00000001) != 0;
+    fn parse_buf(data: u8) -> Self {
+        let tv_system = (data & 0b00000001) != 0;
         let reserved = 0;
 
         Self {
@@ -190,10 +190,10 @@ pub struct Flags10 {
 }
 
 impl Flags10 {
-    fn parse_buf(n: u8) -> Self {
-        let tv_system = n & 0b00000011;
-        let prg_ram = (n & 0b00010000) != 0;
-        let board_mode = (n & 0b00100000) != 0;
+    fn parse_buf(data: u8) -> Self {
+        let tv_system = data & 0b00000011;
+        let prg_ram = (data & 0b00010000) != 0;
+        let board_mode = (data & 0b00100000) != 0;
 
         Self {
             tv_system,

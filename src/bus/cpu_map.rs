@@ -75,8 +75,8 @@ impl InternalRegisters {
         }
     }
 
-    pub fn inc_vram_addr(&mut self, n: u16) {
-        self.current_vram += n;
+    pub fn inc_vram_addr(&mut self, data: u16) {
+        self.current_vram += data;
     }
 
     pub fn copy_current_vram_to_tempolary_vram(&mut self) {
@@ -126,26 +126,26 @@ impl PpuCtrl {
         }
     }
 
-    fn set(&mut self, n: u8) {
-        self.gen_nmi = (n & 0b10000000) != 0;
-        self.ppu_selector = (n & 0b01000000) != 0;
-        self.sprite_size = (n & 0b00100000) != 0;
-        self.bk_table_addr = (n & 0b00010000) != 0;
-        self.sprite_ptn_table_addr = (n & 0b00001000) != 0;
-        self.vram_increment = (n & 0b00000100) != 0;
-        self.base_name_table_addr = n & 0b00000011;
+    fn set(&mut self, data: u8) {
+        self.gen_nmi = (data & 0b10000000) != 0;
+        self.ppu_selector = (data & 0b01000000) != 0;
+        self.sprite_size = (data & 0b00100000) != 0;
+        self.bk_table_addr = (data & 0b00010000) != 0;
+        self.sprite_ptn_table_addr = (data & 0b00001000) != 0;
+        self.vram_increment = (data & 0b00000100) != 0;
+        self.base_name_table_addr = data & 0b00000011;
     }
 
     pub fn to_n(&self) -> u8 {
-        let mut n = 0;
-        n += self.gen_nmi as u8 * 0b10000000;
-        n += self.ppu_selector as u8 * 0b01000000;
-        n += self.sprite_size as u8 * 0b00100000;
-        n += self.bk_table_addr as u8 * 0b00010000;
-        n += self.sprite_ptn_table_addr as u8 * 0b00001000;
-        n += self.vram_increment as u8 * 0b00000100;
-        n += self.base_name_table_addr;
-        n
+        let mut data = 0;
+        data += self.gen_nmi as u8 * 0b10000000;
+        data += self.ppu_selector as u8 * 0b01000000;
+        data += self.sprite_size as u8 * 0b00100000;
+        data += self.bk_table_addr as u8 * 0b00010000;
+        data += self.sprite_ptn_table_addr as u8 * 0b00001000;
+        data += self.vram_increment as u8 * 0b00000100;
+        data += self.base_name_table_addr;
+        data
     }
 
     pub fn is_deep_bk_index(&self) -> bool {
@@ -196,28 +196,28 @@ impl PpuMask {
         }
     }
 
-    fn set(&mut self, n: u8) {
-        self.emf_blue = (n & 0b10000000) != 0;
-        self.emf_green = (n & 0b01000000) != 0;
-        self.emf_red = (n & 0b00100000) != 0;
-        self.show_sprites = (n & 0b00010000) != 0;
-        self.show_background = (n & 0b00001000) != 0;
-        self.show_sprites_in_leftmost = (n & 0b00000100) != 0;
-        self.show_background_in_leftmost = (n & 0b00000010) != 0;
-        self.gray_scale = (n & 0b00000001) != 0;
+    fn set(&mut self, data: u8) {
+        self.emf_blue = (data & 0b10000000) != 0;
+        self.emf_green = (data & 0b01000000) != 0;
+        self.emf_red = (data & 0b00100000) != 0;
+        self.show_sprites = (data & 0b00010000) != 0;
+        self.show_background = (data & 0b00001000) != 0;
+        self.show_sprites_in_leftmost = (data & 0b00000100) != 0;
+        self.show_background_in_leftmost = (data & 0b00000010) != 0;
+        self.gray_scale = (data & 0b00000001) != 0;
     }
 
     fn to_n(&self) -> u8 {
-        let mut n = 0;
-        n += self.emf_blue as u8 * 0b10000000;
-        n += self.emf_green as u8 * 0b01000000;
-        n += self.emf_red as u8 * 0b00100000;
-        n += self.show_sprites as u8 * 0b00010000;
-        n += self.show_background as u8 * 0b00001000;
-        n += self.show_sprites_in_leftmost as u8 * 0b00000100;
-        n += self.show_background_in_leftmost as u8 * 0b00000010;
-        n += self.gray_scale as u8;
-        n
+        let mut data = 0;
+        data += self.emf_blue as u8 * 0b10000000;
+        data += self.emf_green as u8 * 0b01000000;
+        data += self.emf_red as u8 * 0b00100000;
+        data += self.show_sprites as u8 * 0b00010000;
+        data += self.show_background as u8 * 0b00001000;
+        data += self.show_sprites_in_leftmost as u8 * 0b00000100;
+        data += self.show_background_in_leftmost as u8 * 0b00000010;
+        data += self.gray_scale as u8;
+        data
     }
 }
 
@@ -244,20 +244,20 @@ impl PpuStatus {
             bus: 0,
         }
     }
-    fn set(&mut self, n: u8) {
-        self.in_vlank = (n & 0b10000000) != 0;
-        self.sprite_zero_hit = (n & 0b01000000) != 0;
-        self.sprite_evoluation = (n & 0b00100000) != 0;
-        self.bus = n & 0b00001111;
+    fn set(&mut self, data: u8) {
+        self.in_vlank = (data & 0b10000000) != 0;
+        self.sprite_zero_hit = (data & 0b01000000) != 0;
+        self.sprite_evoluation = (data & 0b00100000) != 0;
+        self.bus = data & 0b00001111;
     }
 
     fn to_n(&self) -> u8 {
-        let mut n = 0;
-        n += self.in_vlank as u8 * 0b10000000;
-        n += self.sprite_zero_hit as u8 * 0b01000000;
-        n += self.sprite_evoluation as u8 * 0b00100000;
-        n += self.bus;
-        n
+        let mut data = 0;
+        data += self.in_vlank as u8 * 0b10000000;
+        data += self.sprite_zero_hit as u8 * 0b01000000;
+        data += self.sprite_evoluation as u8 * 0b00100000;
+        data += self.bus;
+        data
     }
 
     pub fn is_occured_sprite_zero_hit(&self) -> bool {
@@ -294,13 +294,13 @@ impl PpuBuffer {
     }
 
     pub fn addr(&mut self) -> u8 {
-        let n = self.buffer;
+        let data = self.buffer;
         self.buffer = self.vram_memory;
-        n
+        data
     }
 
-    pub fn set(&mut self, n: u8) {
-        self.vram_memory = n;
+    pub fn set(&mut self, data: u8) {
+        self.vram_memory = data;
     }
 }
 
@@ -324,32 +324,32 @@ impl PpuRegister {
         }
     }
 
-    pub fn set(&mut self, n: u16, r: u8) {
-        match n {
+    pub fn set(&mut self, addr: u16, data: u8) {
+        match addr {
             0x2000 => {
                 self.internal_registers.temporary_vram &= 0b1111001111111111;
-                self.internal_registers.temporary_vram |= (r as u16 & 0b00000011) << 10;
-                self.ppu_ctrl.set(r);
+                self.internal_registers.temporary_vram |= (data as u16 & 0b00000011) << 10;
+                self.ppu_ctrl.set(data);
             }
-            0x2001 => self.ppu_mask.set(r),
-            0x2002 => self.ppu_status.set(r),
-            0x2003 => self.oam_addr = r,
-            0x2004 => self.oam_data = r,
+            0x2001 => self.ppu_mask.set(data),
+            0x2002 => self.ppu_status.set(data),
+            0x2003 => self.oam_addr = data,
+            0x2004 => self.oam_data = data,
             0x2005 => {
-                let r = r as u16;
+                let data = data as u16;
                 match self.internal_registers.latch_flag {
                     true => {
                         self.internal_registers.temporary_vram &= 0b1000110000011111;
-                        let b = (r & 0b00000111) << 12;
-                        let m = ((r & 0b00111000) >> 3) << 5;
-                        let h = ((r & 0b11000000) >> 6) << 8;
+                        let b = (data & 0b00000111) << 12;
+                        let m = ((data & 0b00111000) >> 3) << 5;
+                        let h = ((data & 0b11000000) >> 6) << 8;
                         self.internal_registers.temporary_vram |= h | m | b
                     }
                     false => {
                         self.internal_registers.x_scroll = 0;
                         self.internal_registers.temporary_vram &= 0b1111111111100000;
-                        let b = r & 0b00000111;
-                        let h = (r & 0b11111000) >> 3;
+                        let b = data & 0b00000111;
+                        let h = (data & 0b11111000) >> 3;
                         self.internal_registers.x_scroll = b as u8;
                         self.internal_registers.temporary_vram |= h;
                     }
@@ -360,13 +360,13 @@ impl PpuRegister {
                 match self.internal_registers.latch_flag {
                     true => {
                         self.internal_registers.temporary_vram &= 0b111111100000000;
-                        self.internal_registers.temporary_vram |= r as u16;
+                        self.internal_registers.temporary_vram |= data as u16;
                         self.internal_registers
                             .copy_current_vram_to_tempolary_vram();
                     }
                     false => {
                         self.internal_registers.temporary_vram &= 0b000000011111111;
-                        self.internal_registers.temporary_vram |= (r as u16 & 0b00111111) << 8;
+                        self.internal_registers.temporary_vram |= (data as u16 & 0b00111111) << 8;
                     }
                 }
                 self.internal_registers.toggle_latch();
@@ -375,8 +375,8 @@ impl PpuRegister {
         }
     }
 
-    pub fn addr(&mut self, n: u16) -> u8 {
-        match n {
+    pub fn addr(&mut self, addr: u16) -> u8 {
+        match addr {
             0x2000 => self.ppu_ctrl.to_n(),
             0x2001 => self.ppu_mask.to_n(),
             0x2002 => self.ppu_status.to_n(),
@@ -387,8 +387,8 @@ impl PpuRegister {
     }
 
     pub fn constant_inc_vram(&mut self) {
-        let n = self.ppu_ctrl.increment_vram_num();
-        self.internal_registers.inc_vram_addr(n);
+        let data = self.ppu_ctrl.increment_vram_num();
+        self.internal_registers.inc_vram_addr(data);
     }
 }
 
@@ -416,8 +416,8 @@ impl RP2A03 {
         }
     }
 
-    fn addr(&mut self, n: u16) -> u8 {
-        match n {
+    fn addr(&mut self, addr: u16) -> u8 {
+        match addr {
             0x4014 => self.oam_dma,
             0x4016 => self.controller_0.d0,
             0x4017 => self.controller_1.d0,
@@ -425,9 +425,9 @@ impl RP2A03 {
         }
     }
 
-    fn set(&mut self, n: u16, r: u8) {
-        match n {
-            0x4014 => self.oam_dma = r,
+    fn set(&mut self, addr: u16, data: u8) {
+        match addr {
+            0x4014 => self.oam_dma = data,
             _ => unreachable!(),
         }
     }
@@ -471,64 +471,64 @@ impl CpuMap {
         }
     }
 
-    pub fn lh_ignore_overflowing_addr(&mut self, n: u16) -> (u8, u8) {
-        let h = n & 0xff00;
-        let l = (n as u8).wrapping_add(1);
-        let next_addr = h | l as u16;
-        let l = self.addr(n as u16);
-        let h = self.addr(next_addr as u16);
-        (l, h)
+    pub fn lh_ignore_overflowing_addr(&mut self, data: u16) -> (u8, u8) {
+        let h_data = data & 0xff00;
+        let l_data = (data as u8).wrapping_add(1);
+        let next_addr = h_data | l_data as u16;
+        let l_data = self.addr(data as u16);
+        let h_data = self.addr(next_addr as u16);
+        (l_data, h_data)
     }
 
-    pub fn lh_zeropage_addr(&mut self, n: u8) -> (u8, u8) {
-        let next_addr_mem = n.wrapping_add(1);
-        let l = self.addr(n as u16);
-        let h = self.addr(next_addr_mem as u16);
-        (l, h)
+    pub fn lh_zeropage_addr(&mut self, data: u8) -> (u8, u8) {
+        let next_addr_mem = data.wrapping_add(1);
+        let l_data = self.addr(data as u16);
+        let h_data = self.addr(next_addr_mem as u16);
+        (l_data, h_data)
     }
 
-    pub fn lh_addr(&mut self, n: u16) -> (u8, u8) {
-        let l = self.addr(n);
-        let h = self.addr(n + 1);
-        (l, h)
+    pub fn lh_addr(&mut self, data: u16) -> (u8, u8) {
+        let l_data = self.addr(data);
+        let h_data = self.addr(data + 1);
+        (l_data, h_data)
     }
 
-    pub fn hl_addr(&mut self, n: u16) -> (u8, u8) {
-        let h = self.addr(n);
-        let l = self.addr(n + 1);
-        (h, l)
+    pub fn hl_addr(&mut self, data: u16) -> (u8, u8) {
+        let h_data = self.addr(data);
+        let l_data = self.addr(data + 1);
+        (h_data, l_data)
     }
 }
 
 impl Mapper for CpuMap {
-    fn addr(&mut self, n: u16) -> u8 {
-        match n {
-            0x0000..=0x07FF => self.wram[n as usize],
-            0x0800..=0x1FFF => self.wram_mirror[(n - 0x0800) as usize],
-            0x2000..=0x2007 => self.ppu_register.addr(n),
-            0x2008..=0x3FFF => self.ppu_register_mirror[(n - 0x2008) as usize],
-            0x4000..=0x4017 => self.rp2a03.addr(n),
-            0x4018..=0x401F => self.func_apu_io[(n - 0x4018) as usize],
-            0x4020..=0x5FFF => self.erom[(n - 0x4020) as usize],
-            0x6000..=0x7FFF => self.eram[(n - 0x6000) as usize],
-            0x8000..=0xBFFF => self.prg_rom1[(n - 0x8000) as usize],
-            0xC000..=0xFFFF => self.prg_rom2[(n - 0xC000) as usize],
+    fn addr(&mut self, addr: u16) -> u8 {
+        match addr {
+            0x0000..=0x07FF => self.wram[addr as usize],
+            0x0800..=0x1FFF => self.wram_mirror[(addr - 0x0800) as usize],
+            0x2000..=0x2007 => self.ppu_register.addr(addr),
+            0x2008..=0x3FFF => self.ppu_register_mirror[(addr - 0x2008) as usize],
+            0x4000..=0x4017 => self.rp2a03.addr(addr),
+            0x4018..=0x401F => self.func_apu_io[(addr - 0x4018) as usize],
+            0x4020..=0x5FFF => self.erom[(addr - 0x4020) as usize],
+            0x6000..=0x7FFF => self.eram[(addr - 0x6000) as usize],
+            0x8000..=0xBFFF => self.prg_rom1[(addr - 0x8000) as usize],
+            0xC000..=0xFFFF => self.prg_rom2[(addr - 0xC000) as usize],
         }
     }
 
-    fn set(&mut self, n: u16, r: u8) {
-        match n {
-            0x0000..=0x07FF => self.wram[n as usize] = r,
-            0x0800..=0x1FFF => self.wram_mirror[(n - 0x0800) as usize] = r,
-            0x2000..=0x2007 => self.ppu_register.set(n, r),
-            0x2008..=0x3FFF => self.ppu_register_mirror[(n - 0x2008) as usize] = r,
-            0x4000..=0x4015 => self.rp2a03.set(n, r),
+    fn set(&mut self, addr: u16, data: u8) {
+        match addr {
+            0x0000..=0x07FF => self.wram[addr as usize] = data,
+            0x0800..=0x1FFF => self.wram_mirror[(addr - 0x0800) as usize] = data,
+            0x2000..=0x2007 => self.ppu_register.set(addr, data),
+            0x2008..=0x3FFF => self.ppu_register_mirror[(addr - 0x2008) as usize] = data,
+            0x4000..=0x4015 => self.rp2a03.set(addr, data),
             0x4016..=0x4017 => unreachable!(),
-            0x4018..=0x401F => self.func_apu_io[(n - 0x4017) as usize] = r,
-            0x4020..=0x5FFF => self.erom[(n - 0x4020) as usize] = r,
-            0x6000..=0x7FFF => self.eram[(n - 0x6000) as usize] = r,
-            0x8000..=0xBFFF => self.prg_rom1[(n - 0x8000) as usize] = r,
-            0xC000..=0xFFFF => self.prg_rom2[(n - 0xC000) as usize] = r,
+            0x4018..=0x401F => self.func_apu_io[(addr - 0x4017) as usize] = data,
+            0x4020..=0x5FFF => self.erom[(addr - 0x4020) as usize] = data,
+            0x6000..=0x7FFF => self.eram[(addr - 0x6000) as usize] = data,
+            0x8000..=0xBFFF => self.prg_rom1[(addr - 0x8000) as usize] = data,
+            0xC000..=0xFFFF => self.prg_rom2[(addr - 0xC000) as usize] = data,
         };
     }
 }

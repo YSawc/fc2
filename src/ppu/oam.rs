@@ -110,8 +110,8 @@ impl TileIndex {
         }
     }
 
-    fn set(&mut self, n: u8) {
-        self.tile_number = n;
+    fn set(&mut self, data: u8) {
+        self.tile_number = data;
     }
 }
 
@@ -141,12 +141,12 @@ impl Attr {
         }
     }
 
-    fn set(&mut self, n: u8) {
-        self.flip_sprite_vertically = (n & 0b10000000) != 0;
-        self.flip_sprite_horizontally = (n & 0b01000000) != 0;
-        self.priority = (n & 0b00100000) != 0;
-        self.unimplemented = n & 0b00011100;
-        self.palette = n & 0b00000011;
+    fn set(&mut self, data: u8) {
+        self.flip_sprite_vertically = (data & 0b10000000) != 0;
+        self.flip_sprite_horizontally = (data & 0b01000000) != 0;
+        self.priority = (data & 0b00100000) != 0;
+        self.unimplemented = data & 0b00011100;
+        self.palette = data & 0b00000011;
     }
 }
 
