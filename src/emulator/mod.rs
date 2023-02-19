@@ -782,11 +782,7 @@ impl<
         let ppu_register = &self.cpu.bus.cpu_bus.ppu_register;
 
         let scrolled_x = {
-            let l_data = if ppu_register.ppu_status.is_occured_sprite_zero_hit() {
-                ppu_register.internal_registers.x_scroll
-            } else {
-                0
-            };
+            let l_data = ppu_register.internal_registers.x_scroll;
             let h_data = (ppu_register.internal_registers.temporary_vram & 0b00011111) << 3;
             h_data | l_data as u16
         };
@@ -871,8 +867,14 @@ impl<
                         let (idx, x) = {
                             if is_bottom {
                                 let idx = {
-                                    let r = (sprite_row & (0b1 << (15 - i)) != 0) as u16;
-                                    let h = (sprite_high & (0b1 << (15 - i)) != 0) as u16;
+                                    let i = if attr.flip_sprite_horizontally {
+                                        i
+                                    } else {
+                                        15 - i
+                                    };
+
+                                    let r = (sprite_row & (0b1 << i) != 0) as u16;
+                                    let h = (sprite_high & (0b1 << i) != 0) as u16;
                                     let idx = h << 1 | r;
                                     if idx == 0 {
                                         continue;
@@ -883,8 +885,14 @@ impl<
                                 (idx, x)
                             } else {
                                 let idx = {
-                                    let r = (sprite_row & (0b1 << (7 - i)) != 0) as u16;
-                                    let h = (sprite_high & (0b1 << (7 - i)) != 0) as u16;
+                                    let i = if attr.flip_sprite_horizontally {
+                                        i
+                                    } else {
+                                        7 - i
+                                    };
+
+                                    let r = (sprite_row & (0b1 << (i)) != 0) as u16;
+                                    let h = (sprite_high & (0b1 << (i)) != 0) as u16;
                                     let idx = h << 1 | r;
                                     if idx == 0 {
                                         continue;
