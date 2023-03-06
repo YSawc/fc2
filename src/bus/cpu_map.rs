@@ -219,6 +219,12 @@ impl PpuMask {
         data += self.gray_scale as u8;
         data
     }
+
+    pub fn apply_gray_scale(&self, color_idx: &mut usize) {
+        if self.gray_scale {
+            *color_idx &= 0b11110000
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

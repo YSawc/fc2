@@ -469,8 +469,9 @@ impl<
         if self.ppu_cycle >= PPU_DRAW_LINE_CYCLE {
             self.ppu_cycle -= PPU_DRAW_LINE_CYCLE;
             if self.drawing_line < VISIBLE_LINES {
+                self.insert_universal_background();
                 self.insert_sprites_behinds_background()?;
-                self.insert_background_line()?;
+                self.insert_front_background()?;
                 self.insert_sprites_front_of_background()?;
             }
             if self.drawing_line == TOTAL_LINE {
@@ -646,8 +647,14 @@ impl<
                 left_x_ratio - 1 - i,
                 i,
             );
-            let sprite_color_idx = self.calc_background_color_idx(attr_idx, palette_idx);
-            self.texture_buffer.insert_color(x, y, sprite_color_idx);
+            if (attr_idx + palette_idx as usize) != 0
+                && (attr_idx + palette_idx as usize) != 4
+                && (attr_idx + palette_idx as usize) != 8
+                && (attr_idx + palette_idx as usize) != 12
+            {
+                let sprite_color_idx = self.calc_background_color_idx(attr_idx, palette_idx);
+                self.texture_buffer.insert_color(x, y, sprite_color_idx);
+            }
         }
     }
 
@@ -670,8 +677,14 @@ impl<
                 7 - i,
                 left_x_ratio + i,
             );
-            let sprite_color_idx = self.calc_background_color_idx(attr_idx, palette_idx);
-            self.texture_buffer.insert_color(x, y, sprite_color_idx);
+            if (attr_idx + palette_idx as usize) != 0
+                && (attr_idx + palette_idx as usize) != 4
+                && (attr_idx + palette_idx as usize) != 8
+                && (attr_idx + palette_idx as usize) != 12
+            {
+                let sprite_color_idx = self.calc_background_color_idx(attr_idx, palette_idx);
+                self.texture_buffer.insert_color(x, y, sprite_color_idx);
+            }
         }
     }
 
@@ -744,16 +757,19 @@ impl<
     }
 
     fn calc_background_color_idx(&mut self, attr_idx: usize, pallete_idx: u16) -> usize {
-        let mut sprite_color_idx =
+        let mut color_idx =
             self.cpu
                 .bus
                 .ppu
                 .map
                 .addr(0x3F00 as u16 + attr_idx as u16 + pallete_idx) as usize;
-        if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.gray_scale {
-            sprite_color_idx &= 0b11110000;
-        }
-        sprite_color_idx
+        self.cpu
+            .bus
+            .cpu_bus
+            .ppu_register
+            .ppu_mask
+            .apply_gray_scale(&mut color_idx);
+        color_idx
     }
 
     fn pick_row_high_tile_background(
@@ -800,7 +816,26 @@ impl<
         (scrolled_x, scrolled_y)
     }
 
-    fn insert_background_line(&mut self) -> Result<(), String> {
+    fn insert_universal_background(&mut self) {
+        let mut color_idx = self.cpu.bus.ppu.map.addr(0x3F00) as usize;
+        self.cpu
+            .bus
+            .cpu_bus
+            .ppu_register
+            .ppu_mask
+            .apply_gray_scale(&mut color_idx);
+        for tile_idx in 0..TILE_COUNTS_ON_WIDTH as usize {
+            for x in 0..8 {
+                self.texture_buffer.insert_color(
+                    tile_idx as u8 * 8 + x,
+                    self.drawing_line as u8,
+                    color_idx,
+                );
+            }
+        }
+    }
+
+    fn insert_front_background(&mut self) -> Result<(), String> {
         let (scrolled_x, scrolled_y) = self.get_scroll_addrs();
         let tile_nametables = self.refers_tile_nametable(scrolled_x, scrolled_y);
 
@@ -906,9 +941,7 @@ impl<
 
                         let pallet_idx = pallet_base_idx + idx as usize;
                         let mut color_idx = ppu_map.sprite_pallet[pallet_idx] as usize;
-                        if ppu_mask.gray_scale {
-                            color_idx &= 0b11110000;
-                        }
+                        ppu_mask.apply_gray_scale(&mut color_idx);
 
                         if !self
                             .cpu
@@ -993,9 +1026,7 @@ impl<
                         };
                         let pallet_idx = pallet_base_idx + idx as usize;
                         let mut color_idx = ppu_map.sprite_pallet[pallet_idx] as usize;
-                        if ppu_mask.gray_scale {
-                            color_idx &= 0b11110000;
-                        }
+                        ppu_mask.apply_gray_scale(&mut color_idx);
 
                         if !self
                             .cpu

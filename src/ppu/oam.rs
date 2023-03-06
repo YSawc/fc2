@@ -31,6 +31,10 @@ impl SpriteInfo {
     pub fn behind_of_background(&self) -> bool {
         self.attr.priority == true
     }
+
+    pub fn front_of_background(&self) -> bool {
+        self.attr.priority == false
+    }
 }
 
 pub type SpriteInfos = Vec<SpriteInfo>;
