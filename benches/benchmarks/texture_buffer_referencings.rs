@@ -43,7 +43,7 @@ fn texture_buffer_references(c: &mut Criterion) {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
-        .window("fc2: render nes sprites", 0, 0)
+        .window("fc2", 0, 0)
         .position_centered()
         .build()
         .map_err(|e| e.to_string())

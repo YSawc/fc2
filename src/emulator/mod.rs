@@ -78,7 +78,7 @@ impl<
         let video_subsystem = sdl_context.video().unwrap();
 
         let window = video_subsystem
-            .window("fc2: render nes sprites", WINDOW_WIDTH, WINDOW_HEIGHT)
+            .window("fc2", WINDOW_WIDTH, WINDOW_HEIGHT)
             .position_centered()
             .build()
             .map_err(|e| e.to_string())
@@ -338,24 +338,28 @@ impl<
     }
 
     fn insert_sprites_behinds_background(&mut self) -> Result<(), String> {
-        if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
-            self.set_secondary_oam_behind_background_for_nomal();
-            if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
-                self.insert_sprite_behind_background_for_big_size()?;
-            } else {
-                self.insert_sprites_for_normal_size()?;
+        if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.is_show_sprites() {
+            if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
+                self.set_secondary_oam_behind_background_for_nomal();
+                if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
+                    self.insert_sprite_behind_background_for_big_size()?;
+                } else {
+                    self.insert_sprites_for_normal_size()?;
+                }
             }
         }
         Ok(())
     }
 
     fn insert_sprites_front_of_background(&mut self) -> Result<(), String> {
-        if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
-            self.set_secondary_oam_front_of_background_for_nomal();
-            if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
-                self.insert_sprite_front_of_background_for_big_size()?;
-            } else {
-                self.insert_sprites_for_normal_size()?;
+        if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.is_show_sprites() {
+            if self.cpu.bus.cpu_bus.ppu_register.ppu_mask.show_sprites {
+                self.set_secondary_oam_front_of_background_for_nomal();
+                if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
+                    self.insert_sprite_front_of_background_for_big_size()?;
+                } else {
+                    self.insert_sprites_for_normal_size()?;
+                }
             }
         }
         Ok(())
@@ -471,7 +475,7 @@ impl<
             if self.drawing_line < VISIBLE_LINES {
                 self.insert_universal_background();
                 self.insert_sprites_behinds_background()?;
-                self.insert_front_background()?;
+                self.insert_front_background();
                 self.insert_sprites_front_of_background()?;
             }
             if self.drawing_line == TOTAL_LINE {
@@ -817,30 +821,47 @@ impl<
     }
 
     fn insert_universal_background(&mut self) {
-        let mut color_idx = self.cpu.bus.ppu.map.addr(0x3F00) as usize;
-        self.cpu
+        if self
+            .cpu
             .bus
             .cpu_bus
             .ppu_register
             .ppu_mask
-            .apply_gray_scale(&mut color_idx);
-        for tile_idx in 0..TILE_COUNTS_ON_WIDTH as usize {
-            for x in 0..8 {
-                self.texture_buffer.insert_color(
-                    tile_idx as u8 * 8 + x,
-                    self.drawing_line as u8,
-                    color_idx,
-                );
+            .is_show_background()
+        {
+            let mut color_idx = self.cpu.bus.ppu.map.addr(0x3F00) as usize;
+            self.cpu
+                .bus
+                .cpu_bus
+                .ppu_register
+                .ppu_mask
+                .apply_gray_scale(&mut color_idx);
+            for tile_idx in 0..TILE_COUNTS_ON_WIDTH as usize {
+                for x in 0..8 {
+                    self.texture_buffer.insert_color(
+                        tile_idx as u8 * 8 + x,
+                        self.drawing_line as u8,
+                        color_idx,
+                    );
+                }
             }
         }
     }
 
-    fn insert_front_background(&mut self) -> Result<(), String> {
-        let (scrolled_x, scrolled_y) = self.get_scroll_addrs();
-        let tile_nametables = self.refers_tile_nametable(scrolled_x, scrolled_y);
+    fn insert_front_background(&mut self) {
+        if self
+            .cpu
+            .bus
+            .cpu_bus
+            .ppu_register
+            .ppu_mask
+            .is_show_background()
+        {
+            let (scrolled_x, scrolled_y) = self.get_scroll_addrs();
+            let tile_nametables = self.refers_tile_nametable(scrolled_x, scrolled_y);
 
-        self.build_background_tiles(tile_nametables, scrolled_x, scrolled_y);
-        Ok(())
+            self.build_background_tiles(tile_nametables, scrolled_x, scrolled_y);
+        }
     }
 
     fn is_just_in_vblank_line(&self) -> bool {
@@ -953,12 +974,30 @@ impl<
                             && attr.priority
                             && pallet_idx % 4 != 0
                         {
-                            self.cpu
-                                .bus
-                                .cpu_bus
-                                .ppu_register
-                                .ppu_status
-                                .true_sprite_zero_hit();
+                            if self.drawing_line
+                                == self
+                                    .cpu
+                                    .bus
+                                    .cpu_bus
+                                    .ppu_register
+                                    .ppu_status
+                                    .line_occured_sprite_zero_hit
+                                    + 1
+                            {
+                                self.cpu
+                                    .bus
+                                    .cpu_bus
+                                    .ppu_register
+                                    .ppu_status
+                                    .true_sprite_zero_hit();
+                            } else {
+                                self.cpu
+                                    .bus
+                                    .cpu_bus
+                                    .ppu_register
+                                    .ppu_status
+                                    .set_line_occured_sprite_zero_hit(self.drawing_line)
+                            }
                         }
 
                         if !color_info.contains_key(&x) {
@@ -1038,12 +1077,30 @@ impl<
                             && attr.priority
                             && pallet_idx % 4 != 0
                         {
-                            self.cpu
-                                .bus
-                                .cpu_bus
-                                .ppu_register
-                                .ppu_status
-                                .true_sprite_zero_hit();
+                            if self.drawing_line
+                                == self
+                                    .cpu
+                                    .bus
+                                    .cpu_bus
+                                    .ppu_register
+                                    .ppu_status
+                                    .line_occured_sprite_zero_hit
+                                    + 1
+                            {
+                                self.cpu
+                                    .bus
+                                    .cpu_bus
+                                    .ppu_register
+                                    .ppu_status
+                                    .true_sprite_zero_hit();
+                            } else {
+                                self.cpu
+                                    .bus
+                                    .cpu_bus
+                                    .ppu_register
+                                    .ppu_status
+                                    .set_line_occured_sprite_zero_hit(self.drawing_line)
+                            }
                         }
 
                         if !color_info.contains_key(&x) {

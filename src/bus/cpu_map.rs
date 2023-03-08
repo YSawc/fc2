@@ -225,6 +225,14 @@ impl PpuMask {
             *color_idx &= 0b11110000
         }
     }
+
+    pub fn is_show_sprites(&self) -> bool {
+        self.show_sprites
+    }
+
+    pub fn is_show_background(&self) -> bool {
+        self.show_background
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -233,6 +241,7 @@ pub struct PpuStatus {
     sprite_zero_hit: bool,
     sprite_evoluation: bool,
     bus: u8,
+    pub line_occured_sprite_zero_hit: u16,
 }
 
 impl Default for PpuStatus {
@@ -248,6 +257,7 @@ impl PpuStatus {
             sprite_zero_hit: false,
             sprite_evoluation: false,
             bus: 0,
+            line_occured_sprite_zero_hit: 0,
         }
     }
     fn set(&mut self, data: u8) {
@@ -268,6 +278,10 @@ impl PpuStatus {
 
     pub fn is_occured_sprite_zero_hit(&self) -> bool {
         self.sprite_zero_hit
+    }
+
+    pub fn set_line_occured_sprite_zero_hit(&mut self, line: u16) {
+        self.line_occured_sprite_zero_hit = line;
     }
 
     pub fn true_sprite_zero_hit(&mut self) {
