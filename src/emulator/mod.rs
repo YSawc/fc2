@@ -11,10 +11,12 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
 pub mod texture;
+use crate::bus::cpu_map::*;
 use crate::bus::Mapper;
 use crate::cpu::*;
 use crate::emulator::texture::TextureBuffer;
 use crate::nes::*;
+use crate::ppu::mapper::Map as PpuMap;
 use crate::ppu::oam::SpriteInfo;
 use crate::util::*;
 use rustc_hash::*;
@@ -344,7 +346,7 @@ impl<
                 if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
                     self.insert_sprite_behind_background_for_big_size()?;
                 } else {
-                    self.insert_sprites_for_normal_size()?;
+                    self.insert_normal_size_sprites()?;
                 }
             }
         }
@@ -358,7 +360,7 @@ impl<
                 if self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl.for_big() {
                     self.insert_sprite_front_of_background_for_big_size()?;
                 } else {
-                    self.insert_sprites_for_normal_size()?;
+                    self.insert_normal_size_sprites()?;
                 }
             }
         }
@@ -878,238 +880,267 @@ impl<
     }
 
     fn insert_sprites_for_big_top(&mut self) -> Result<(), String> {
-        Ok(self.insert_sprites_for_big_size(false)?)
+        Ok(self.insert_big_size_sprites(false)?)
     }
 
     fn insert_sprites_for_big_bottom(&mut self) -> Result<(), String> {
-        Ok(self.insert_sprites_for_big_size(true)?)
+        Ok(self.insert_big_size_sprites(true)?)
     }
 
-    fn insert_sprites_for_big_size(&mut self, is_bottom: bool) -> Result<(), String> {
+    fn insert_big_size_color(
+        &mut self,
+        sprite_info: &SpriteInfo,
+        pallet_base_idx: usize,
+        sprite_row: u8,
+        sprite_high: u8,
+        dot_index_per_sprite: u8,
+        color_info: &mut FxHashMap<u8, usize>,
+        is_bottom: bool,
+    ) {
+        if let Some((idx, x)) = if is_bottom {
+            self.build_big_bottom_dot_info(
+                &sprite_info,
+                sprite_row,
+                sprite_high,
+                dot_index_per_sprite,
+            )
+        } else {
+            self.build_normal_dot_info(&sprite_info, sprite_row, sprite_high, dot_index_per_sprite)
+        } {
+            let pallet_idx = pallet_base_idx + idx as usize;
+            let mut color_idx = self.ppu_map().sprite_pallet[pallet_idx] as usize;
+            self.ppu_register()
+                .ppu_mask
+                .apply_gray_scale(&mut color_idx);
+
+            if !color_info.contains_key(&x) {
+                color_info.insert(x, color_idx);
+            }
+
+            if self.is_in_sprite_zero_hit_condition(&sprite_info, pallet_idx) {
+                self.set_sprite_zero_hit_flag();
+            }
+        } else {
+            return;
+        };
+    }
+
+    fn insert_big_size_sprites(&mut self, is_bottom: bool) -> Result<(), String> {
         let mut color_info: FxHashMap<u8, usize> = FxHashMap::default();
         for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
-            match self
+            let result = self
                 .cpu
                 .bus
                 .ppu
                 .secondary_oam
-                .pick_sprite_info_with_x(n as u8)
-            {
-                Some(SpriteInfo {
-                    pos_y,
-                    tile_index,
-                    pos_x,
-                    attr,
-                }) => {
-                    let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
-                    let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
-                    let base_addr = (((tile_index.tile_number + 1) % 2) == 0) as u16 * 0x1000
-                        + ((tile_index.tile_number as u16) / 2) * 0x20
-                        + relative_hight;
-                    let ppu_map = &mut self.cpu.bus.ppu.map;
-                    let (sprite_row, sprite_high) = {
-                        if is_bottom {
-                            (
-                                ppu_map.addr(base_addr + 0x10),
-                                ppu_map.addr(base_addr + 0x18),
-                            )
-                        } else {
-                            (ppu_map.addr(base_addr), ppu_map.addr(base_addr + 8))
-                        }
-                    };
-                    let pallet_base_idx = (attr.palette * 4) as usize;
-                    let for_count = if is_bottom { 16 } else { 8 };
-                    for i in for_count - 8..for_count {
-                        let (idx, x) = {
-                            if is_bottom {
-                                let idx = {
-                                    let i = if attr.flip_sprite_horizontally {
-                                        i
-                                    } else {
-                                        15 - i
-                                    };
-
-                                    let r = (sprite_row & (0b1 << i) != 0) as u16;
-                                    let h = (sprite_high & (0b1 << i) != 0) as u16;
-                                    let idx = h << 1 | r;
-                                    if idx == 0 {
-                                        continue;
-                                    }
-                                    idx
-                                };
-                                let x = pos_x.wrapping_add(i - 8);
-                                (idx, x)
-                            } else {
-                                let idx = {
-                                    let i = if attr.flip_sprite_horizontally {
-                                        i
-                                    } else {
-                                        7 - i
-                                    };
-
-                                    let r = (sprite_row & (0b1 << (i)) != 0) as u16;
-                                    let h = (sprite_high & (0b1 << (i)) != 0) as u16;
-                                    let idx = h << 1 | r;
-                                    if idx == 0 {
-                                        continue;
-                                    }
-                                    idx
-                                };
-                                let x = pos_x.wrapping_add(i);
-                                (idx, x)
-                            }
-                        };
-
-                        let pallet_idx = pallet_base_idx + idx as usize;
-                        let mut color_idx = ppu_map.sprite_pallet[pallet_idx] as usize;
-                        ppu_mask.apply_gray_scale(&mut color_idx);
-
-                        if !self
-                            .cpu
-                            .bus
-                            .cpu_bus
-                            .ppu_register
-                            .ppu_status
-                            .is_occured_sprite_zero_hit()
-                            && attr.priority
-                            && pallet_idx % 4 != 0
-                        {
-                            if self.drawing_line
-                                == self
-                                    .cpu
-                                    .bus
-                                    .cpu_bus
-                                    .ppu_register
-                                    .ppu_status
-                                    .line_occured_sprite_zero_hit
-                                    + 1
-                            {
-                                self.cpu
-                                    .bus
-                                    .cpu_bus
-                                    .ppu_register
-                                    .ppu_status
-                                    .true_sprite_zero_hit();
-                            } else {
-                                self.cpu
-                                    .bus
-                                    .cpu_bus
-                                    .ppu_register
-                                    .ppu_status
-                                    .set_line_occured_sprite_zero_hit(self.drawing_line)
-                            }
-                        }
-
-                        if !color_info.contains_key(&x) {
-                            color_info.insert(x, color_idx);
-                        }
-                    }
+                .pick_sprite_info_with_x(n as u8);
+            if result.is_none() {
+                continue;
+            }
+            let sprite_info = result.unwrap().clone();
+            let relative_hight = (self.drawing_line - sprite_info.pos_y as u16) % 8;
+            let base_addr = (((sprite_info.tile_index.tile_number + 1) % 2) == 0) as u16 * 0x1000
+                + ((sprite_info.tile_index.tile_number as u16) / 2) * 0x20
+                + relative_hight;
+            let (sprite_row, sprite_high) = {
+                if is_bottom {
+                    self.big_size_botoom_sprite_addr(base_addr)
+                } else {
+                    self.normal_size_sprite_addr(base_addr)
                 }
-                None => continue,
             };
+            let pallet_base_idx = (sprite_info.attr.palette * 4) as usize;
+            let for_count = if is_bottom { 16 } else { 8 };
+            for dot_index_per_sprite in for_count - 8..for_count {
+                self.insert_big_size_color(
+                    &sprite_info,
+                    pallet_base_idx,
+                    sprite_row,
+                    sprite_high,
+                    dot_index_per_sprite,
+                    &mut color_info,
+                    is_bottom,
+                );
+            }
         }
         self.texture_buffer
             .insert_colors(color_info, self.drawing_line as u8);
         Ok(())
     }
 
-    fn insert_sprites_for_normal_size(&mut self) -> Result<(), String> {
+    fn is_in_sprite_zero_hit_condition(
+        &mut self,
+        sprite_info: &SpriteInfo,
+        pallet_idx: usize,
+    ) -> bool {
+        !self.ppu_register().ppu_status.is_occured_sprite_zero_hit()
+            && sprite_info.attr.priority
+            && pallet_idx % 4 != 0
+    }
+
+    fn set_sprite_zero_hit_flag(&mut self) {
+        if self.drawing_line
+            == self
+                .cpu
+                .bus
+                .cpu_bus
+                .ppu_register
+                .ppu_status
+                .line_occured_sprite_zero_hit
+                + 1
+        {
+            self.cpu
+                .bus
+                .cpu_bus
+                .ppu_register
+                .ppu_status
+                .true_sprite_zero_hit();
+        } else {
+            self.cpu
+                .bus
+                .cpu_bus
+                .ppu_register
+                .ppu_status
+                .set_line_occured_sprite_zero_hit(self.drawing_line)
+        }
+    }
+
+    fn big_size_botoom_sprite_addr(&mut self, addr: u16) -> (u8, u8) {
+        (
+            self.ppu_map().addr(addr + 0x10),
+            self.ppu_map().addr(addr + 0x18),
+        )
+    }
+
+    fn normal_size_sprite_addr(&mut self, addr: u16) -> (u8, u8) {
+        (self.ppu_map().addr(addr), self.ppu_map().addr(addr + 8))
+    }
+
+    fn ppu_map(&mut self) -> PpuMap {
+        self.cpu.bus.ppu.map.clone()
+    }
+
+    fn ppu_register(&mut self) -> PpuRegister {
+        self.cpu.bus.cpu_bus.ppu_register.clone()
+    }
+
+    fn build_big_bottom_dot_info(
+        &mut self,
+
+        sprite_info: &SpriteInfo,
+        sprite_row: u8,
+        sprite_high: u8,
+        dot_index_per_sprite: u8,
+    ) -> Option<(u16, u8)> {
+        let idx = {
+            let i = if sprite_info.attr.flip_sprite_horizontally {
+                dot_index_per_sprite
+            } else {
+                15 - dot_index_per_sprite
+            };
+
+            let r = (sprite_row & (0b1 << i) != 0) as u16;
+            let h = (sprite_high & (0b1 << i) != 0) as u16;
+            let idx = h << 1 | r;
+            if idx == 0 {
+                return None;
+            }
+            idx
+        };
+        let x = sprite_info.pos_x.wrapping_add(dot_index_per_sprite - 8);
+        Some((idx, x))
+    }
+
+    fn build_normal_dot_info(
+        &mut self,
+
+        sprite_info: &SpriteInfo,
+        sprite_row: u8,
+        sprite_high: u8,
+        dot_index_per_sprite: u8,
+    ) -> Option<(u16, u8)> {
+        let idx = {
+            let i = if sprite_info.attr.flip_sprite_horizontally {
+                dot_index_per_sprite
+            } else {
+                7 - dot_index_per_sprite
+            };
+            let r = (sprite_row & (0b1 << i) != 0) as u16;
+            let h = (sprite_high & (0b1 << i) != 0) as u16;
+            let idx = h << 1 | r;
+            if idx == 0 {
+                return None;
+            }
+            idx
+        };
+        let x = sprite_info.pos_x.wrapping_add(dot_index_per_sprite);
+        Some((idx, x))
+    }
+
+    fn insert_normal_size_color(
+        &mut self,
+        sprite_info: &SpriteInfo,
+        pallet_base_idx: usize,
+        sprite_row: u8,
+        sprite_high: u8,
+        dot_index_per_sprite: u8,
+        color_info: &mut FxHashMap<u8, usize>,
+    ) {
+        if let Some((idx, x)) =
+            self.build_normal_dot_info(sprite_info, sprite_row, sprite_high, dot_index_per_sprite)
+        {
+            let pallet_idx = pallet_base_idx + idx as usize;
+            let mut color_idx = self.ppu_map().sprite_pallet[pallet_idx] as usize;
+            self.ppu_register()
+                .ppu_mask
+                .apply_gray_scale(&mut color_idx);
+
+            if !color_info.contains_key(&x) {
+                color_info.insert(x, color_idx);
+            }
+
+            if self.is_in_sprite_zero_hit_condition(&sprite_info, pallet_idx) {
+                self.set_sprite_zero_hit_flag();
+            }
+        } else {
+            return;
+        };
+    }
+
+    fn insert_normal_size_sprites(&mut self) -> Result<(), String> {
         let mut color_info: FxHashMap<u8, usize> = FxHashMap::default();
         for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
-            match self
+            let result = self
                 .cpu
                 .bus
                 .ppu
                 .secondary_oam
-                .pick_sprite_info_with_x(n as u8)
-            {
-                Some(SpriteInfo {
-                    pos_y,
-                    tile_index,
-                    pos_x,
-                    attr,
-                }) => {
-                    let ppu_ctrl = &self.cpu.bus.cpu_bus.ppu_register.ppu_ctrl;
-                    let relative_hight = (self.drawing_line - *pos_y as u16) % 8;
-                    let ppu_mask = &self.cpu.bus.cpu_bus.ppu_register.ppu_mask;
-                    let base_addr = tile_index.bank_of_tile as u16 * 0x1000
-                        + ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
-                        + (tile_index.tile_number as u16) * 0x10
-                        + if attr.flip_sprite_vertically {
-                            7 - relative_hight
-                        } else {
-                            relative_hight
-                        };
-                    let ppu_map = &mut self.cpu.bus.ppu.map;
-                    let sprite_row = ppu_map.addr(base_addr);
-                    let sprite_high = ppu_map.addr(base_addr + 8);
-                    let pallet_base_idx = (attr.palette * 4) as usize;
-                    for i in 0..8 {
-                        let (idx, x) = {
-                            let idx = {
-                                let i = if attr.flip_sprite_horizontally {
-                                    i
-                                } else {
-                                    7 - i
-                                };
-                                let r = (sprite_row & (0b1 << i) != 0) as u16;
-                                let h = (sprite_high & (0b1 << i) != 0) as u16;
-                                let idx = h << 1 | r;
-                                if idx == 0 {
-                                    continue;
-                                }
-                                idx
-                            };
-                            let x = pos_x.wrapping_add(i);
-                            (idx, x)
-                        };
-                        let pallet_idx = pallet_base_idx + idx as usize;
-                        let mut color_idx = ppu_map.sprite_pallet[pallet_idx] as usize;
-                        ppu_mask.apply_gray_scale(&mut color_idx);
-
-                        if !self
-                            .cpu
-                            .bus
-                            .cpu_bus
-                            .ppu_register
-                            .ppu_status
-                            .is_occured_sprite_zero_hit()
-                            && attr.priority
-                            && pallet_idx % 4 != 0
-                        {
-                            if self.drawing_line
-                                == self
-                                    .cpu
-                                    .bus
-                                    .cpu_bus
-                                    .ppu_register
-                                    .ppu_status
-                                    .line_occured_sprite_zero_hit
-                                    + 1
-                            {
-                                self.cpu
-                                    .bus
-                                    .cpu_bus
-                                    .ppu_register
-                                    .ppu_status
-                                    .true_sprite_zero_hit();
-                            } else {
-                                self.cpu
-                                    .bus
-                                    .cpu_bus
-                                    .ppu_register
-                                    .ppu_status
-                                    .set_line_occured_sprite_zero_hit(self.drawing_line)
-                            }
-                        }
-
-                        if !color_info.contains_key(&x) {
-                            color_info.insert(x, color_idx);
-                        }
-                    }
-                }
-                None => continue,
-            };
+                .pick_sprite_info_with_x(n as u8);
+            if result.is_none() {
+                continue;
+            }
+            let sprite_info = result.unwrap().clone();
+            let relative_hight = (self.drawing_line - sprite_info.pos_y as u16) % 8;
+            let base_addr = sprite_info.tile_index.bank_of_tile as u16 * 0x1000
+                + self.ppu_register().ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
+                + (sprite_info.tile_index.tile_number as u16) * 0x10
+                + if sprite_info.attr.flip_sprite_vertically {
+                    7 - relative_hight
+                } else {
+                    relative_hight
+                };
+            let (sprite_row, sprite_high) = self.normal_size_sprite_addr(base_addr);
+            let pallet_base_idx = (sprite_info.attr.palette * 4) as usize;
+            for dot_index_per_sprite in 0..8 {
+                self.insert_normal_size_color(
+                    &sprite_info,
+                    pallet_base_idx,
+                    sprite_row,
+                    sprite_high,
+                    dot_index_per_sprite,
+                    &mut color_info,
+                );
+            }
         }
         self.texture_buffer
             .insert_colors(color_info, self.drawing_line as u8);

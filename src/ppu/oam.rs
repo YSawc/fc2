@@ -177,7 +177,7 @@ impl SecondaryOAM {
         self.sprite_infos = sprite_infos;
     }
 
-    pub fn pick_sprite_info_with_x(&mut self, x: u8) -> Option<&SpriteInfo> {
+    pub fn pick_sprite_info_with_x(&self, x: u8) -> Option<&SpriteInfo> {
         let sprite_info = self
             .sprite_infos
             .iter()
