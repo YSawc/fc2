@@ -1,8 +1,4 @@
 extern crate sdl2;
-use fc2::emulator::configure::{
-    APU_UPDATE_CYCLE, PPU_DRAW_LINE_CYCLE, TILE_COUNTS_ON_WIDTH, TOTAL_LINE, VBLANK_LINE,
-    VISIBLE_LINES, WINDOW_HEIGHT, WINDOW_WIDTH,
-};
 
 use fc2::emulator::*;
 use fc2::nes::*;
@@ -10,16 +6,7 @@ use std::env;
 
 fn main() -> Result<(), String> {
     let nes = Nes::new();
-    let mut emulator: Emulator<
-        TILE_COUNTS_ON_WIDTH,
-        WINDOW_HEIGHT,
-        WINDOW_WIDTH,
-        PPU_DRAW_LINE_CYCLE,
-        VBLANK_LINE,
-        TOTAL_LINE,
-        VISIBLE_LINES,
-        APU_UPDATE_CYCLE,
-    > = Emulator::new(&nes);
+    let mut emulator: Emulator = Emulator::new(&nes);
     emulator.cpu.init(&nes);
     emulator.startup();
     emulator.set_sprites(&nes.header.info.chr_rom);

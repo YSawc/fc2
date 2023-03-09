@@ -1,4 +1,4 @@
-pub const TILE_COUNTS_ON_WIDTH: u32 = 32;
+pub const TILE_COUNTS_ON_WIDTH: usize = 32;
 pub const WINDOW_WIDTH: u32 = 512;
 pub const WINDOW_HEIGHT: u32 = 480;
 pub const PPU_DRAW_LINE_CYCLE: u16 = 341;

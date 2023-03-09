@@ -1,4 +1,6 @@
 pub mod configure;
+
+use crate::emulator::configure::*;
 use std::env;
 
 use crate::apu::*;
@@ -16,7 +18,6 @@ use crate::bus::Mapper;
 use crate::cpu::*;
 use crate::emulator::texture::TextureBuffer;
 use crate::nes::*;
-use crate::ppu::mapper::Map as PpuMap;
 use crate::ppu::oam::SpriteInfo;
 use crate::util::*;
 use rustc_hash::*;
@@ -29,49 +30,20 @@ use sdl2::video::Window;
 use sdl2::EventPump;
 use sdl2::Sdl;
 
-pub struct Emulator<
-    const TILE_COUNTS_ON_WIDTH: u32,
-    const WINDOW_HEIGHT: u32,
-    const WINDOW_WIDTH: u32,
-    const PPU_DRAW_LINE_CYCLE: u16,
-    const VBLANK_LINE: u16,
-    const TOTAL_LINE: u16,
-    const VISIBLE_LINES: u16,
-    const APU_UPDATE_CYCLE: u16,
-> {
+pub struct Emulator {
     pub cpu: CPU,
     pub ppu_cycle: u16,
     pub apu_cycle: u16,
     pub drawing_line: u16,
     pub sdl: Sdl,
     canvas: Canvas<Window>,
-    texture_buffer: TextureBuffer<TILE_COUNTS_ON_WIDTH>,
+    texture_buffer: TextureBuffer,
     pub pad_data: u16,
     pub audio_device_pulse1: AudioDevice<Pulse>,
     pub audio_device_pulse2: AudioDevice<Pulse>,
 }
 
-impl<
-        const TILE_COUNTS_ON_WIDTH: u32,
-        const WINDOW_HEIGHT: u32,
-        const WINDOW_WIDTH: u32,
-        const PPU_DRAW_LINE_CYCLE: u16,
-        const VBLANK_LINE: u16,
-        const TOTAL_LINE: u16,
-        const VISIBLE_LINES: u16,
-        const APU_UPDATE_CYCLE: u16,
-    >
-    Emulator<
-        TILE_COUNTS_ON_WIDTH,
-        WINDOW_HEIGHT,
-        WINDOW_WIDTH,
-        PPU_DRAW_LINE_CYCLE,
-        VBLANK_LINE,
-        TOTAL_LINE,
-        VISIBLE_LINES,
-        APU_UPDATE_CYCLE,
-    >
-{
+impl Emulator {
     pub fn new(nes: &Nes) -> Self {
         let mut cpu = CPU::new(nes);
         cpu.prepare_operators();
@@ -172,8 +144,8 @@ impl<
                             let h = ((sprite_high_line & (0b1 << (7 - j))) != 0) as u16;
                             (h << 1 | r) as usize
                         };
-                        let x = j as u32 + (n % TILE_COUNTS_ON_WIDTH) * 8;
-                        let y = i as u32 + (n / TILE_COUNTS_ON_WIDTH) * 8;
+                        let x = j as u32 + (n % TILE_COUNTS_ON_WIDTH as u32) * 8;
+                        let y = i as u32 + (n / TILE_COUNTS_ON_WIDTH as u32) * 8;
                         (idx, x, y)
                     };
                     self.texture_buffer.insert_color(x as u8, y as u8, idx);
@@ -908,7 +880,7 @@ impl<
             self.build_normal_dot_info(&sprite_info, sprite_row, sprite_high, dot_index_per_sprite)
         } {
             let pallet_idx = pallet_base_idx + idx as usize;
-            let mut color_idx = self.ppu_map().sprite_pallet[pallet_idx] as usize;
+            let mut color_idx = self.cpu.bus.ppu.map.sprite_pallet[pallet_idx] as usize;
             self.ppu_register()
                 .ppu_mask
                 .apply_gray_scale(&mut color_idx);
@@ -928,40 +900,42 @@ impl<
     fn insert_big_size_sprites(&mut self, is_bottom: bool) -> Result<(), String> {
         let mut color_info: FxHashMap<u8, usize> = FxHashMap::default();
         for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
-            let result = self
+            if let Some(sprite_info) = self
                 .cpu
                 .bus
                 .ppu
                 .secondary_oam
-                .pick_sprite_info_with_x(n as u8);
-            if result.is_none() {
-                continue;
-            }
-            let sprite_info = result.unwrap().clone();
-            let relative_hight = (self.drawing_line - sprite_info.pos_y as u16) % 8;
-            let base_addr = (((sprite_info.tile_index.tile_number + 1) % 2) == 0) as u16 * 0x1000
-                + ((sprite_info.tile_index.tile_number as u16) / 2) * 0x20
-                + relative_hight;
-            let (sprite_row, sprite_high) = {
-                if is_bottom {
-                    self.big_size_botoom_sprite_addr(base_addr)
-                } else {
-                    self.normal_size_sprite_addr(base_addr)
+                .pick_sprite_info_with_x(n as u8)
+            {
+                let sprite_info = sprite_info.clone();
+                let relative_hight = (self.drawing_line - sprite_info.pos_y as u16) % 8;
+                let base_addr = (((sprite_info.tile_index.tile_number + 1) % 2) == 0) as u16
+                    * 0x1000
+                    + ((sprite_info.tile_index.tile_number as u16) / 2) * 0x20
+                    + relative_hight;
+                let (sprite_row, sprite_high) = {
+                    if is_bottom {
+                        self.big_size_botoom_sprite_addr(base_addr)
+                    } else {
+                        self.normal_size_sprite_addr(base_addr)
+                    }
+                };
+                let pallet_base_idx = (sprite_info.attr.palette * 4) as usize;
+                let for_count = if is_bottom { 16 } else { 8 };
+                for dot_index_per_sprite in for_count - 8..for_count {
+                    self.insert_big_size_color(
+                        &sprite_info,
+                        pallet_base_idx,
+                        sprite_row,
+                        sprite_high,
+                        dot_index_per_sprite,
+                        &mut color_info,
+                        is_bottom,
+                    );
                 }
+            } else {
+                continue;
             };
-            let pallet_base_idx = (sprite_info.attr.palette * 4) as usize;
-            let for_count = if is_bottom { 16 } else { 8 };
-            for dot_index_per_sprite in for_count - 8..for_count {
-                self.insert_big_size_color(
-                    &sprite_info,
-                    pallet_base_idx,
-                    sprite_row,
-                    sprite_high,
-                    dot_index_per_sprite,
-                    &mut color_info,
-                    is_bottom,
-                );
-            }
         }
         self.texture_buffer
             .insert_colors(color_info, self.drawing_line as u8);
@@ -979,16 +953,7 @@ impl<
     }
 
     fn set_sprite_zero_hit_flag(&mut self) {
-        if self.drawing_line
-            == self
-                .cpu
-                .bus
-                .cpu_bus
-                .ppu_register
-                .ppu_status
-                .line_occured_sprite_zero_hit
-                + 1
-        {
+        if self.drawing_line == self.ppu_register().ppu_status.line_occured_sprite_zero_hit + 1 {
             self.cpu
                 .bus
                 .cpu_bus
@@ -1007,26 +972,24 @@ impl<
 
     fn big_size_botoom_sprite_addr(&mut self, addr: u16) -> (u8, u8) {
         (
-            self.ppu_map().addr(addr + 0x10),
-            self.ppu_map().addr(addr + 0x18),
+            self.cpu.bus.ppu.map.addr(addr + 0x10),
+            self.cpu.bus.ppu.map.addr(addr + 0x18),
         )
     }
 
     fn normal_size_sprite_addr(&mut self, addr: u16) -> (u8, u8) {
-        (self.ppu_map().addr(addr), self.ppu_map().addr(addr + 8))
+        (
+            self.cpu.bus.ppu.map.addr(addr),
+            self.cpu.bus.ppu.map.addr(addr + 8),
+        )
     }
 
-    fn ppu_map(&mut self) -> PpuMap {
-        self.cpu.bus.ppu.map.clone()
-    }
-
-    fn ppu_register(&mut self) -> PpuRegister {
-        self.cpu.bus.cpu_bus.ppu_register.clone()
+    fn ppu_register(&mut self) -> &PpuRegister {
+        &self.cpu.bus.cpu_bus.ppu_register
     }
 
     fn build_big_bottom_dot_info(
         &mut self,
-
         sprite_info: &SpriteInfo,
         sprite_row: u8,
         sprite_high: u8,
@@ -1053,7 +1016,6 @@ impl<
 
     fn build_normal_dot_info(
         &mut self,
-
         sprite_info: &SpriteInfo,
         sprite_row: u8,
         sprite_high: u8,
@@ -1090,7 +1052,7 @@ impl<
             self.build_normal_dot_info(sprite_info, sprite_row, sprite_high, dot_index_per_sprite)
         {
             let pallet_idx = pallet_base_idx + idx as usize;
-            let mut color_idx = self.ppu_map().sprite_pallet[pallet_idx] as usize;
+            let mut color_idx = self.cpu.bus.ppu.map.sprite_pallet[pallet_idx] as usize;
             self.ppu_register()
                 .ppu_mask
                 .apply_gray_scale(&mut color_idx);
@@ -1110,38 +1072,40 @@ impl<
     fn insert_normal_size_sprites(&mut self) -> Result<(), String> {
         let mut color_info: FxHashMap<u8, usize> = FxHashMap::default();
         for n in 0..TILE_COUNTS_ON_WIDTH * 8 {
-            let result = self
+            if let Some(sprite_info) = self
                 .cpu
                 .bus
                 .ppu
                 .secondary_oam
-                .pick_sprite_info_with_x(n as u8);
-            if result.is_none() {
+                .pick_sprite_info_with_x(n as u8)
+            {
+                let sprite_info = sprite_info.clone();
+                let relative_hight = (self.drawing_line - sprite_info.pos_y as u16) % 8;
+                let base_addr = sprite_info.tile_index.bank_of_tile as u16 * 0x1000
+                    + self.ppu_register().ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
+                    + (sprite_info.tile_index.tile_number as u16) * 0x10
+                    + if sprite_info.attr.flip_sprite_vertically {
+                        7 - relative_hight
+                    } else {
+                        relative_hight
+                    };
+                let (sprite_row, sprite_high) = self.normal_size_sprite_addr(base_addr);
+                let pallet_base_idx = (sprite_info.attr.palette * 4) as usize;
+                for dot_index_per_sprite in 0..8 {
+                    self.insert_normal_size_color(
+                        &sprite_info,
+                        pallet_base_idx,
+                        sprite_row,
+                        sprite_high,
+                        dot_index_per_sprite,
+                        &mut color_info,
+                    );
+                }
+            } else {
                 continue;
             }
-            let sprite_info = result.unwrap().clone();
-            let relative_hight = (self.drawing_line - sprite_info.pos_y as u16) % 8;
-            let base_addr = sprite_info.tile_index.bank_of_tile as u16 * 0x1000
-                + self.ppu_register().ppu_ctrl.sprite_ptn_table_addr as u16 * 0x1000
-                + (sprite_info.tile_index.tile_number as u16) * 0x10
-                + if sprite_info.attr.flip_sprite_vertically {
-                    7 - relative_hight
-                } else {
-                    relative_hight
-                };
-            let (sprite_row, sprite_high) = self.normal_size_sprite_addr(base_addr);
-            let pallet_base_idx = (sprite_info.attr.palette * 4) as usize;
-            for dot_index_per_sprite in 0..8 {
-                self.insert_normal_size_color(
-                    &sprite_info,
-                    pallet_base_idx,
-                    sprite_row,
-                    sprite_high,
-                    dot_index_per_sprite,
-                    &mut color_info,
-                );
-            }
         }
+
         self.texture_buffer
             .insert_colors(color_info, self.drawing_line as u8);
         Ok(())

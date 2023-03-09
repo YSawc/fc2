@@ -1,11 +1,12 @@
+use crate::emulator::configure::TILE_COUNTS_ON_WIDTH;
 use rustc_hash::*;
 
-pub struct TextureBuffer<const TILE_COUNTS_ON_WIDTH: u32> {
+pub struct TextureBuffer {
     pub buffer: [u8; 184320],
     colors: [[u8; 3]; 64],
 }
 
-impl<const TILE_COUNTS_ON_WIDTH: u32> TextureBuffer<TILE_COUNTS_ON_WIDTH> {
+impl TextureBuffer {
     pub fn new() -> Self {
         let buffer: [u8; 184320] = [0; 184320];
 
