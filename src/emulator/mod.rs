@@ -355,82 +355,16 @@ impl Emulator {
     }
 
     fn update_pulse_audio_devices(&mut self) {
-        let update_pulse_audio_device =
-            |frame_counter: &FrameCounter,
-             is_enable: &mut bool,
-             audio_device: &mut AudioDevice<Pulse>,
-             pulse: &mut Pulse| {
-                let mut lock = audio_device.lock();
-                (*lock).call_back_duty_buf.push(pulse.duty);
-                let envelope_count = frame_counter.get_envelop_count() as u16;
-                if *is_enable && pulse.length_counter > 0 && pulse.timer >= 8 {
-                    (*lock).clock_count += 1;
-                    if (*lock).clock_count >= envelope_count {
-                        (*lock).clock_count -= envelope_count;
-                        if !pulse.counter_halt {
-                            pulse.envelope_and_liner_counter += 1;
-                            match frame_counter.mode {
-                                FrameMode::_4STEP => {
-                                    if pulse.envelope_and_liner_counter == 2
-                                        || pulse.envelope_and_liner_counter == 4
-                                    {
-                                        pulse.sweep.update(&mut pulse.timer);
-                                    }
-                                    if pulse.envelope_and_liner_counter > 4 {
-                                        pulse.envelope_and_liner_counter = 0;
-                                        if pulse.length_counter <= 0 {
-                                            pulse.length_counter = 0;
-                                            *is_enable = false;
-                                        } else {
-                                            pulse.length_counter -= 1;
-                                        };
-                                    }
-                                }
-                                FrameMode::_5STEP => {
-                                    if pulse.envelope_and_liner_counter == 2
-                                        || pulse.envelope_and_liner_counter == 5
-                                    {
-                                        pulse.sweep.update(&mut pulse.timer);
-                                    }
-                                    if pulse.envelope_and_liner_counter > 5 {
-                                        pulse.envelope_and_liner_counter = 0;
-                                        if pulse.length_counter <= 0 {
-                                            pulse.length_counter = 0;
-                                            *is_enable = false;
-                                        } else {
-                                            pulse.length_counter -= 1;
-                                        };
-                                    }
-                                }
-                            }
-                        }
-                        pulse.current_volume = pulse.get_volume();
-                        pulse.current_phase_inc =
-                            (1780000.0 / ((16.0 * pulse.timer as f32) + 1.0)) / 44100 as f32;
-                    }
-                } else {
-                    pulse.current_volume = 0;
-                    pulse.current_phase_inc = 0.0;
-                };
-                (*lock).call_back_volume_buf.push(pulse.current_volume);
-                (*lock)
-                    .call_back_phase_inc_buf
-                    .push(pulse.current_phase_inc);
-                (*lock).call_back_duty_buf.push(pulse.duty);
-            };
-
-        update_pulse_audio_device(
-            &self.cpu.bus.apu.frame_counter,
+        self.cpu.bus.apu.pulse1.update(
+            &mut self.cpu.bus.apu.frame_counter,
             &mut self.cpu.bus.apu.channel_controller.enable_pulse1,
-            &mut self.audio_device_pulse1,
-            &mut self.cpu.bus.apu.pulse1,
+            &mut self.audio_device_pulse1.lock(),
         );
 
-        update_pulse_audio_device(
-            &self.cpu.bus.apu.frame_counter,
+        self.cpu.bus.apu.pulse2.update(
+            &mut self.cpu.bus.apu.frame_counter,
             &mut self.cpu.bus.apu.channel_controller.enable_pulse2,
-            &mut self.audio_device_pulse2,
-            &mut self.cpu.bus.apu.pulse2,
+            &mut self.audio_device_pulse2.lock(),
         );
     }
 
