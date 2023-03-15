@@ -87,31 +87,22 @@ impl Mapper for Bus {
                 self.cpu_bus.ppu_register.constant_inc_vram();
                 self.ppu.map.set(addr, data);
             }
-            0x4000 => {
-                self.apu.pulse1.set(0, data);
-            }
-            0x4001 => {
-                self.apu.pulse1.sweep.set(data);
-            }
-            0x4002 => {
-                self.apu.pulse1.set(2, data);
-            }
-            0x4003 => {
-                self.apu.pulse1.set(3, data);
-            }
+            0x4000 => self.apu.pulse1.set(0, data),
+            0x4001 => self.apu.pulse1.sweep.set(data),
+            0x4002 => self.apu.pulse1.set(2, data),
+            0x4003 => self.apu.pulse1.set(3, data),
             0x4004 => {
                 self.apu.pulse2.set(0, data);
             }
-            0x4005 => {
-                self.apu.pulse2.sweep.set(data);
-            }
-            0x4006 => {
-                self.apu.pulse2.set(2, data);
-            }
-            0x4007 => {
-                self.apu.pulse2.set(3, data);
-            }
-            0x4008..=0x4013 => {}
+            0x4005 => self.apu.pulse2.sweep.set(data),
+            0x4006 => self.apu.pulse2.set(2, data),
+            0x4007 => self.apu.pulse2.set(3, data),
+            0x4008 => self.apu.triangle.set(0, data),
+
+            0x4009 => {}
+            0x400A => self.apu.triangle.set(2, data),
+            0x400B => self.apu.triangle.set(3, data),
+            0x400C..=0x4013 => {}
             0x4015 => {
                 self.apu.channel_controller.set(data);
             }
