@@ -1,11 +1,11 @@
 pub mod configure;
 
+use crate::apu::pulse::Pulse;
+use crate::apu::triangle::Triangle;
 use crate::emulator::configure::*;
-use std::env;
-
-use crate::apu::*;
 use sdl2::audio::AudioDevice;
 use sdl2::audio::AudioSpecDesired;
+use std::env;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;

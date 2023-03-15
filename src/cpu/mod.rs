@@ -1366,17 +1366,6 @@ impl CPU {
     }
 }
 
-// #[derive(Debug, Clone)]
-// pub enum OpeFlags {
-//     Nvzc,
-//     Nz,
-//     Nzc,
-//     Nvz,
-//     Bi,
-//     All,
-//     None,
-// }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Interrupt {
     Nmi,
