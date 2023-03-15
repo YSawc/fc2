@@ -7,3 +7,4 @@ const VBLANK_LINES: u16 = 20;
 pub const VISIBLE_LINES: u16 = 240;
 pub const TOTAL_LINE: u16 = VBLANK_LINES + VISIBLE_LINES + 2;
 pub const APU_UPDATE_CYCLE: u16 = 2;
+pub const APU_TRIANGLE_CYCLE: u16 = 1;

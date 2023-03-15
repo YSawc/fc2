@@ -33,7 +33,8 @@ use sdl2::Sdl;
 pub struct Emulator {
     pub cpu: CPU,
     pub ppu_cycle: u16,
-    pub apu_cycle: u16,
+    pub apu_triangle_cycle: u16,
+    pub apu_pulse_cycle: u16,
     pub drawing_line: u16,
     pub sdl: Sdl,
     canvas: Canvas<Window>,
@@ -41,6 +42,7 @@ pub struct Emulator {
     pub pad_data: u16,
     pub audio_device_pulse1: AudioDevice<Pulse>,
     pub audio_device_pulse2: AudioDevice<Pulse>,
+    pub audio_device_triangle: AudioDevice<Triangle>,
 }
 
 impl Emulator {
@@ -74,21 +76,26 @@ impl Emulator {
             channels: None,
             samples: None,
         };
-
-        let default_audio = |desired_spec: &mut AudioSpecDesired| {
-            audio_subsystem.open_playback(None, desired_spec, |_spec| Pulse::new())
+        let default_pulse_audio = |desired_spec: &mut AudioSpecDesired| {
+            audio_subsystem.open_playback(None, desired_spec, |_spec| Pulse::default())
         };
+        let audio_device_pulse1 = default_pulse_audio(&mut desired_spec.clone()).unwrap();
+        let audio_device_pulse2 = default_pulse_audio(&mut desired_spec.clone()).unwrap();
 
-        let audio_device_pulse1 = default_audio(&mut desired_spec.clone()).unwrap();
-        let audio_device_pulse2 = default_audio(&mut desired_spec.clone()).unwrap();
+        let default_triangle_audio = |desired_spec: &mut AudioSpecDesired| {
+            audio_subsystem.open_playback(None, desired_spec, |_spec| Triangle::default())
+        };
+        let audio_device_triangle = default_triangle_audio(&mut desired_spec.clone()).unwrap();
 
         audio_device_pulse1.resume();
         audio_device_pulse2.resume();
+        audio_device_triangle.resume();
 
         Self {
             cpu,
             ppu_cycle: 0,
-            apu_cycle: 0,
+            apu_triangle_cycle: 0,
+            apu_pulse_cycle: 0,
             drawing_line: 0,
             sdl: sdl_context,
             canvas,
@@ -96,6 +103,7 @@ impl Emulator {
             pad_data: 0,
             audio_device_pulse1,
             audio_device_pulse2,
+            audio_device_triangle,
         }
     }
 
@@ -107,8 +115,12 @@ impl Emulator {
         self.cpu.reset();
     }
 
-    fn inc_apu_cycle(&mut self) {
-        self.apu_cycle += self.cpu.cycle as u16;
+    fn inc_apu_triangle_cycle(&mut self) {
+        self.apu_triangle_cycle += self.cpu.cycle as u16;
+    }
+
+    fn inc_apu_pulse_cycle(&mut self) {
+        self.apu_pulse_cycle += self.cpu.cycle as u16;
     }
 
     fn inc_ppu_cycle(&mut self) {
@@ -354,6 +366,14 @@ impl Emulator {
         while now.elapsed().as_nanos() < 1055 {}
     }
 
+    fn update_triangle_audio_devices(&mut self) {
+        self.cpu.bus.apu.triangle.update(
+            &mut self.cpu.bus.apu.frame_counter,
+            &mut self.cpu.bus.apu.channel_controller.enable_triangle,
+            &mut self.audio_device_triangle.lock(),
+        );
+    }
+
     fn update_pulse_audio_devices(&mut self) {
         self.cpu.bus.apu.pulse1.update(
             &mut self.cpu.bus.apu.frame_counter,
@@ -369,9 +389,15 @@ impl Emulator {
     }
 
     fn apu_update(&mut self) {
-        self.inc_apu_cycle();
-        while self.apu_cycle >= APU_UPDATE_CYCLE {
-            self.apu_cycle -= APU_UPDATE_CYCLE;
+        self.inc_apu_triangle_cycle();
+        self.inc_apu_pulse_cycle();
+
+        while self.apu_triangle_cycle >= APU_TRIANGLE_CYCLE {
+            self.apu_triangle_cycle -= APU_TRIANGLE_CYCLE;
+            self.update_triangle_audio_devices();
+        }
+        while self.apu_pulse_cycle >= APU_UPDATE_CYCLE {
+            self.apu_pulse_cycle -= APU_UPDATE_CYCLE;
             self.update_pulse_audio_devices();
         }
     }
