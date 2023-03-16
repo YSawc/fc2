@@ -33,18 +33,18 @@ use sdl2::Sdl;
 
 pub struct Emulator {
     pub cpu: CPU,
-    pub ppu_cycle: u16,
-    pub apu_triangle_cycle: u16,
-    pub apu_pulse_cycle: u16,
-    pub drawing_line: u16,
-    pub sdl: Sdl,
+    ppu_cycle: u16,
+    apu_triangle_cycle: u16,
+    apu_pulse_cycle: u16,
+    drawing_line: u16,
+    sdl: Sdl,
     canvas: Canvas<Window>,
     texture_buffer: TextureBuffer,
-    pub pad_data: u16,
-    pub audio_device_pulse1: AudioDevice<Pulse>,
-    pub audio_device_pulse2: AudioDevice<Pulse>,
-    pub audio_device_triangle: AudioDevice<Triangle>,
-    pub audio_device_noise: AudioDevice<Noise>,
+    pad_data: u16,
+    audio_device_pulse1: AudioDevice<Pulse>,
+    audio_device_pulse2: AudioDevice<Pulse>,
+    audio_device_triangle: AudioDevice<Triangle>,
+    audio_device_noise: AudioDevice<Noise>,
 }
 
 impl Emulator {
@@ -70,7 +70,7 @@ impl Emulator {
             .map_err(|e| e.to_string())
             .unwrap();
 
-        let texture_buffer = TextureBuffer::new();
+        let texture_buffer = TextureBuffer::default();
 
         let audio_subsystem = sdl_context.audio().unwrap();
         let desired_spec = AudioSpecDesired {

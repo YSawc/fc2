@@ -13,20 +13,20 @@ pub struct Nes {
 pub struct Header {
     pub info: Info,
     pub flags6: Flags6,
-    pub flags7: Flags7,
-    pub flags8: Flags8,
-    pub flags9: Flags9,
-    pub flags10: Flags10,
+    flags7: Flags7,
+    flags8: Flags8,
+    flags9: Flags9,
+    flags10: Flags10,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Info {
-    pub nes_header_size: u32,
-    pub chr_rom_per_size: u32,
-    pub prg_rom_per_size: u32,
-    pub default_canvas_width: u32,
+    nes_header_size: u32,
+    chr_rom_per_size: u32,
+    prg_rom_per_size: u32,
+    default_canvas_width: u32,
     pub sprites_num: u32,
-    pub chr_rom_start: u32,
+    chr_rom_start: u32,
     pub prg_rom: Vec<u8>,
     pub chr_rom: Vec<u8>,
 }
@@ -92,11 +92,11 @@ pub enum TypeOfMirroring {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Flags6 {
-    pub mirroring: bool,
-    pub ram_or_memory: bool,
-    pub trainer: bool,
-    pub ignore_mirroring: bool,
-    pub mapper: u8,
+    mirroring: bool,
+    ram_or_memory: bool,
+    trainer: bool,
+    ignore_mirroring: bool,
+    mapper: u8,
 }
 
 impl Flags6 {
@@ -116,7 +116,7 @@ impl Flags6 {
         }
     }
 
-    pub const fn get_type_of_mirroring(&self) -> TypeOfMirroring {
+    pub fn get_type_of_mirroring(&self) -> TypeOfMirroring {
         match self.ignore_mirroring {
             false => match self.mirroring {
                 true => TypeOfMirroring::VERTICAL,
@@ -128,11 +128,11 @@ impl Flags6 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Flags7 {
-    pub vs_unisystem: bool,
-    pub play_choice_10: bool,
-    pub nes_20_format: u8,
-    pub mapper: u8,
+struct Flags7 {
+    vs_unisystem: bool,
+    play_choice_10: bool,
+    nes_20_format: u8,
+    mapper: u8,
 }
 
 impl Flags7 {
@@ -152,8 +152,8 @@ impl Flags7 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Flags8 {
-    pub prg_ram_size: u8,
+struct Flags8 {
+    prg_ram_size: u8,
 }
 
 impl Flags8 {
@@ -165,9 +165,9 @@ impl Flags8 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Flags9 {
-    pub tv_system: bool,
-    pub reserved: u8,
+struct Flags9 {
+    tv_system: bool,
+    reserved: u8,
 }
 
 impl Flags9 {
@@ -183,10 +183,10 @@ impl Flags9 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Flags10 {
-    pub tv_system: u8,
-    pub prg_ram: bool,
-    pub board_mode: bool,
+struct Flags10 {
+    tv_system: u8,
+    prg_ram: bool,
+    board_mode: bool,
 }
 
 impl Flags10 {
@@ -205,8 +205,14 @@ impl Flags10 {
 
 pub type Sprites = Vec<Vec<Vec<u32>>>;
 
+impl Default for Nes {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Nes {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let file_path: Vec<String> = env::args().collect();
         let file_path = Path::new(&file_path[file_path.len() - 1]);
         let mut f = File::open(file_path).expect("File path need.");

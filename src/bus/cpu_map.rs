@@ -89,9 +89,9 @@ pub struct PpuRegister {
     pub ppu_ctrl: PpuCtrl,
     pub ppu_mask: PpuMask,
     pub ppu_status: PpuStatus,
-    pub oam_addr: u8,
-    pub oam_data: u8,
-    pub ppu_data: u8,
+    oam_addr: u8,
+    oam_data: u8,
+    ppu_data: u8,
     pub ppu_buffer: PpuBuffer,
     pub internal_registers: InternalRegisters,
 }
@@ -100,7 +100,7 @@ pub struct PpuRegister {
 pub struct PpuCtrl {
     pub gen_nmi: bool,
     ppu_selector: bool,
-    pub sprite_size: bool,
+    sprite_size: bool,
     bk_table_addr: bool,
     pub sprite_ptn_table_addr: bool,
     vram_increment: bool,
@@ -136,7 +136,7 @@ impl PpuCtrl {
         self.base_name_table_addr = data & 0b00000011;
     }
 
-    pub fn to_n(&self) -> u8 {
+    fn to_n(&self) -> u8 {
         let mut data = 0;
         data += self.gen_nmi as u8 * 0b10000000;
         data += self.ppu_selector as u8 * 0b01000000;
@@ -152,7 +152,7 @@ impl PpuCtrl {
         self.bk_table_addr
     }
 
-    pub fn increment_vram_num(&mut self) -> u16 {
+    fn increment_vram_num(&mut self) -> u16 {
         match self.vram_increment {
             false => 1,
             true => 32,
@@ -173,7 +173,7 @@ pub struct PpuMask {
     show_background: bool,
     show_sprites_in_leftmost: bool,
     show_background_in_leftmost: bool,
-    pub gray_scale: bool,
+    gray_scale: bool,
 }
 
 impl Default for PpuMask {
@@ -344,7 +344,7 @@ impl PpuRegister {
         }
     }
 
-    pub fn set(&mut self, addr: u16, data: u8) {
+    fn set(&mut self, addr: u16, data: u8) {
         match addr {
             0x2000 => {
                 self.internal_registers.temporary_vram &= 0b1111001111111111;
@@ -395,7 +395,7 @@ impl PpuRegister {
         }
     }
 
-    pub fn addr(&mut self, addr: u16) -> u8 {
+    fn addr(&mut self, addr: u16) -> u8 {
         match addr {
             0x2000 => self.ppu_ctrl.to_n(),
             0x2001 => self.ppu_mask.to_n(),
@@ -414,10 +414,10 @@ impl PpuRegister {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RP2A03 {
-    pub oam_dma: u8,
-    pub controller_0: Controller,
-    pub controller_1: Controller,
-    pub test_fanctionality: [u8; 0x0008],
+    oam_dma: u8,
+    controller_0: Controller,
+    controller_1: Controller,
+    test_fanctionality: [u8; 0x0008],
 }
 
 impl Default for RP2A03 {
@@ -427,7 +427,7 @@ impl Default for RP2A03 {
 }
 
 impl RP2A03 {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             oam_dma: 0,
             controller_0: Controller::default(),
@@ -457,26 +457,32 @@ impl RP2A03 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CpuMap {
     #[serde_as(as = "[_; 0x0800]")]
-    pub wram: [u8; 0x0800],
+    wram: [u8; 0x0800],
     #[serde_as(as = "[_; 0x1800]")]
-    pub wram_mirror: [u8; 0x1800],
+    wram_mirror: [u8; 0x1800],
     pub ppu_register: PpuRegister,
     #[serde_as(as = "[_; 0x1FF8]")]
-    pub ppu_register_mirror: [u8; 0x1FF8],
-    pub rp2a03: RP2A03,
-    pub func_apu_io: [u8; 0x0008],
+    ppu_register_mirror: [u8; 0x1FF8],
+    rp2a03: RP2A03,
+    func_apu_io: [u8; 0x0008],
     #[serde_as(as = "[_; 0x1FE0]")]
-    pub erom: [u8; 0x1FE0],
+    erom: [u8; 0x1FE0],
     #[serde_as(as = "[_; 0x2000]")]
-    pub eram: [u8; 0x2000],
+    eram: [u8; 0x2000],
     #[serde_as(as = "[_; 0x4000]")]
     pub prg_rom1: [u8; 0x4000],
     #[serde_as(as = "[_; 0x4000]")]
-    pub prg_rom2: [u8; 0x4000],
+    prg_rom2: [u8; 0x4000],
+}
+
+impl Default for CpuMap {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CpuMap {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             wram: [0; 0x0800],
             wram_mirror: [0; 0x1800],

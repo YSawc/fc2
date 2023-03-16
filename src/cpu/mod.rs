@@ -12,11 +12,11 @@ use rustc_hash::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct CPU {
-    pub register: Register,
-    pub operators: FxHashMap<u8, Operator>,
+    register: Register,
+    operators: FxHashMap<u8, Operator>,
     pub bus: Bus,
     pub cycle: u16,
-    pub total_cycle: i64,
+    total_cycle: i64,
 }
 
 impl CPU {
@@ -414,7 +414,7 @@ impl CPU {
             .set_pc(combine_high_low(self.get_x(), self.get_y()));
     }
 
-    pub fn ex_plus(&mut self, l_data: u8, r_data: u8) -> u8 {
+    fn ex_plus(&mut self, l_data: u8, r_data: u8) -> u8 {
         if l_data.checked_add(r_data).is_none() {
             self.set_overflow(true);
             ((l_data as u16 + r_data as u16 - 1) - (u8::MAX as u16)) as u8
@@ -432,96 +432,92 @@ impl CPU {
         }
     }
 
-    pub fn set_break_mode(&mut self, data: bool) {
+    fn set_break_mode(&mut self, data: bool) {
         self.register.mut_access_p().set_break_mode(data);
-    }
-
-    pub fn get_break_mode(&self) -> bool {
-        self.register.access_p().get_break_mode()
     }
 
     pub fn set_interrupt(&mut self, data: bool) {
         self.register.mut_access_p().set_interrupt(data);
     }
 
-    pub fn set_decimal(&mut self, data: bool) {
+    fn set_decimal(&mut self, data: bool) {
         self.register.mut_access_p().set_decimal(data);
     }
 
-    pub fn get_interrupt(&self) -> bool {
+    fn get_interrupt(&self) -> bool {
         self.register.access_p().get_interrupt()
     }
 
-    pub fn set_negative(&mut self, data: bool) {
+    fn set_negative(&mut self, data: bool) {
         self.register.mut_access_p().set_negative(data);
     }
 
-    pub fn get_negative(&self) -> bool {
+    fn get_negative(&self) -> bool {
         self.register.access_p().get_negative()
     }
 
-    pub fn set_overflow(&mut self, data: bool) {
+    fn set_overflow(&mut self, data: bool) {
         self.register.mut_access_p().set_overflow(data);
     }
 
-    pub fn get_overflow(&self) -> bool {
+    fn get_overflow(&self) -> bool {
         self.register.access_p().get_overflow()
     }
 
-    pub fn set_zero(&mut self, data: bool) {
+    fn set_zero(&mut self, data: bool) {
         self.register.mut_access_p().set_zero(data);
     }
 
-    pub fn get_zero(&self) -> bool {
+    fn get_zero(&self) -> bool {
         self.register.access_p().get_zero()
     }
 
-    pub fn set_nz(&mut self, data: u8) {
+    fn set_nz(&mut self, data: u8) {
         self.set_negative(data >= 0x80);
         self.set_zero(data == 0);
     }
 
-    pub fn set_carry(&mut self, data: bool) {
+    fn set_carry(&mut self, data: bool) {
         self.register.mut_access_p().set_carry(data)
     }
 
-    pub fn get_carry(&self) -> bool {
+    fn get_carry(&self) -> bool {
         self.register.access_p().get_carry()
     }
 
-    pub fn set_a(&mut self, data: u8) {
+    fn set_a(&mut self, data: u8) {
         self.register.set_a(data);
     }
 
-    pub fn get_a(&self) -> u8 {
+    fn get_a(&self) -> u8 {
         self.register.get_a()
     }
 
-    pub fn set_x(&mut self, data: u8) {
+    fn set_x(&mut self, data: u8) {
         self.register.set_x(data);
     }
 
-    pub fn get_x(&self) -> u8 {
+    fn get_x(&self) -> u8 {
         self.register.get_x()
     }
 
-    pub fn set_y(&mut self, data: u8) {
+    fn set_y(&mut self, data: u8) {
         self.register.set_y(data);
     }
 
-    pub fn get_y(&self) -> u8 {
+    fn get_y(&self) -> u8 {
         self.register.get_y()
     }
 
-    pub fn set_s(&mut self, data: u8) {
+    fn set_s(&mut self, data: u8) {
         self.register.set_s(data);
     }
 
-    pub fn get_s(&self) -> u8 {
+    fn get_s(&self) -> u8 {
         self.register.get_s()
     }
 
-    pub fn set_p(&mut self, data: u8) {
+    fn set_p(&mut self, data: u8) {
         self.register.set_p(data);
     }
 
@@ -529,11 +525,7 @@ impl CPU {
         self.register.get_p()
     }
 
-    pub fn mut_access_p(&mut self, data: bool) {
-        self.register.mut_access_p().set_break_mode(data);
-    }
-
-    pub fn set_pc(&mut self, data: u16) {
+    fn set_pc(&mut self, data: u16) {
         self.register.set_pc(data);
     }
 
@@ -541,15 +533,15 @@ impl CPU {
         self.register.get_pc()
     }
 
-    pub fn inc_pc(&mut self, data: u16) {
+    fn inc_pc(&mut self, data: u16) {
         self.register.inc_pc(data);
     }
 
-    pub fn dec_pc(&mut self, data: u16) {
+    fn dec_pc(&mut self, data: u16) {
         self.register.dec_pc(data);
     }
 
-    pub fn fetch_register(&mut self) -> u8 {
+    fn fetch_register(&mut self) -> u8 {
         self.bus.addr(self.get_pc())
     }
 
@@ -591,7 +583,7 @@ impl CPU {
         self.bus.addr(map)
     }
 
-    pub fn push_oam(&mut self) {
+    fn push_oam(&mut self) {
         let data = self.bus.addr(0x2004);
         self.bus.ppu.oam_buf.push(data);
         if self.bus.ppu.oam_buf.len() == 4 {
@@ -1383,7 +1375,7 @@ mod test {
     use std::io::Read;
 
     impl Nes {
-        pub fn new_for_test() -> Self {
+        fn new_for_test() -> Self {
             let mut f = File::open("roms/hello-world.nes").unwrap();
             let mut buffer = Vec::new();
             f.read_to_end(&mut buffer).unwrap();

@@ -25,7 +25,7 @@ pub struct Bus {
 impl Bus {
     pub fn new(nes: &Nes) -> Self {
         Self {
-            cpu_bus: CpuMap::new(),
+            cpu_bus: CpuMap::default(),
             ppu: PPU::new(nes),
             apu: APU::default(),
             controller_polling_data: 0,

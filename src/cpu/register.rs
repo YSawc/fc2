@@ -17,7 +17,7 @@ impl Default for Register {
 }
 
 impl Register {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             a: 0,
             x: 0,

@@ -5,7 +5,7 @@ use fc2::nes::*;
 use std::env;
 
 fn main() -> Result<(), String> {
-    let nes = Nes::new();
+    let nes = Nes::default();
     let mut emulator: Emulator = Emulator::new(&nes);
     emulator.cpu.init(&nes);
     emulator.startup();

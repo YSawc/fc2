@@ -6,8 +6,14 @@ pub struct TextureBuffer {
     colors: [[u8; 3]; 64],
 }
 
+impl Default for TextureBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextureBuffer {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let buffer: [u8; 184320] = [0; 184320];
 
         let colors = [

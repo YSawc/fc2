@@ -43,8 +43,7 @@ open ./target/criterion/report/index.html
 
 - Poor rendering performance will be improved when build.
 ``` rust
-cargo build --release
-./target/release/fc2 roms/nestest.nes
+cargo run --release roms/nestest.nes
 ```
 
 - F1: Save state. After saved, save file locates saves/[rom_name]_save.json.

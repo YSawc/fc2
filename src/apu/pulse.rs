@@ -18,7 +18,7 @@ impl Default for Sweep {
 }
 
 impl Sweep {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             dividers_count: 0,
             is_enable: false,
