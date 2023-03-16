@@ -3,22 +3,22 @@ use sdl2::audio::{AudioCallback, AudioDeviceLockGuard};
 
 #[derive(Debug, Clone)]
 pub struct Triangle {
-    pub timer: u16,
-    pub current_timer: u16,
-    pub frame_counter: u8,
-    pub clock_count: u16,
-    pub controll_flag: bool,
-    pub length_counter_halt_or_linear_counter_control: bool,
-    pub linear_counter_load: u8,
-    pub linear_counter: u8,
-    pub linear_phase: f32,
-    pub call_back_linear_phase_buf: Vec<f32>,
-    pub linear_inc_phase: bool,
-    pub call_back_phase_inc_buf: Vec<f32>,
-    pub length_counter_index: u8,
-    pub length_counter: u16,
-    pub current_phase_inc: f32,
-    pub is_loop_envelope_and_counter_halt: bool,
+    timer: u16,
+    current_timer: u16,
+    frame_counter: u8,
+    clock_count: u16,
+    controll_flag: bool,
+    length_counter_halt_or_linear_counter_control: bool,
+    linear_counter_load: u8,
+    linear_counter: u8,
+    linear_phase: f32,
+    call_back_linear_phase_buf: Vec<f32>,
+    linear_inc_phase: bool,
+    call_back_phase_inc_buf: Vec<f32>,
+    length_counter_index: u8,
+    length_counter: u16,
+    current_phase_inc: f32,
+    is_loop_envelope_and_counter_halt: bool,
 }
 
 impl Default for Triangle {
@@ -73,7 +73,7 @@ impl Triangle {
         }
     }
 
-    pub fn update_liner_phase(&mut self) {
+    fn update_liner_phase(&mut self) {
         match self.linear_inc_phase {
             true => {
                 if self.linear_phase < 16.0 {
@@ -92,7 +92,11 @@ impl Triangle {
         }
     }
 
-    pub fn update_linear_counter(&mut self) {
+    fn update_linear_counter(&mut self) {
+        if !self.controll_flag {
+            self.length_counter_halt_or_linear_counter_control = false;
+        }
+
         if self.length_counter_halt_or_linear_counter_control {
             self.linear_counter = self.linear_counter_load;
         }
@@ -103,7 +107,7 @@ impl Triangle {
         }
     }
 
-    pub fn update_length_counter(&mut self) {
+    fn update_length_counter(&mut self) {
         if self.length_counter > 0 {
             self.length_counter -= 1
         }
@@ -142,20 +146,22 @@ impl Triangle {
         }
     }
 
-    fn insert_callback(&mut self, lock: &mut AudioDeviceLockGuard<Triangle>) {
+    fn insert_callback(&mut self, lock: &mut AudioDeviceLockGuard<Self>) {
         (*lock).call_back_linear_phase_buf.push(self.linear_phase);
         (*lock).call_back_phase_inc_buf.push(self.current_phase_inc);
     }
 
     fn is_signal_enable(&self, is_enable: &bool) -> bool {
-        *is_enable && self.length_counter > 0 && self.current_timer >= 8
+        *is_enable
+            && (self.length_counter > 0 || self.is_loop_envelope_and_counter_halt)
+            && self.current_timer >= 8
     }
 
     pub fn update(
         &mut self,
         frame_counter: &mut FrameCounter,
         is_enable: &mut bool,
-        lock: &mut AudioDeviceLockGuard<Triangle>,
+        lock: &mut AudioDeviceLockGuard<Self>,
     ) {
         if self.is_signal_enable(&is_enable) {
             (*lock).clock_count += 1;
@@ -167,7 +173,6 @@ impl Triangle {
                     FrameMode::_5STEP => self.update_5step_frame(),
                 }
             }
-
             self.current_phase_inc =
                 (1789773.0 / ((32.0 * self.current_timer as f32) + 1.0)) / 44100 as f32;
         } else {
@@ -181,6 +186,7 @@ impl Triangle {
             0 => {
                 self.length_counter_halt_or_linear_counter_control = (data & 0b10000000) != 0;
                 self.linear_counter_load = data & 0b01111111;
+                self.controll_flag = (data & 0b10000000) != 0;
             }
             2 => {
                 self.timer &= 0x700;
@@ -195,7 +201,7 @@ impl Triangle {
                 self.length_counter = APU::LENGTH_COUNTER[self.length_counter_index as usize];
                 self.length_counter_halt_or_linear_counter_control = true;
             }
-            _ => unimplemented!(),
+            _ => unreachable!(),
         }
     }
 }

@@ -3,11 +3,11 @@ use sdl2::audio::{AudioCallback, AudioDeviceLockGuard};
 
 #[derive(Debug, Clone)]
 pub struct Sweep {
-    pub dividers_count: u8,
+    dividers_count: u8,
     is_enable: bool,
     dividers_period: u8,
     is_negative: bool,
-    pub shift_count: u8,
+    shift_count: u8,
     reload_flag: bool,
 }
 
@@ -72,27 +72,25 @@ impl Sweep {
 
 #[derive(Debug, Clone)]
 pub struct Pulse {
-    pub timer: u16,
-    pub current_timer: u16,
-    pub frame_counter: u8,
-    pub sweep: Sweep,
-    pub clock_count: u16,
-    pub length_counter_index: u8,
-    pub length_counter: u16,
-    pub current_volume: u8,
-    pub call_back_volume_buf: Vec<u8>,
-    pub envelope_and_liner_counter: u8,
-    pub envelope_divider: u8,
-    pub constant_volume_and_devider_period: u8,
-    pub phase: f32,
-    pub phase_inc: f32,
-    pub current_phase_inc: f32,
-    pub call_back_phase_inc_buf: Vec<f32>,
-    pub is_constant_volume: bool,
-    pub sequencer_count: u8,
-    pub duty: u8,
-    pub call_back_duty_buf: Vec<u8>,
-    pub is_loop_envelope_and_counter_halt: bool,
+    timer: u16,
+    current_timer: u16,
+    frame_counter: u8,
+    sweep: Sweep,
+    clock_count: u16,
+    length_counter_index: u8,
+    length_counter: u16,
+    current_volume: u8,
+    call_back_volume_buf: Vec<u8>,
+    envelope_divider: u8,
+    constant_volume_and_devider_period: u8,
+    phase: f32,
+    current_phase_inc: f32,
+    call_back_phase_inc_buf: Vec<f32>,
+    is_constant_volume: bool,
+    sequencer_count: u8,
+    duty: u8,
+    call_back_duty_buf: Vec<u8>,
+    is_loop_envelope_and_counter_halt: bool,
 }
 
 impl Default for Pulse {
@@ -127,21 +125,20 @@ impl AudioCallback for Pulse {
             };
             self.phase = (self.phase + self.call_back_phase_inc_buf[i]) % 1.0;
         }
-        self.call_back_volume_buf = [].to_vec();
-        self.call_back_phase_inc_buf = [].to_vec();
-        self.call_back_duty_buf = [].to_vec();
+        self.call_back_volume_buf = vec![];
+        self.call_back_phase_inc_buf = vec![];
+        self.call_back_duty_buf = vec![];
     }
 }
 
 impl Pulse {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             timer: 0,
             current_timer: 0,
             frame_counter: 0,
             sweep: Sweep::default(),
             clock_count: 0,
-            envelope_and_liner_counter: 0,
             envelope_divider: 15,
             call_back_volume_buf: [].to_vec(),
             current_volume: 0,
@@ -149,7 +146,6 @@ impl Pulse {
             length_counter: 0,
             constant_volume_and_devider_period: 0,
             phase: 0.0,
-            phase_inc: 0.0,
             current_phase_inc: 0.0,
             call_back_phase_inc_buf: [].to_vec(),
             is_constant_volume: false,
@@ -157,16 +153,6 @@ impl Pulse {
             duty: 0,
             call_back_duty_buf: [].to_vec(),
             is_loop_envelope_and_counter_halt: false,
-        }
-    }
-
-    pub fn get_duty(&self) -> f32 {
-        match self.duty {
-            0 => 0.875,
-            1 => 0.75,
-            2 => 0.50,
-            3 => 0.25,
-            _ => unreachable!(),
         }
     }
 
@@ -195,6 +181,14 @@ impl Pulse {
         }
     }
 
+    pub fn sweep_addr(&mut self) -> u8 {
+        self.sweep.addr()
+    }
+
+    pub fn sweep_set(&mut self, data: u8) {
+        self.sweep.set(data);
+    }
+
     pub fn set(&mut self, addr: u8, data: u8) {
         match addr {
             0 => {
@@ -220,7 +214,7 @@ impl Pulse {
         }
     }
 
-    pub fn get_volume(&self) -> u8 {
+    fn get_volume(&self) -> u8 {
         if self.is_constant_volume {
             self.constant_volume_and_devider_period
         } else {
@@ -228,7 +222,7 @@ impl Pulse {
         }
     }
 
-    pub fn update_envelop(&mut self) {
+    fn update_envelop(&mut self) {
         if self.envelope_divider > 0 {
             self.envelope_divider -= 1
         } else {
@@ -239,7 +233,7 @@ impl Pulse {
         }
     }
 
-    pub fn update_length_counter(&mut self) {
+    fn update_length_counter(&mut self) {
         if self.length_counter > 0 {
             self.length_counter -= 1;
         }
@@ -280,7 +274,7 @@ impl Pulse {
         }
     }
 
-    fn insert_callback(&mut self, lock: &mut AudioDeviceLockGuard<Pulse>) {
+    fn insert_callback(&mut self, lock: &mut AudioDeviceLockGuard<Self>) {
         (*lock).call_back_volume_buf.push(self.current_volume);
         (*lock).call_back_phase_inc_buf.push(self.current_phase_inc);
         (*lock).call_back_duty_buf.push(self.duty);
@@ -296,7 +290,7 @@ impl Pulse {
         &mut self,
         frame_counter: &mut FrameCounter,
         is_enable: &mut bool,
-        lock: &mut AudioDeviceLockGuard<Pulse>,
+        lock: &mut AudioDeviceLockGuard<Self>,
     ) {
         if self.is_signal_enable(&is_enable) {
             (*lock).clock_count += 1;
