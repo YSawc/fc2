@@ -1,6 +1,8 @@
+pub mod noise;
 pub mod pulse;
 pub mod triangle;
 
+use crate::apu::noise::Noise;
 use crate::apu::pulse::Pulse;
 use crate::apu::triangle::Triangle;
 
@@ -99,6 +101,7 @@ pub struct APU {
     pub pulse1: Pulse,
     pub pulse2: Pulse,
     pub triangle: Triangle,
+    pub noise: Noise,
     pub channel_controller: ChannelController,
     pub frame_counter: FrameCounter,
 }
@@ -119,6 +122,7 @@ impl APU {
         let pulse1 = Pulse::default();
         let pulse2 = Pulse::default();
         let triangle = Triangle::default();
+        let noise = Noise::default();
         let channel_controller = ChannelController::default();
         let frame_counter = FrameCounter::default();
 
@@ -126,6 +130,7 @@ impl APU {
             pulse1,
             pulse2,
             triangle,
+            noise,
             channel_controller,
             frame_counter,
         }

@@ -1,5 +1,6 @@
 pub mod configure;
 
+use crate::apu::noise::Noise;
 use crate::apu::pulse::Pulse;
 use crate::apu::triangle::Triangle;
 use crate::emulator::configure::*;
@@ -43,6 +44,7 @@ pub struct Emulator {
     pub audio_device_pulse1: AudioDevice<Pulse>,
     pub audio_device_pulse2: AudioDevice<Pulse>,
     pub audio_device_triangle: AudioDevice<Triangle>,
+    pub audio_device_noise: AudioDevice<Noise>,
 }
 
 impl Emulator {
@@ -87,9 +89,15 @@ impl Emulator {
         };
         let audio_device_triangle = default_triangle_audio(&mut desired_spec.clone()).unwrap();
 
+        let default_noise_audio = |desired_spec: &mut AudioSpecDesired| {
+            audio_subsystem.open_playback(None, desired_spec, |_spec| Noise::default())
+        };
+        let audio_device_noise = default_noise_audio(&mut desired_spec.clone()).unwrap();
+
         audio_device_pulse1.resume();
         audio_device_pulse2.resume();
         audio_device_triangle.resume();
+        audio_device_noise.resume();
 
         Self {
             cpu,
@@ -104,6 +112,7 @@ impl Emulator {
             audio_device_pulse1,
             audio_device_pulse2,
             audio_device_triangle,
+            audio_device_noise,
         }
     }
 
@@ -388,6 +397,14 @@ impl Emulator {
         );
     }
 
+    fn update_noise_audio_devices(&mut self) {
+        self.cpu.bus.apu.noise.update(
+            &mut self.cpu.bus.apu.frame_counter,
+            &mut self.cpu.bus.apu.channel_controller.enable_noise,
+            &mut self.audio_device_noise.lock(),
+        );
+    }
+
     fn apu_update(&mut self) {
         self.inc_apu_triangle_cycle();
         self.inc_apu_pulse_cycle();
@@ -399,6 +416,7 @@ impl Emulator {
         while self.apu_pulse_cycle >= APU_UPDATE_CYCLE {
             self.apu_pulse_cycle -= APU_UPDATE_CYCLE;
             self.update_pulse_audio_devices();
+            self.update_noise_audio_devices();
         }
     }
 

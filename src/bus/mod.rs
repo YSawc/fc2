@@ -55,11 +55,11 @@ impl Mapper for Bus {
                 self.cpu_bus.ppu_register.ppu_buffer.addr()
             }
             0x4000 => self.apu.pulse1.addr(0),
-            0x4001 => self.apu.pulse1.sweep.addr(),
+            0x4001 => self.apu.pulse1.addr(1),
             0x4002 => self.apu.pulse1.addr(2),
             0x4003 => self.apu.pulse1.addr(3),
             0x4004 => self.apu.pulse2.addr(0),
-            0x4005 => self.apu.pulse2.sweep.addr(),
+            0x4005 => self.apu.pulse2.sweep_addr(),
             0x4006 => self.apu.pulse2.addr(2),
             0x4007 => self.apu.pulse2.addr(3),
             0x4008..=0x4013 => 0,
@@ -88,24 +88,23 @@ impl Mapper for Bus {
                 self.ppu.map.set(addr, data);
             }
             0x4000 => self.apu.pulse1.set(0, data),
-            0x4001 => self.apu.pulse1.sweep.set(data),
+            0x4001 => self.apu.pulse1.sweep_set(data),
             0x4002 => self.apu.pulse1.set(2, data),
             0x4003 => self.apu.pulse1.set(3, data),
-            0x4004 => {
-                self.apu.pulse2.set(0, data);
-            }
-            0x4005 => self.apu.pulse2.sweep.set(data),
+            0x4004 => self.apu.pulse2.set(0, data),
+            0x4005 => self.apu.pulse2.sweep_set(data),
             0x4006 => self.apu.pulse2.set(2, data),
             0x4007 => self.apu.pulse2.set(3, data),
             0x4008 => self.apu.triangle.set(0, data),
-
-            0x4009 => {}
+            0x4009 => (),
             0x400A => self.apu.triangle.set(2, data),
             0x400B => self.apu.triangle.set(3, data),
-            0x400C..=0x4013 => {}
-            0x4015 => {
-                self.apu.channel_controller.set(data);
-            }
+            0x400C => self.apu.noise.set(0, data),
+            0x400D => (),
+            0x400E => self.apu.noise.set(2, data),
+            0x400F => self.apu.noise.set(3, data),
+            0x4010..=0x4013 => (),
+            0x4015 => self.apu.channel_controller.set(data),
             0x4016 => match data % 2 {
                 1 => {
                     let polling_data = self.controller_polling_data;
