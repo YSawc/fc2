@@ -15,11 +15,10 @@ pub trait Mapper {
 pub struct Bus {
     pub cpu_bus: CpuMap,
     pub ppu: PPU,
-    #[serde(skip)]
     pub apu: APU,
     pub controller_polling_data: u16,
-    pub controller_0_polled_data: u8,
-    pub controller_1_polled_data: u8,
+    controller_0_polled_data: u8,
+    controller_1_polled_data: u8,
 }
 
 impl Bus {

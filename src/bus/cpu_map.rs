@@ -4,12 +4,12 @@ use serde_with::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Controller {
-    pub d0: u8,
-    pub d1: u8,
-    pub d2: u8,
-    pub d3: u8,
-    pub d4: u8,
-    pub open_bus: [u8; 0x0003],
+    d0: u8,
+    d1: u8,
+    d2: u8,
+    d3: u8,
+    d4: u8,
+    open_bus: [u8; 0x0003],
 }
 
 impl Default for Controller {
@@ -36,7 +36,7 @@ pub struct InternalRegisters {
     pub current_vram: u16,
     pub temporary_vram: u16,
     pub x_scroll: u8,
-    pub latch_flag: bool,
+    latch_flag: bool,
 }
 
 impl Default for InternalRegisters {
@@ -46,7 +46,7 @@ impl Default for InternalRegisters {
 }
 
 impl InternalRegisters {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let current_vram = 0;
         let temporary_vram = 0;
         let x_scroll = 0;
@@ -60,7 +60,7 @@ impl InternalRegisters {
         }
     }
 
-    pub fn on_latch(&mut self) {
+    fn on_latch(&mut self) {
         self.latch_flag = true;
     }
 
@@ -68,18 +68,18 @@ impl InternalRegisters {
         self.latch_flag = false;
     }
 
-    pub fn toggle_latch(&mut self) {
+    fn toggle_latch(&mut self) {
         match self.latch_flag {
             true => self.off_latch(),
             false => self.on_latch(),
         }
     }
 
-    pub fn inc_vram_addr(&mut self, data: u16) {
+    fn inc_vram_addr(&mut self, data: u16) {
         self.current_vram += data;
     }
 
-    pub fn copy_current_vram_to_tempolary_vram(&mut self) {
+    fn copy_current_vram_to_tempolary_vram(&mut self) {
         self.current_vram = self.temporary_vram;
     }
 }

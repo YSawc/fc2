@@ -1,7 +1,8 @@
 use crate::apu::{FrameCounter, FrameMode, APU};
 use sdl2::audio::{AudioCallback, AudioDeviceLockGuard};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Noise {
     timer_count: u16,
     current_timer: u16,

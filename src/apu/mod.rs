@@ -5,8 +5,9 @@ pub mod triangle;
 use crate::apu::noise::Noise;
 use crate::apu::pulse::Pulse;
 use crate::apu::triangle::Triangle;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelController {
     pub enable_pulse1: bool,
     pub enable_pulse2: bool,
@@ -52,13 +53,13 @@ impl ChannelController {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FrameMode {
     _4STEP,
     _5STEP,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameCounter {
     pub mode: FrameMode,
     irq: bool,
@@ -96,7 +97,7 @@ impl FrameCounter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct APU {
     pub pulse1: Pulse,
     pub pulse2: Pulse,
