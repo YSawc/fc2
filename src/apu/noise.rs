@@ -3,6 +3,7 @@ use sdl2::audio::{AudioCallback, AudioDeviceLockGuard};
 
 #[derive(Debug, Clone)]
 pub struct Noise {
+    timer_count: u16,
     current_timer: u16,
     frame_counter: u8,
     clock_count: u16,
@@ -11,6 +12,7 @@ pub struct Noise {
     period: u8,
     is_loop_noise: bool,
     is_constant_volume: bool,
+    current_constant_volume: u8,
     is_loop_envelope_and_counter_halt: bool,
     volume: u8,
     length_counter_index: u8,
@@ -36,9 +38,9 @@ impl AudioCallback for Noise {
                 break;
             }
             *x = if self.current_phase_inc <= 0.5 {
-                self.call_back_volume_buf[i] as f32 * 0.003
+                self.call_back_volume_buf[i] as f32 * 0.001
             } else {
-                self.call_back_volume_buf[i] as f32 * (-0.003)
+                self.call_back_volume_buf[i] as f32 * (-0.001)
             };
             self.current_phase_inc =
                 (self.current_phase_inc + self.call_back_phase_inc_buf[i]) % 1.0;
@@ -55,6 +57,7 @@ impl Noise {
 
     fn new() -> Self {
         Self {
+            timer_count: 0,
             current_timer: 0,
             frame_counter: 0,
             clock_count: 0,
@@ -64,6 +67,7 @@ impl Noise {
             is_loop_noise: false,
             is_loop_envelope_and_counter_halt: false,
             is_constant_volume: false,
+            current_constant_volume: 0,
             volume: 0,
             length_counter_index: 0,
             length_counter: 0,
@@ -98,7 +102,13 @@ impl Noise {
         if self.is_constant_volume {
             self.volume
         } else {
-            0x0F
+            self.current_constant_volume
+        }
+    }
+
+    fn update_constant_volume(&mut self) {
+        if self.current_constant_volume > 0 {
+            self.current_constant_volume -= 1;
         }
     }
 
@@ -111,6 +121,7 @@ impl Noise {
                 self.constant_volume_and_devider_period -= 1;
             }
         }
+        self.update_constant_volume();
     }
 
     fn update_length_counter(&mut self) {
@@ -171,6 +182,9 @@ impl Noise {
     ) {
         if self.is_signal_enable(&is_enable) {
             (*lock).clock_count += 1;
+            if self.timer_count == 0 {
+                self.current_timer -= 1;
+            }
             if (*lock).clock_count >= 240 {
                 (*lock).clock_count -= 240;
                 self.frame_counter += 1;

@@ -372,7 +372,7 @@ impl Emulator {
     fn cpu_update(&mut self) {
         let now = Instant::now();
         self.cpu.ex_ope();
-        while now.elapsed().as_nanos() < 1055 {}
+        while now.elapsed().as_nanos() < 555 {}
     }
 
     fn update_triangle_audio_devices(&mut self) {

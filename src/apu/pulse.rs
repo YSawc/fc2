@@ -87,6 +87,7 @@ pub struct Pulse {
     current_phase_inc: f32,
     call_back_phase_inc_buf: Vec<f32>,
     is_constant_volume: bool,
+    current_constant_volume: u8,
     sequencer_count: u8,
     duty: u8,
     call_back_duty_buf: Vec<u8>,
@@ -149,6 +150,7 @@ impl Pulse {
             current_phase_inc: 0.0,
             call_back_phase_inc_buf: [].to_vec(),
             is_constant_volume: false,
+            current_constant_volume: 0,
             sequencer_count: 0,
             duty: 0,
             call_back_duty_buf: [].to_vec(),
@@ -195,6 +197,7 @@ impl Pulse {
                 self.duty = (data & 0b11000000) >> 6;
                 self.is_loop_envelope_and_counter_halt = (data & 0b00100000) != 0;
                 self.is_constant_volume = (data & 0b00010000) != 0;
+                self.current_constant_volume = 0xF;
                 self.constant_volume_and_devider_period = data & 0b00001111;
             }
             2 => {
@@ -218,7 +221,13 @@ impl Pulse {
         if self.is_constant_volume {
             self.constant_volume_and_devider_period
         } else {
-            0x0F
+            self.current_constant_volume
+        }
+    }
+
+    fn update_constant_volume(&mut self) {
+        if self.current_constant_volume > 0 {
+            self.current_constant_volume -= 1;
         }
     }
 
@@ -227,10 +236,12 @@ impl Pulse {
             self.envelope_divider -= 1
         } else {
             self.envelope_divider = 15;
+
             if self.constant_volume_and_devider_period > 0 {
                 self.constant_volume_and_devider_period -= 1;
             }
         }
+        self.update_constant_volume();
     }
 
     fn update_length_counter(&mut self) {
@@ -301,6 +312,7 @@ impl Pulse {
                     FrameMode::_4STEP => self.update_4step_frame(),
                     FrameMode::_5STEP => self.update_5step_frame(),
                 }
+
                 self.current_volume = self.get_volume();
                 self.current_phase_inc =
                     (1789773.0 / ((16.0 * self.current_timer as f32) + 1.0)) / 44100 as f32;
