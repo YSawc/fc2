@@ -399,20 +399,21 @@ impl CPU {
         self.total_cycle += data as i64;
     }
 
-    // MEMO: use for nestest.nes
+    #[cfg(feature = "nestest_without_gui")]
     pub fn reset(&mut self) {
         self.inc_cycle(7);
         self.register.set_pc(0 + (0xc0 << 8));
     }
 
-    // pub fn reset(&mut self) {
-    //     let l_data = self.bus.addr(0xFFFC);
-    //     let h_data = self.bus.addr(0xFFFD);
-    //     self.set_x(l_data);
-    //     self.set_y(h_data);
-    //     self.register
-    //         .set_pc(combine_high_low(self.get_x(), self.get_y()));
-    // }
+    #[cfg(not(feature = "nestest_without_gui"))]
+    pub fn reset(&mut self) {
+        let l_data = self.bus.addr(0xFFFC);
+        let h_data = self.bus.addr(0xFFFD);
+        self.set_x(l_data);
+        self.set_y(h_data);
+        self.register
+            .set_pc(combine_high_low(self.get_x(), self.get_y()));
+    }
 
     fn ex_plus(&mut self, l_data: u8, r_data: u8) -> u8 {
         if l_data.checked_add(r_data).is_none() {
@@ -1315,11 +1316,13 @@ impl CPU {
                 let reg_addr = self.ex_addr_mode(&addr_mode);
                 self.run_ope(reg_addr, ope_kind.clone(), addr_mode);
                 self.inc_cycle(cycle);
-                // println!(
-                //     "pc: {:04x?}, reg_addr: {:04x}",
-                //     self.register.get_pc(),
-                //     reg_addr,
-                // );
+                if cfg!(feature = "with_dump") {
+                    println!(
+                        "pc: {:04x?}, reg_addr: {:04x}",
+                        self.register.get_pc(),
+                        reg_addr,
+                    );
+                }
             }
             None => {
                 self.undef();
@@ -1334,26 +1337,28 @@ impl CPU {
 
     fn read_ope(&mut self) -> Option<&Operator> {
         let data = self.fetch_register();
-        // print!("{:04x} ", self.get_pc());
-        // print!(
-        //     "{:>02x} {:>02x} {:>02x} ",
-        //     data,
-        //     self.fetch_next_register(),
-        //     self.fetch_next_next_register(),
-        // );
-        // print!(
-        //     "{:4} {:4}  ",
-        //     format!("{:?}", self.operators.get_mut(&data).unwrap().ope_kind).to_uppercase(),
-        //     format!("{:?}", self.operators.get_mut(&data).unwrap().addr_mode).to_uppercase()
-        // );
-        // print!(
-        //     "A:{:>02x} X:{:>02x} Y:{:>02x} P:{:>02x} S:{:>02x} ",
-        //     self.get_a(),
-        //     self.get_x(),
-        //     self.get_y(),
-        //     self.get_p(),
-        //     self.get_s(),
-        // );
+        if cfg!(feature = "with_dump") {
+            print!("{:04x} ", self.get_pc());
+            print!(
+                "{:>02x} {:>02x} {:>02x} ",
+                data,
+                self.fetch_next_register(),
+                self.fetch_next_next_register(),
+            );
+            print!(
+                "{:4} {:4}  ",
+                format!("{:?}", self.operators.get_mut(&data).unwrap().ope_kind).to_uppercase(),
+                format!("{:?}", self.operators.get_mut(&data).unwrap().addr_mode).to_uppercase()
+            );
+            print!(
+                "A:{:>02x} X:{:>02x} Y:{:>02x} P:{:>02x} S:{:>02x} ",
+                self.get_a(),
+                self.get_x(),
+                self.get_y(),
+                self.get_p(),
+                self.get_s(),
+            );
+        }
 
         match self.operators.get_mut(&data) {
             Some(operator) => Some(operator),

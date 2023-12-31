@@ -18,6 +18,8 @@ criterion = "0.3"
 
 [features]
 render_sprites = []
+nestest_without_gui = []
+with_dump = []
 
 [[bench]]
 name = "bench_main"
