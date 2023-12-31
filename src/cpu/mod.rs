@@ -400,19 +400,19 @@ impl CPU {
     }
 
     // MEMO: use for nestest.nes
-    // pub fn reset(&mut self) {
-    //     self.inc_cycle(7);
-    //     self.register.set_pc(0 + (0xc0 << 8));
-    // }
-
     pub fn reset(&mut self) {
-        let l_data = self.bus.addr(0xFFFC);
-        let h_data = self.bus.addr(0xFFFD);
-        self.set_x(l_data);
-        self.set_y(h_data);
-        self.register
-            .set_pc(combine_high_low(self.get_x(), self.get_y()));
+        self.inc_cycle(7);
+        self.register.set_pc(0 + (0xc0 << 8));
     }
+
+    // pub fn reset(&mut self) {
+    //     let l_data = self.bus.addr(0xFFFC);
+    //     let h_data = self.bus.addr(0xFFFD);
+    //     self.set_x(l_data);
+    //     self.set_y(h_data);
+    //     self.register
+    //         .set_pc(combine_high_low(self.get_x(), self.get_y()));
+    // }
 
     fn ex_plus(&mut self, l_data: u8, r_data: u8) -> u8 {
         if l_data.checked_add(r_data).is_none() {
@@ -1227,7 +1227,7 @@ impl CPU {
     }
 
     fn kil(&self) {
-        panic!()
+        panic!("program killed by operation code.")
     }
 
     fn run_ope(&mut self, addr: u16, opekind: OpeKind, addr_mode: AddrMode) {
@@ -1313,9 +1313,13 @@ impl CPU {
                 let addr_mode = addr_mode.clone();
                 let cycle = cycle.clone();
                 let reg_addr = self.ex_addr_mode(&addr_mode);
-                self.run_ope(reg_addr, ope_kind, addr_mode);
+                self.run_ope(reg_addr, ope_kind.clone(), addr_mode);
                 self.inc_cycle(cycle);
-                // println!("pc: {:0x?}, reg_addr: {:0x?}", self.register.pc, reg_addr);
+                // println!(
+                //     "pc: {:04x?}, reg_addr: {:04x}",
+                //     self.register.get_pc(),
+                //     reg_addr,
+                // );
             }
             None => {
                 self.undef();
@@ -1330,7 +1334,7 @@ impl CPU {
 
     fn read_ope(&mut self) -> Option<&Operator> {
         let data = self.fetch_register();
-        // print!("\n{:0x?} ", self.get_pc());
+        // print!("{:04x} ", self.get_pc());
         // print!(
         //     "{:>02x} {:>02x} {:>02x} ",
         //     data,
@@ -1338,12 +1342,12 @@ impl CPU {
         //     self.fetch_next_next_register(),
         // );
         // print!(
-        //     "{} {}  ",
+        //     "{:4} {:4}  ",
         //     format!("{:?}", self.operators.get_mut(&data).unwrap().ope_kind).to_uppercase(),
         //     format!("{:?}", self.operators.get_mut(&data).unwrap().addr_mode).to_uppercase()
         // );
         // print!(
-        //     "A:{:>02x} X:{:>02x} Y:{:>02x} P:{:>02x} S:{:>02x}",
+        //     "A:{:>02x} X:{:>02x} Y:{:>02x} P:{:>02x} S:{:>02x} ",
         //     self.get_a(),
         //     self.get_x(),
         //     self.get_y(),
