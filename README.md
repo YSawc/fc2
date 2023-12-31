@@ -29,6 +29,11 @@ cargo run show_sprites roms/hello-world.nes
 cargo run roms/nestest.nes
 ```
 
+- Tests CPU operations and dump cpu info without gui rendering.
+```
+cargo run --features nestest_without_gui,with_dump roms/nestest.nes
+```
+
 Another roms locate roms directory.
 
 ## Benches

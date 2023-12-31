@@ -1318,9 +1318,10 @@ impl CPU {
                 self.inc_cycle(cycle);
                 if cfg!(feature = "with_dump") {
                     println!(
-                        "pc: {:04x?}, reg_addr: {:04x}",
+                        "pc: {:>4x?}, reg_addr: {:>4x}, cycle: {:>6}",
                         self.register.get_pc(),
                         reg_addr,
+                        self.total_cycle
                     );
                 }
             }
@@ -1338,9 +1339,9 @@ impl CPU {
     fn read_ope(&mut self) -> Option<&Operator> {
         let data = self.fetch_register();
         if cfg!(feature = "with_dump") {
-            print!("{:04x} ", self.get_pc());
+            print!("{:4x} ", self.get_pc());
             print!(
-                "{:>02x} {:>02x} {:>02x} ",
+                "{:>2x} {:>2x} {:>2x} ",
                 data,
                 self.fetch_next_register(),
                 self.fetch_next_next_register(),
@@ -1351,7 +1352,7 @@ impl CPU {
                 format!("{:?}", self.operators.get_mut(&data).unwrap().addr_mode).to_uppercase()
             );
             print!(
-                "A:{:>02x} X:{:>02x} Y:{:>02x} P:{:>02x} S:{:>02x} ",
+                "A:{:>2x} X:{:>2x} Y:{:>2x} P:{:>2x} S:{:>2x} ",
                 self.get_a(),
                 self.get_x(),
                 self.get_y(),
