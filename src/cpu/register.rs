@@ -131,7 +131,7 @@ impl P {
         self.set_interrupt((data & 0b00000100) != 0);
         self.set_decimal((data & 0b00001000) != 0);
         self.set_break_mode((data & 0b00010000) != 0);
-        self.set_reserved((data & 0b00010000) != 0);
+        self.set_reserved((data & 0b00100000) != 0);
         self.set_overflow((data & 0b01000000) != 0);
         self.set_negative((data & 0b10000000) != 0);
     }

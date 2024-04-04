@@ -1143,7 +1143,7 @@ impl CPU {
     }
     fn plp(&mut self) {
         let mut data = self.pull_stack();
-        data &= 0b11011111;
+        data &= 0b11101111;
         self.set_p(data);
     }
     fn jmp(&mut self, addr: u16) {
