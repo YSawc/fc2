@@ -437,6 +437,10 @@ impl CPU {
         self.register.mut_access_p().set_break_mode(data);
     }
 
+    fn get_break_mode(&self) -> bool {
+        self.register.access_p().get_break_mode()
+    }
+
     pub fn set_interrupt(&mut self, data: bool) {
         self.register.mut_access_p().set_interrupt(data);
     }
@@ -518,15 +522,20 @@ impl CPU {
         self.register.get_s()
     }
 
-    fn set_p(&mut self, data: u8) {
+    pub fn set_p(&mut self, data: u8) {
         self.register.set_p(data);
+    }
+
+    pub fn dec_p(&mut self, data: u8) {
+        let s = self.register.get_s().wrapping_sub(data);
+        self.register.set_s(s);
     }
 
     pub fn get_p(&self) -> u8 {
         self.register.get_p()
     }
 
-    fn set_pc(&mut self, data: u16) {
+    pub fn set_pc(&mut self, data: u16) {
         self.register.set_pc(data);
     }
 
@@ -536,10 +545,6 @@ impl CPU {
 
     fn inc_pc(&mut self, data: u16) {
         self.register.inc_pc(data);
-    }
-
-    fn dec_pc(&mut self, data: u16) {
-        self.register.dec_pc(data);
     }
 
     fn fetch_register(&mut self) -> u8 {
@@ -759,9 +764,17 @@ impl CPU {
 
     fn is_branch_enable(&self) -> bool {
         if self.get_interrupt() {
-            false
-        } else {
             true
+        } else {
+            false
+        }
+    }
+
+    fn is_break_enable(&self) -> bool {
+        if self.get_break_mode() {
+            true
+        } else {
+            false
         }
     }
 
@@ -1165,15 +1178,19 @@ impl CPU {
         self.set_pc(self.get_pc().wrapping_add(1));
     }
     fn brk(&mut self) {
+        if self.is_break_enable() {
+            self.kil();
+        }
+
         if self.is_branch_enable() {
-            self.dec_pc(1);
+            self.inc_pc(1);
             self.push_pc();
-            let p = self.get_p();
-            self.push_stack(p);
             self.set_break_mode(true);
             self.set_interrupt(true);
+            let p = self.get_p();
+            self.push_stack(p);
             let (h_data, l_data) = self.bus.cpu_bus.hl_addr(0xFFFE);
-            self.set_pc(combine_high_low(l_data, h_data));
+            self.set_pc(combine_high_low(h_data, l_data));
         }
     }
     fn rti(&mut self) {
@@ -1321,7 +1338,7 @@ impl CPU {
                         "pc: {:>4x?}, reg_addr: {:>4x}, cycle: {:>6}",
                         self.register.get_pc(),
                         reg_addr,
-                        self.total_cycle
+                        self.total_cycle,
                     );
                 }
             }

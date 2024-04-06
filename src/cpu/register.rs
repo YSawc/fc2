@@ -22,7 +22,7 @@ impl Register {
             a: 0,
             x: 0,
             y: 0,
-            s: u8::MAX,
+            s: 0,
             p: P::default(),
             pc: 0,
         }

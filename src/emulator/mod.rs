@@ -117,10 +117,8 @@ impl Emulator {
     }
 
     pub fn startup(&mut self) {
-        let pc = self.cpu.get_pc() as u8;
-        self.cpu.push_stack(pc);
-        let p = self.cpu.get_p();
-        self.cpu.push_stack(p);
+        self.cpu.set_pc(0xFFFC);
+        self.cpu.dec_p(3);
         self.cpu.reset();
     }
 
