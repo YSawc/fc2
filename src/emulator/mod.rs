@@ -55,8 +55,13 @@ impl Emulator {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
 
+        #[cfg(not(feature = "show_cpu_memory"))]
+        let window_width = WINDOW_WIDTH;
+        #[cfg(feature = "show_cpu_memory")]
+        let window_width = WINDOW_WIDTH * 2;
+
         let window = video_subsystem
-            .window("fc2", WINDOW_WIDTH, WINDOW_HEIGHT)
+            .window("fc2", window_width, WINDOW_HEIGHT)
             .position_centered()
             .build()
             .map_err(|e| e.to_string())
